@@ -39,8 +39,8 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 /usr/bin/*
-/usr/man/man1/*
-%doc REAMDE COPYING 
+/usr/share/man/man1/*
+%doc README COPYING 
 
 
 %changelog
