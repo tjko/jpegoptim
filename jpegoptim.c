@@ -318,7 +318,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoi",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
 	      == -1) 
       break;
 
