@@ -27,6 +27,7 @@ fi
 
 %build
 ./configure --prefix=/usr
+make
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -37,7 +38,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-/usr/*
+/usr/bin/*
+/usr/man/man1/*
 %doc REAMDE COPYING 
 
 

@@ -72,7 +72,7 @@ dist:	clean_all
 backup:	dist
 
 
-install: all  install.man
+install: all install.dirs install.man
 	$(INSTALL) -m 755 $(PKGNAME) $(INSTALL_ROOT)/$(bindir)/$(PKGNAME)
 
 printable.man:
@@ -81,6 +81,10 @@ printable.man:
 
 install.man:
 	$(INSTALL) -m 644 $(PKGNAME).1 $(INSTALL_ROOT)/$(mandir)/man1/$(PKGNAME).1
+
+install.dirs:
+	$(INSTALL) -d -m 755 $(INSTALL_ROOT)/$(mandir)/man1
+	$(INSTALL) -d -m 755 $(INSTALL_ROOT)/$(bindir)
 
 # a tradition !
 love:	
