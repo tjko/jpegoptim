@@ -258,6 +258,9 @@ void write_comment_markers(struct jpeg_decompress_struct *dinfo,
     if (mrk->marker == JPEG_COM) 
       jpeg_write_marker(cinfo,JPEG_COM,mrk->data,mrk->data_length);
 
+    if (mrk->marker == JPEG_APP0+13) 
+      jpeg_write_marker(cinfo,JPEG_APP0+13,mrk->data,mrk->data_length);
+     
     mrk=mrk->next;
   }
 }
@@ -434,6 +437,8 @@ int main(int argc, char **argv)
    global_error_counter=0;
    err_count=jderr.pub.num_warnings;
    if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
+   if (save_com) jpeg_save_markers(&dinfo, JPEG_APP0+13, 0xffff);
+
    jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
