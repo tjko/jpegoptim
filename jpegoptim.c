@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996,2002.
+ * Copyright (c) Timo Kokkonen, 1996,2002,2004.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
@@ -36,16 +36,18 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.2"
+#define VERSIO "1.2.3"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
 #define METHODDEF(x) static x
 #endif
 
-
 #define EXIF_JPEG_MARKER   JPEG_APP0+1
 #define EXIF_IDENT_STRING  "Exif\000\000"
+#define EXIF_IDENT_STRING_SIZE 6
+
+#define IPTC_JPEG_MARKER   JPEG_APP0+13
 
 
 void fatal(const char *msg);
@@ -77,6 +79,7 @@ struct option long_options[] = {
   {"strip-all",0,0,'s'},
   {"strip-com",0,0,'c'},
   {"strip-exif",0,0,'e'},
+  {"strip-iptc",0,0,'i'},
   {0,0,0,0}
 };
 
@@ -92,6 +95,7 @@ int retry = 0;
 int dest = 0;
 int force = 0;
 int save_exif = 1;
+int save_iptc = 1;
 int save_com = 1;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
@@ -99,6 +103,7 @@ FILE *infile = NULL, *outfile = NULL;
 JSAMPARRAY buf = NULL;
 jvirt_barray_ptr *coef_arrays = NULL;
 jpeg_saved_marker_ptr exif_marker = NULL;
+jpeg_saved_marker_ptr iptc_marker = NULL;
 long average_count = 0;
 double average_rate = 0.0, total_save = 0.0;
 
@@ -127,7 +132,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996,2002.\n"); 
+	  "  Copyright (c) Timo Kokkonen, 1996,2002,2004.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -149,6 +154,7 @@ void p_usage(void)
     "  --strip-all     strip all (Comment & Exif) markers from output file\n"
     "  --strip-com     strip Comment markers from output file\n"
     "  --strip-exif    strip Exif markers from output file\n"
+    "  --strip-iptc    strip IPTC markers from output file\n"
     "\n\n");
  }
 
@@ -246,8 +252,8 @@ void fatal(const char *msg)
   exit(3);
 }
 
-void write_comment_markers(struct jpeg_decompress_struct *dinfo,
-			   struct jpeg_compress_struct *cinfo)
+void write_markers(struct jpeg_decompress_struct *dinfo,
+		   struct jpeg_compress_struct *cinfo)
 {
   jpeg_saved_marker_ptr mrk;
 
@@ -255,11 +261,17 @@ void write_comment_markers(struct jpeg_decompress_struct *dinfo,
 
   mrk=dinfo->marker_list;
   while (mrk) {
-    if (mrk->marker == JPEG_COM) 
+    if (save_com && mrk->marker == JPEG_COM) 
       jpeg_write_marker(cinfo,JPEG_COM,mrk->data,mrk->data_length);
 
-    if (mrk->marker == JPEG_APP0+13) 
-      jpeg_write_marker(cinfo,JPEG_APP0+13,mrk->data,mrk->data_length);
+    if (save_iptc && mrk->marker == IPTC_JPEG_MARKER) 
+      jpeg_write_marker(cinfo,IPTC_JPEG_MARKER,mrk->data,mrk->data_length);
+
+    if (save_exif && mrk->marker == EXIF_JPEG_MARKER) {
+      if (!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) {
+	jpeg_write_marker(cinfo,EXIF_JPEG_MARKER,mrk->data,mrk->data_length);
+      }
+    }
      
     mrk=mrk->next;
   }
@@ -306,7 +318,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoi",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -366,6 +378,7 @@ int main(int argc, char **argv)
       break;
     case 's':
       save_exif=0;
+      save_iptc=0;
       save_com=0;
       break;
     case 'c':
@@ -373,6 +386,9 @@ int main(int argc, char **argv)
       break;
     case 'e':
       save_exif=0;
+      break;
+    case 'i':
+      save_iptc=0;
       break;
 
     default:
@@ -437,19 +453,23 @@ int main(int argc, char **argv)
    global_error_counter=0;
    err_count=jderr.pub.num_warnings;
    if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-   if (save_com) jpeg_save_markers(&dinfo, JPEG_APP0+13, 0xffff);
+   if (save_iptc) jpeg_save_markers(&dinfo, IPTC_JPEG_MARKER, 0xffff);
+   if (save_exif) jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
 
-   jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
 
-   /* check for Exif marker */
+   /* check for Exif/IPTC markers */
    exif_marker=NULL;
+   iptc_marker=NULL;
    cmarker=dinfo.marker_list;
    while (cmarker) {
-     /* printf("marker %x len=%d\n",cmarker->marker,cmarker->data_length); */
      if (cmarker->marker == EXIF_JPEG_MARKER) {
-       if (!memcmp(cmarker->data,EXIF_IDENT_STRING,6)) exif_marker=cmarker;
+       if (!memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
+	 exif_marker=cmarker;
+     }
+     if (cmarker->marker == IPTC_JPEG_MARKER) {
+       iptc_marker=cmarker;
      }
      cmarker=cmarker->next;
    }
@@ -459,7 +479,9 @@ int main(int argc, char **argv)
      printf("%dx%d %dbit ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8);
 
-     if (exif_marker) printf("Exif ");
+     if (exif_marker && iptc_marker) printf("Exif/IPTC ");
+     else if (exif_marker) printf("Exif ");
+     else if (iptc_marker) printf("IPTC ");
      else if (dinfo.saw_Adobe_marker) printf("Adobe ");
      else if (dinfo.saw_JFIF_marker) printf("JFIF ");
      else printf("Unknown ");
@@ -532,6 +554,8 @@ int main(int argc, char **argv)
    jpeg_stdio_dest(&cinfo, outfile);
 
    if (quality>=0 && !retry) {
+     /* lossy "optimization" ... */
+
      cinfo.in_color_space=dinfo.out_color_space;
      cinfo.input_components=dinfo.output_components;
      cinfo.image_width=dinfo.image_width;
@@ -544,10 +568,7 @@ int main(int argc, char **argv)
      jpeg_start_compress(&cinfo,TRUE);
      
      /* write markers */
-     if (save_exif && exif_marker) 
-       jpeg_write_marker(&cinfo, EXIF_JPEG_MARKER, 
-			 exif_marker->data, exif_marker->data_length);
-     if (save_com) write_comment_markers(&dinfo,&cinfo);
+     write_markers(&dinfo,&cinfo);
 
      while (cinfo.next_scanline < cinfo.image_height) {
        jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
@@ -557,16 +578,15 @@ int main(int argc, char **argv)
      for (j=0;j<dinfo.output_height;j++) free(buf[j]);
      free(buf); buf=NULL;
    } else {
+     /* lossless "optimization" ... */
+
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
      cinfo.optimize_coding = TRUE;
 
      jpeg_write_coefficients(&cinfo, coef_arrays);
 
      /* write markers */
-     if (save_exif && exif_marker) 
-       jpeg_write_marker(&cinfo, EXIF_JPEG_MARKER, 
-			 exif_marker->data, exif_marker->data_length);
-     if (save_com) write_comment_markers(&dinfo,&cinfo);
+     write_markers(&dinfo,&cinfo);
    }
 
 
