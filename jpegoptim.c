@@ -173,7 +173,7 @@ long file_size(FILE *fp)
 
   if (!fp) return -1;
   if (fstat(fileno(fp),&buf)) return -2;
-  return buf.st_size;
+  return (long)buf.st_size;
 }
 
 int is_directory(const char *path)
@@ -351,8 +351,8 @@ int main(int argc, char **argv)
     case '?':
       break;
     case 'V':
-      printf("jpeginfo v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996,2002.\n");
+      printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
+      printf("Copyright (c) Timo Kokkonen, 1996,2002,2004.\n");
       exit(0);
       break;
     case 'o':
