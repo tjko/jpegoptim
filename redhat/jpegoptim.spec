@@ -3,7 +3,7 @@ Name: jpegoptim
 Version: 1.2.0
 Release: 1
 License: GPL
-Group: 
+Group: Applications/Multimedia
 URL: http://www.iki.fi/tjko/projects.html
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
