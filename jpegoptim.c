@@ -31,22 +31,21 @@
 #include <string.h>
 #include <jpeglib.h>
 #include <setjmp.h>
+#include <time.h>
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.0"
+#define VERSIO "1.2.1"
 
-#define TEMPDIR "."
-#define TEMP2DIR "/tmp"
-
-#ifdef SGI
+#ifdef BROKEN_METHODDEF
 #undef METHODDEF
 #define METHODDEF(x) static x
 #endif
 
 #define LONG_OPTIONS
 
+void fatal(const char *msg);
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
@@ -112,56 +111,49 @@ my_output_message (j_common_ptr cinfo)
   char buffer[JMSG_LENGTH_MAX];
 
   (*cinfo->err->format_message) (cinfo, buffer); 
-  printf(" (%s) ",buffer);
+  if (verbose_mode) printf(" (%s) ",buffer);
   global_error_counter++;
 }
 
 
-void fatal(const char *msg)
-{
-  if (!msg) { msg="NULL"; }
-  fprintf(stderr,"jpegoptim: %s.\n",msg);
-  exit(3);
-}
-
 void p_usage(void) 
 {
  if (!quiet_mode) {
-  fprintf(stderr,"jpegoptim " VERSIO 
-	  " Copyright (c) Timo Kokkonen, 1996,2002.\n"); 
+  fprintf(stderr,"jpegoptim v" VERSIO 
+	  "  Copyright (c) Timo Kokkonen, 1996,2002.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
 #ifdef LONG_OPTIONS
-       "  -d<path>, --dest=<path>\n"
-       "                 specify alternative destination directory for \n"
-       "                 optimized files (default is to overwrite originals)\n"
-       "  -f, --force    force optimization\n"
-       "  -h, --help     display this help and exit\n"
-       "  -m[0..100], --max=[0..100] \n"
-       "                 set maximum image quality factor (disables lossless\n"
-       "                 optimization mode, which is by default on)\n"
-       "  -n, --noaction don't really optimize files, just print results\n"
-       "  -o,--overwrite overwrite target file even if it exists\n"
-       "  -p, --preserve preserve file timestamps\n"
-       "  -q, --quiet    quiet mode\n"
-       "  -t, --totals   print totals after processing all files\n"
-       "  -v, --verbose  enable verbose mode (positively chatty)\n"
-       "  -V, --version  print program version\n"
+    "  -d<path>, --dest=<path>\n"
+    "                  specify alternative destination directory for \n"
+    "                  optimized files (default is to overwrite originals)\n"
+    "  -f, --force     force optimization\n"
+    "  -h, --help      display this help and exit\n"
+    "  -m[0..100], --max=[0..100] \n"
+    "                  set maximum image quality factor (disables lossless\n"
+    "                  optimization mode, which is by default on)\n"
+    "  -n, --noaction  don't really optimize files, just print results\n"
+    "  -o, --overwrite overwrite target file even if it exists\n"
+    "  -p, --preserve  preserve file timestamps\n"
+    "  -q, --quiet     quiet mode\n"
+    "  -t, --totals    print totals after processing all files\n"
+    "  -v, --verbose   enable verbose mode (positively chatty)\n"
+    "  -V, --version   print program version\n"
 #else
-       "  -d<path>       specify alternative destination directory for \n"
-       "                 optimized files (default is to overwrite originals)\n"
-       "  -f             force optimization\n"
-       "  -h             display this help and exit\n"
-       "  -m[0..100]     set maximum image quality factor (disables lossless\n"
-       "                 optimization mode, which is by default on)\n"
-       "  -n             don't really optimize files, just print results\n"
-       "  -p             preserve file timestamps\n"
-       "  -o             overwrite target file even if it exists\n"
-       "  -q             quiet mode\n"
-       "  -t             print totals after processing all files\n"
-       "  -v             enable verbose mode (positively chatty)\n"
-       "  -V             print program version\n"
+    "  -d<path>        specify alternative destination directory for \n"
+    "                  optimized files (default is to overwrite originals)\n"
+    "  -f              force optimization\n"
+    "  -h              display this help and exit\n"
+    "  -m[0..100]      set maximum image quality factor (disables lossless\n"
+    "                  optimization mode, which is by default on)\n"
+    "  -n              don't really optimize files, just print results\n"
+    "  -p              preserve file timestamps\n"
+    "  -o              overwrite target file even if it exists\n"
+    "  -q              quiet mode\n"
+    "  -t              print totals after processing all files\n"
+    "  -v              enable verbose mode (positively chatty)\n"
+    "  -V              print program version\n"
 #endif
        "\n\n");
  }
@@ -173,27 +165,21 @@ int delete_file(char *name)
 {
   int retval;
 
-  if (!name) fatal("delete_file(NULL) called!");
-
-  if (verbose_mode&&!quiet_mode) fprintf(stderr,"deleting: %s\n",name);
-  if ((retval=unlink(name))&&!quiet_mode) {
+  if (!name) return -1;
+  if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
+  if ((retval=unlink(name)) && !quiet_mode) 
     fprintf(stderr,"jpegoptim: error removing file: %s\n",name);
-  }
 
   return retval;
 }
 
-int file_size(FILE *fp)
+long file_size(FILE *fp)
 {
-  long size=0,save=0;
+  struct stat buf;
 
-  if (!fp) return 0;
-  fgetpos(fp,(fpos_t*)&save);
-  fseek(fp,0L,SEEK_END);
-  fgetpos(fp,(fpos_t*)&size);
-  fseek(fp,save,SEEK_SET);
-  
-  return size;
+  if (!fp) return -1;
+  if (fstat(fileno(fp),&buf)) return -2;
+  return buf.st_size;
 }
 
 int is_directory(const char *path)
@@ -201,8 +187,7 @@ int is_directory(const char *path)
   DIR *dir;
 
   if (!path) return 0;
-  dir = opendir(path);
-  if (!dir) return 0;
+  if (!(dir = opendir(path))) return 0;
   closedir(dir);
   return 1;
 }
@@ -213,11 +198,7 @@ int is_dir(FILE *fp, time_t *atime, time_t *mtime)
  struct stat buf;
 
  if (!fp) return 0;
- if (fstat(fileno(fp),&buf)) {
-   /* fatal("fstat() failed"); */
-   exit(3);
- }
- 
+ if (fstat(fileno(fp),&buf)) return 0;
  if (atime) *atime=buf.st_atime;
  if (mtime) *mtime=buf.st_mtime;
  if (S_ISDIR(buf.st_mode)) return 1;
@@ -230,39 +211,62 @@ int file_exists(const char *pathname)
   FILE *file;
 
   if (!pathname) return 0;
-  file=fopen(pathname,"r");
-  if (!file) return 0;
+  if (!(file=fopen(pathname,"r"))) return 0;
   fclose(file);
   return 1;
 }
 
+
+char *splitdir(const char *pathname, char *buf, int buflen)
+{
+  char *s = NULL;
+  int size = 0;
+
+  if (!pathname || !buf || buflen < 2) return NULL;
+
+  if ((s = strrchr(pathname,'/'))) size = (s-pathname)+1;
+  if (size >= buflen) return NULL;
+  if (size > 0) memcpy(buf,pathname,size);
+  buf[size]=0;
+
+  return buf;
+}
+
+
 void own_signal_handler(int a)
 {
-  if (verbose_mode) printf("jpegoptim: signal: %d\n",a);
+  if (verbose_mode > 1) printf("jpegoptim: signal: %d\n",a);
   if (outfile) fclose(outfile);
   if (outfname) if (file_exists(outfname)) delete_file(outfname);
   exit(1);
 }
 
+
+void fatal(const char *msg)
+{
+  if (!msg) msg="(NULL)";
+  fprintf(stderr,"jpegoptim: %s.\n",msg);
+
+  if (outfile) fclose(outfile);
+  if (outfname) if (file_exists(outfname)) delete_file(outfname);
+  exit(3);
+}
+
+
 /*****************************************************************/
 int main(int argc, char **argv) 
 {
-  char name1[MAXPATHLEN],name2[MAXPATHLEN];
+  char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
   int c,j, err_count;
   int opt_index = 0;
   long insize,outsize;
   double ratio;
-  pid_t cur_pid = getpid();
-  uid_t cur_uid = getuid();
   struct utimbuf time_save;
 
-  if (rcsid);
-  sprintf(name1,TEMPDIR "/jpegoptim.%06x.%04x.tmp",
-	  (unsigned int)cur_pid, (unsigned int)cur_uid);
-  sprintf(name2,TEMP2DIR "/jpegoptim.%06x.%04x.tmp",
-	  (unsigned int)cur_pid, (unsigned int)cur_uid);
+
+  if (rcsid); /* so compiler won't complain about "unused" rcsid string */
 
   signal(SIGINT,own_signal_handler);
   signal(SIGTERM,own_signal_handler);
@@ -299,7 +303,7 @@ int main(int argc, char **argv)
     if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
 	      == -1) 
 #else
-    if ((c=getopt(argc,argv,"d:hm:ntqvfVp"o))==-1) 
+    if ((c=getopt(argc,argv,"d:hm:ntqvfVpo"o))==-1) 
 #endif
       break;
     switch (c) {
@@ -326,7 +330,7 @@ int main(int argc, char **argv)
       dest=1;
       break;
     case 'v':
-      verbose_mode=1;
+      verbose_mode++;
       break;
     case 'h':
       p_usage();
@@ -373,6 +377,26 @@ int main(int argc, char **argv)
   do {
    if (!argv[i][0]) continue;
    if (argv[i][0]=='-') continue;
+
+   if (!noaction) {
+     /* generate temp (& new) filename */
+     if (dest) {
+       strncpy(tmpdir,dest_path,sizeof(tmpdir));
+       strncpy(newname,dest_path,sizeof(newname));
+       if (tmpdir[strlen(tmpdir)-1] != '/') {
+	 strncat(tmpdir,"/",sizeof(tmpdir)-strlen(tmpdir));
+	 strncat(newname,"/",sizeof(newname)-strlen(newname));
+       }
+       strncat(newname,(char*)basename(argv[i]),
+	       sizeof(newname)-strlen(newname));
+     } else {
+       if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
+	 fatal("splitdir() failed!");
+       strncpy(newname,argv[i],sizeof(newname));
+     }
+     snprintf(tmpfilename,sizeof(tmpfilename),
+	      "%sjpegoptim-%d-%d.tmp", tmpdir, (int)getuid(), (int)getpid());
+   }
 
   retry_point:
    if ((infile=fopen(argv[i],"r"))==NULL) {
@@ -438,30 +462,26 @@ int main(int argc, char **argv)
      fflush(stdout);
    }
 
-   outfname=(noaction ? name2 : name1);
 
    if (dest && !noaction) {
-     strcpy(newname,dest_path);
-     strcat(newname,"/"); strcat(newname,(char*)basename(argv[i]));
      if (file_exists(newname) && !overwrite_mode) {
-       fprintf(stderr,"jpegoptim: target file already exists: %s\n",
-	       newname);
+       fprintf(stderr,"target file already exists!\n");
        jpeg_abort_decompress(&dinfo);
        fclose(infile);
        for (j=0;j<dinfo.output_height;j++) free(buf[j]);
        free(buf); buf=NULL;
-       outfname=NULL;
        continue;
      }
-     outfname=newname;
    }
 
-   if ((outfile=fopen(outfname,"w"))==NULL) {
-     if (!quiet_mode) fprintf(stderr,"\njpegoptim: error creating "
-			      "file: %s\n", outfname);
-     exit(1);
+   if (noaction) {
+     outfname=NULL;
+     if ((outfile=tmpfile())==NULL) fatal("error opening temp file");
+   } else {
+     outfname=tmpfilename;
+     if ((outfile=fopen(outfname,"w"))==NULL) 
+       fatal("error opening target file");
    }
-
 
    if (setjmp(jcerr.setjmp_buffer)) {
       jpeg_abort_compress(&cinfo);
@@ -511,7 +531,7 @@ int main(int argc, char **argv)
    outsize=file_size(outfile);
    fclose(outfile);
 
-   if (preserve_mode) {
+   if (preserve_mode && !noaction) {
      if (utime(outfname,&time_save) != 0) {
        fprintf(stderr,"jpegoptim: failed to reset output file time/date\n");
      }
@@ -532,15 +552,10 @@ int main(int argc, char **argv)
    if (outsize<insize || force) {
         total_save+=(insize-outsize)/1024.0;
 	printf("optimized.\n");
-        if (noaction || dest) { continue; }
-	if (!delete_file(argv[i])) {
-		if (verbose_mode&&!quiet_mode) 
-		  fprintf(stderr,"renaming: %s to %s\n",outfname,argv[i]);
-		if (rename(outfname,argv[i])) {
-		  fatal("cannot rename temp file");
-		}
-	}
-	
+        if (noaction) continue;
+	if (verbose_mode > 1 && !quiet_mode) 
+	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
+	if (rename(outfname,newname)) fatal("cannot rename temp file");
    } else {
 	printf("skipped.\n");
 	if (!noaction) delete_file(outfname);
@@ -549,12 +564,13 @@ int main(int argc, char **argv)
 
   } while (++i<argc);
 
-  if (noaction && file_exists(outfname)) delete_file(outfname);
+
   if (totals_mode&&!quiet_mode)
     printf("Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
 	   average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
+
   return 0;
 }
 

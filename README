@@ -1,5 +1,5 @@
 
-Jpegoptim v1.2.0  Copyright (c)  Timo Kokkonen, 1996,2002.
+Jpegoptim v1.2.1  Copyright (c)  Timo Kokkonen, 1996,2002.
 
 
 REQUIREMENTS
@@ -9,8 +9,7 @@ REQUIREMENTS
 TESTED PLATFORMS
 	Linux
 	Solaris 
-        SGI (IRIX 5.3)
-	HP-UX
+
 
 INSTALLATION
 	Installation should be very straightforward, just unpack the
@@ -19,13 +18,14 @@ INSTALLATION
 
 		zcat jpegoptim-1.2.0.tar.gz | tar xf -
 		cd jpegoptim-1.2.0
+		./configure
 		make
 		make strip
 		make install
 
 
-
 HISTORY
+	v1.2.1 - fixed buggy temp file handling
 	v1.2.0 - Added new options --overwrite and --preserve.
 		 GNU autoconf support added, also.
 	v1.1   - new -f option, and other minor changes, improved
@@ -43,5 +43,5 @@ LATEST VERSION
 
 
 Timo <tjko@iki.fi>
-07-Dec-2002
+08-Dec-2002
 
