@@ -57,7 +57,7 @@ struct jpeg_decompress_struct dinfo;
 struct jpeg_compress_struct cinfo;
 struct my_error_mgr jcerr,jderr;
 
-const char *rcsid = "$Id:";
+const char *rcsid = "$Id$";
 
 #ifdef LONG_OPTIONS
 struct option long_options[] = {
