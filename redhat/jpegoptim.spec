@@ -1,4 +1,4 @@
-Summary: Utility for optimizin/compressing JPEG files.
+Summary: Utility for optimizing/compressing JPEG files.
 Name: jpegoptim
 Version: 1.2.0
 Release: 1
