@@ -5,7 +5,7 @@
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
  *
- * to compile type: gcc -o jpegoptim jpegoptim.c -ljpeg
+ * $Id$
  */
 
 #include "config.h"
@@ -18,6 +18,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <utime.h>
 #include <dirent.h>
 #if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
@@ -56,6 +57,8 @@ struct jpeg_decompress_struct dinfo;
 struct jpeg_compress_struct cinfo;
 struct my_error_mgr jcerr,jderr;
 
+const char *rcsid = "$Id:";
+
 #ifdef LONG_OPTIONS
 struct option long_options[] = {
   {"verbose",0,0,'v'},
@@ -77,8 +80,19 @@ int quiet_mode = 0;
 int global_error_counter = 0;
 int preserve_mode = 0;
 int overwrite_mode = 0;
+int totals_mode = 0;
+int noaction = 0;
+int quality = -1;
+int retry = 0;
+int dest = 0;
+int force = 0;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
+
+JSAMPARRAY buf = NULL;
+jvirt_barray_ptr *coef_arrays = NULL;
+long average_count = 0;
+double average_rate = 0.0, total_save = 0.0;
 
 /*****************************************************************/
 
@@ -157,10 +171,7 @@ int delete_file(char *name)
 {
   int retval;
 
-  if (!name) { 
-    fprintf(stderr,"jpegoptim: delete_file(NULL) called!\n");
-    return -1; 
-  }
+  if (!name) fatal("delete_file(NULL) called!");
 
   if (verbose_mode&&!quiet_mode) fprintf(stderr,"deleting: %s\n",name);
   if ((retval=unlink(name))&&!quiet_mode) {
@@ -195,16 +206,18 @@ int is_directory(const char *path)
 }
 
 
-int is_dir(FILE *fp)
+int is_dir(FILE *fp, time_t *atime, time_t *mtime)
 {
  struct stat buf;
 
  if (!fp) return 0;
  if (fstat(fileno(fp),&buf)) {
-   fprintf(stderr,"jpeginfo: fstat() failed.\n");
+   /* fatal("fstat() failed"); */
    exit(3);
  }
  
+ if (atime) *atime=buf.st_atime;
+ if (mtime) *mtime=buf.st_mtime;
  if (S_ISDIR(buf.st_mode)) return 1;
  return 0;
 }
@@ -232,25 +245,22 @@ void own_signal_handler(int a)
 /*****************************************************************/
 int main(int argc, char **argv) 
 {
-  JSAMPARRAY buf = NULL;
   char name1[MAXPATHLEN],name2[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
-  jvirt_barray_ptr *coef_arrays = NULL;
-  int c,i,j, err_count;
-  int totals_mode = 0;
+  volatile int i;
+  int c,j, err_count;
   int opt_index = 0;
-  int quality = -1;
-  int noaction = 0;
-  int retry = 0;
-  int dest = 0;
-  int force = 0;
-  long insize,outsize,average_count=0;
-  double ratio,average_rate = 0.0,total_save=0.0;
+  long insize,outsize;
+  double ratio;
   pid_t cur_pid = getpid();
   uid_t cur_uid = getuid();
+  struct utimbuf time_save;
 
-  sprintf(name1,TEMPDIR "/jpegoptim.%06x.%04x.tmp",cur_pid,cur_uid);
-  sprintf(name2,TEMP2DIR "/jpegoptim.%06x.%04x.tmp",cur_pid,cur_uid);
+  if (rcsid);
+  sprintf(name1,TEMPDIR "/jpegoptim.%06x.%04x.tmp",
+	  (unsigned int)cur_pid, (unsigned int)cur_uid);
+  sprintf(name2,TEMP2DIR "/jpegoptim.%06x.%04x.tmp",
+	  (unsigned int)cur_pid, (unsigned int)cur_uid);
 
   signal(SIGINT,own_signal_handler);
   signal(SIGTERM,own_signal_handler);
@@ -367,7 +377,7 @@ int main(int argc, char **argv)
      if (!quiet_mode) fprintf(stderr, "jpegoptim: can't open %s\n", argv[i]);
      continue;
    }
-   if (is_dir(infile)) {
+   if (is_dir(infile,&time_save.actime,&time_save.modtime)) {
      fclose(infile);
      if (verbose_mode) printf("directory: %s  skipped\n",argv[i]); 
      continue;
@@ -499,6 +509,12 @@ int main(int argc, char **argv)
    outsize=file_size(outfile);
    fclose(outfile);
 
+   if (preserve_mode) {
+     if (utime(outfname,&time_save) != 0) {
+       fprintf(stderr,"jpegoptim: failed to reset output file time/date\n");
+     }
+   }
+
    if (quality>=0 && outsize>=insize && !retry) {
      if (verbose_mode) printf("(retry w/lossless) ");
      retry=1;
@@ -517,7 +533,7 @@ int main(int argc, char **argv)
         if (noaction || dest) { continue; }
 	if (!delete_file(argv[i])) {
 		if (verbose_mode&&!quiet_mode) 
-		  fprintf(stderr,"Renaming: %s to %s\n",outfname,argv[i]);
+		  fprintf(stderr,"renaming: %s to %s\n",outfname,argv[i]);
 		if (rename(outfname,argv[i])) {
 		  fatal("cannot rename temp file");
 		}

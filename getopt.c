@@ -483,7 +483,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
       const struct option *pfound = NULL;
       int exact = 0;
       int ambig = 0;
-      int indfound;
+      int indfound = 0;
       int option_index;
 
       for (nameend = nextchar; *nameend && *nameend != '='; nameend++)
