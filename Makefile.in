@@ -3,7 +3,7 @@
 # 
 # Makefile for jpegoptim
 #
-Version = 1.2
+Version = 1.2.0
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
@@ -73,14 +73,14 @@ backup:	dist
 
 
 install: all  install.man
-	$(INSTALL) -m 755 $(PKGNAME) $(bindir)/$(PKGNAME)
+	$(INSTALL) -m 755 $(PKGNAME) $(INSTALL_ROOT)/$(bindir)/$(PKGNAME)
 
 printable.man:
 	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
 	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
 
 install.man:
-	$(INSTALL) -m 644 $(PKGNAME).1 $(mandir)/man1/$(PKGNAME).1
+	$(INSTALL) -m 644 $(PKGNAME).1 $(INSTALL_ROOT)/$(mandir)/man1/$(PKGNAME).1
 
 # a tradition !
 love:	
