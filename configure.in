@@ -1,0 +1,85 @@
+dnl $Id$
+dnl 
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(jpegoptim.c)
+AC_CONFIG_HEADER(config.h)
+AC_CONFIG_AUX_DIR(aux)
+
+
+AC_CANONICAL_HOST
+HOST_TYPE=$host
+AC_DEFINE_UNQUOTED(HOST_TYPE,"$host")
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+
+
+AC_ARG_WITH(libjpeg, [  --with-libjpeg=DIR	  libjpeg is installed in ],
+	[if test $withval != yes; then
+	   	jpeginfo_cv_libjpeg=$withval
+	fi
+	if test -d "${jpeginfo_cv_libjpeg}/lib"; then
+		LDFLAGS="-L${jpeginfo_cv_libjpeg}/lib $LDFLAGS"
+		CPPFLAGS="$CPPFLAGS -I${jpeginfo_cv_libjpeg}/include"	
+	else
+		LDFLAGS="-L${jpeginfo_cv_libjpeg} $LDFLAGS"
+		CPPFLAGS="$CPPFLAGS -I${jpeginfo_cv_libjpeg}"	
+	fi])
+	
+
+dnl Checks for libraries.
+
+AC_CHECK_LIB(jpeg, jpeg_read_header, ,[
+echo "Cannot find libjpeg or you have too old version (v6 or later required)."
+exit 1
+])
+
+
+dnl Checks for header files.
+
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h getopt.h string.h libgen.h)
+AC_CHECK_HEADERS(jpeglib.h,,[
+echo "Cannot find jpeglib.h  You need libjpeg v6 (or later)."
+exit 1
+])
+
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(int)
+
+
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(getopt_long, break, [GNUGETOPT="getopt.o getopt1.o"])
+AC_SUBST(GNUGETOPT)
+
+
+dnl own tests
+
+AC_MSG_CHECKING([for broken jmorecfg.h (METHODDEF)])
+AC_CACHE_VAL(jpeginfo_cv_broken_methoddef,
+[AC_TRY_RUN([
+#include <stdio.h>
+#include <jpeglib.h>
+METHODDEF(void) foo(void) { };
+int main(void)
+{
+  return 0;
+}],
+jpeginfo_cv_broken_methoddef=no,
+jpeginfo_cv_broken_methoddef=yes,
+jpeginfo_cv_broken_methoddef=no)])
+if test $jpeginfo_cv_broken_methoddef = yes; then
+  AC_DEFINE(BROKEN_METHODDEF)
+fi
+AC_MSG_RESULT($jpeginfo_cv_broken_methoddef)
+
+
+AC_OUTPUT(Makefile)
+
+

@@ -1,0 +1,39 @@
+/* config.h.in. 
+ * $Id$
+ *
+ */
+
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* The number of bytes in a int.  */
+#undef SIZEOF_INT
+
+/* The number of bytes in a long.  */
+#undef SIZEOF_LONG
+
+/* Define if you have the getopt_long function.  */
+#undef HAVE_GETOPT_LONG
+
+/* Define if you have the <getopt.h> header file.  */
+#undef HAVE_GETOPT_H
+
+/* Define if you have the <string.h> header file.  */
+#undef HAVE_STRING_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the <libgen.h> header file.  */
+#undef HAVE_LIBGEN_H
+
+/* Define if you have the jpeg library (-ljpeg).  */
+#undef HAVE_LIBJPEG
+
+
+
+/* Define if you have broken jmorecfg.h (SGI's usually have this problem) */
+#undef BROKEN_METHODDEF
+
+#undef HOST_TYPE

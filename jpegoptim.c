@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996.
+ * Copyright (c) Timo Kokkonen, 1996,2002.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
@@ -8,25 +8,31 @@
  * to compile type: gcc -o jpegoptim jpegoptim.c -ljpeg
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <dirent.h>
-#ifndef HPUX
+#if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
+#else
+#include "getopt.h"
 #endif
 #include <signal.h>
 #include <string.h>
 #include <jpeglib.h>
 #include <setjmp.h>
-#ifdef SGI
+#ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.1"
+#define VERSIO "1.2.0"
 
 #define TEMPDIR "."
 #define TEMP2DIR "/tmp"
@@ -35,6 +41,8 @@
 #undef METHODDEF
 #define METHODDEF(x) static x
 #endif
+
+#define LONG_OPTIONS
 
 
 struct my_error_mgr {
@@ -58,6 +66,8 @@ struct option long_options[] = {
   {"noaction",0,0,'n'},
   {"dest",1,0,'d'},
   {"force",0,0,'f'},
+  {"version",0,0,'V'},
+  {"preserve",0,0,'p'},
   {0,0,0,0}
 };
 #endif
@@ -65,6 +75,7 @@ struct option long_options[] = {
 int verbose_mode = 0;
 int quiet_mode = 0;
 int global_error_counter = 0;
+int preserve_mode = 0;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
 
@@ -99,7 +110,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim " VERSIO 
-	  " Copyright (c) Timo Kokkonen, 1996.\n"); 
+	  " Copyright (c) Timo Kokkonen, 1996,2002.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -113,9 +124,11 @@ void p_usage(void)
        "                 set maximum image quality factor (disables lossless\n"
        "                 optimization mode, which is by default on)\n"
        "  -n, --noaction don't really optimize files, just print results\n"
+       "  -p, --preserve preserve file timestamps\n"
        "  -q, --quiet    quiet mode\n"
        "  -t, --totals   print totals after processing all files\n"
        "  -v, --verbose  enable verbose mode (positively chatty)\n"
+       "  -V, --version  print program version\n"
 #else
        "  -d<path>       specify alternative destination directory for \n"
        "                 optimized files (default is to overwrite originals)\n"
@@ -124,9 +137,11 @@ void p_usage(void)
        "  -m[0..100]     set maximum image quality factor (disables lossless\n"
        "                 optimization mode, which is by default on)\n"
        "  -n             don't really optimize files, just print results\n"
+       "  -p             preserve file timestamps\n"
        "  -q             quiet mode\n"
        "  -t             print totals after processing all files\n"
        "  -v             enable verbose mode (positively chatty)\n"
+       "  -V             print program version\n"
 #endif
        "\n\n");
  }
@@ -137,6 +152,11 @@ void p_usage(void)
 int delete_file(char *name)
 {
   int retval;
+
+  if (!name) { 
+    fprintf(stderr,"jpegoptim: delete_file(NULL) called!\n");
+    return -1; 
+  }
 
   if (verbose_mode&&!quiet_mode) fprintf(stderr,"deleting: %s\n",name);
   if ((retval=unlink(name))&&!quiet_mode) {
@@ -149,10 +169,11 @@ int delete_file(char *name)
 int file_size(FILE *fp)
 {
   long size=0,save=0;
-  
-  fgetpos(fp,&save);
+
+  if (!fp) return 0;
+  fgetpos(fp,(fpos_t*)&save);
   fseek(fp,0L,SEEK_END);
-  fgetpos(fp,&size);
+  fgetpos(fp,(fpos_t*)&size);
   fseek(fp,save,SEEK_SET);
   
   return size;
@@ -160,11 +181,11 @@ int file_size(FILE *fp)
 
 int is_directory(const char *path)
 {
-  DIR *dir = opendir(path);
-  
-  if (!dir) {
-    return 0;
-  }
+  DIR *dir;
+
+  if (!path) return 0;
+  dir = opendir(path);
+  if (!dir) return 0;
   closedir(dir);
   return 1;
 }
@@ -173,21 +194,24 @@ int is_directory(const char *path)
 int is_dir(FILE *fp)
 {
  struct stat buf;
+
+ if (!fp) return 0;
  if (fstat(fileno(fp),&buf)) {
    fprintf(stderr,"jpeginfo: fstat() failed.\n");
    exit(3);
  }
  
  if (S_ISDIR(buf.st_mode)) return 1;
-
  return 0;
 }
 
 
 int file_exists(const char *pathname)
 {
-  FILE *file=fopen(pathname,"r");
-  
+  FILE *file;
+
+  if (!pathname) return 0;
+  file=fopen(pathname,"r");
   if (!file) return 0;
   fclose(file);
   return 1;
@@ -207,8 +231,8 @@ int main(int argc, char **argv)
   JSAMPARRAY buf = NULL;
   char name1[MAXPATHLEN],name2[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
-  jvirt_barray_ptr *coef_arrays;
-  int c,i,j,lines_read, err_count;
+  jvirt_barray_ptr *coef_arrays = NULL;
+  int c,i,j, err_count;
   int totals_mode = 0;
   int opt_index = 0;
   int quality = -1;
@@ -256,9 +280,9 @@ int main(int argc, char **argv)
   while(1) {
     opt_index=0;
 #ifdef LONG_OPTIONS
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvf",long_options,&opt_index))==-1) 
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVp",long_options,&opt_index))==-1) 
 #else
-    if ((c=getopt(argc,argv,"d:hm:ntqvf"))==-1) 
+    if ((c=getopt(argc,argv,"d:hm:ntqvfVp"))==-1) 
 #endif
       break;
     switch (c) {
@@ -305,6 +329,14 @@ int main(int argc, char **argv)
       force=1;
       break;
     case '?':
+      break;
+    case 'V':
+      printf("jpeginfo v%s  %s\n",VERSIO,HOST_TYPE);
+      printf("Copyright (c) Timo Kokkonen, 1996,2002.\n");
+      exit(0);
+      break;
+    case 'p':
+      preserve_mode=1;
       break;
 
     default:
@@ -469,7 +501,7 @@ int main(int argc, char **argv)
 
    retry=0;
    ratio=(insize-outsize)*100.0/insize;
-   printf("%d --> %d bytes (%0.2lf%%), ",insize,outsize,ratio);
+   printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
@@ -496,7 +528,7 @@ int main(int argc, char **argv)
 
   if (noaction && file_exists(outfname)) delete_file(outfname);
   if (totals_mode&&!quiet_mode)
-    printf("Average ""compression"" (%ld files): %0.2lf%% (%0.0lfk)\n",
+    printf("Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
 	   average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);

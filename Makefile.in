@@ -1,0 +1,89 @@
+#########################################################################
+# $Id$ 
+# 
+# Makefile for jpegoptim
+#
+Version = 1.2
+PKGNAME = jpegoptim
+
+SHELL = /bin/sh
+
+DEFS = @DEFS@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# Where to install the executables.
+bindir = $(exec_prefix)/bin
+
+# Where to put libraries
+libdir = $(prefix)/lib
+
+# Where to put the Info files
+infodir = $(prefix)/info
+
+# Where to put the manual pages.
+mandir = $(prefix)/man
+
+
+
+CC        = @CC@ 
+XCPPFLAGS = @CPPFLAGS@
+CFLAGS    = @CFLAGS@ -Wall $(XCPPFLAGS) $(DEFS)
+LDFLAGS   = @LDFLAGS@
+LIBS      = @LIBS@
+STRIP     = strip
+
+
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+@SET_MAKE@
+
+# should be no reason to modify lines below this
+#########################################################################
+
+DIRNAME = $(shell basename `pwd`) 
+DISTNAME  = $(PKGNAME)-$(Version)
+
+OBJS = $(PKGNAME).o @GNUGETOPT@
+
+$(PKGNAME):	$(OBJS) 
+	$(CC) $(CFLAGS) -o $(PKGNAME) $(OBJS) $(LDFLAGS) $(LIBS) 
+
+all:	$(PKGNAME) 
+
+strip:
+	for i in $(PKGNAME) ; do [ -x $$i ] && $(STRIP) $$i ; done
+
+clean:
+	rm -f *~ *.o core a.out make.log \#*\# $(PKGNAME) $(OBJS)
+
+clean_all: clean
+	rm -f Makefile config.h config.log config.cache config.status
+
+dist:	clean_all
+	(cd .. ; tar cvzf $(DISTNAME).tar.gz $(DIRNAME))
+
+backup:	dist
+
+
+install: all  install.man
+	$(INSTALL) -m 755 $(PKGNAME) $(bindir)/$(PKGNAME)
+
+printable.man:
+	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
+	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
+
+install.man:
+	$(INSTALL) -m 644 $(PKGNAME).1 $(mandir)/man1/$(PKGNAME).1
+
+# a tradition !
+love:	
+	@echo "Not War - Eh?"
+# eof
+
