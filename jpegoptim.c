@@ -76,6 +76,7 @@ int verbose_mode = 0;
 int quiet_mode = 0;
 int global_error_counter = 0;
 int preserve_mode = 0;
+int overwrite_mode = 0;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
 
@@ -95,14 +96,15 @@ my_output_message (j_common_ptr cinfo)
   char buffer[JMSG_LENGTH_MAX];
 
   (*cinfo->err->format_message) (cinfo, buffer); 
-  printf(" %s ",buffer);
+  printf(" (%s) ",buffer);
   global_error_counter++;
 }
 
 
-void no_memory(void)
+void fatal(const char *msg)
 {
-  if (!quiet_mode) fprintf(stderr,"jpegoptim: not enough memory.\n");
+  if (!msg) { msg="NULL"; }
+  fprintf(stderr,"jpegoptim: %s.\n",msg);
   exit(3);
 }
 
@@ -124,6 +126,7 @@ void p_usage(void)
        "                 set maximum image quality factor (disables lossless\n"
        "                 optimization mode, which is by default on)\n"
        "  -n, --noaction don't really optimize files, just print results\n"
+       "  -o,--overwrite overwrite target file even if it exists\n"
        "  -p, --preserve preserve file timestamps\n"
        "  -q, --quiet    quiet mode\n"
        "  -t, --totals   print totals after processing all files\n"
@@ -138,6 +141,7 @@ void p_usage(void)
        "                 optimization mode, which is by default on)\n"
        "  -n             don't really optimize files, just print results\n"
        "  -p             preserve file timestamps\n"
+       "  -o             overwrite target file even if it exists\n"
        "  -q             quiet mode\n"
        "  -t             print totals after processing all files\n"
        "  -v             enable verbose mode (positively chatty)\n"
@@ -280,9 +284,10 @@ int main(int argc, char **argv)
   while(1) {
     opt_index=0;
 #ifdef LONG_OPTIONS
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVp",long_options,&opt_index))==-1) 
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
+	      == -1) 
 #else
-    if ((c=getopt(argc,argv,"d:hm:ntqvfVp"))==-1) 
+    if ((c=getopt(argc,argv,"d:hm:ntqvfVp"o))==-1) 
 #endif
       break;
     switch (c) {
@@ -296,15 +301,13 @@ int main(int argc, char **argv)
 	  if (quality > 100) quality=100;
 	}
 	else if (!quiet_mode) {
-	  fprintf(stderr,"jpegoptim: invalid argument for -m, --max\n");
-	  exit(1);
+	  fatal("invalid argument for -m, --max");
 	}
       }
       break;
     case 'd':
       if (realpath(optarg,dest_path)==NULL || !is_directory(dest_path)) {
-	fprintf(stderr,"jpegoptim: invalid argument for -d, --dest\n");
-	exit(1);
+	fatal("invalid argument for option -d, --dest");
       }
       if (verbose_mode) 
 	fprintf(stderr,"Destination directory: %s\n",dest_path);
@@ -334,6 +337,9 @@ int main(int argc, char **argv)
       printf("jpeginfo v%s  %s\n",VERSIO,HOST_TYPE);
       printf("Copyright (c) Timo Kokkonen, 1996,2002.\n");
       exit(0);
+      break;
+    case 'o':
+      overwrite_mode=1;
       break;
     case 'p':
       preserve_mode=1;
@@ -399,11 +405,11 @@ int main(int argc, char **argv)
      jpeg_start_decompress(&dinfo);
 
      buf = malloc(sizeof(JSAMPROW)*dinfo.output_height);
-     if (!buf) no_memory();
+     if (!buf) fatal("not enough memory");
      for (j=0;j<dinfo.output_height;j++) {
        buf[j]=malloc(sizeof(JSAMPLE)*dinfo.output_width*
 		     dinfo.out_color_components);
-       if (!buf[j]) no_memory();
+       if (!buf[j]) fatal("not enough memory");
      }
 
      while (dinfo.output_scanline < dinfo.output_height) {
@@ -425,7 +431,7 @@ int main(int argc, char **argv)
    if (dest && !noaction) {
      strcpy(newname,dest_path);
      strcat(newname,"/"); strcat(newname,(char*)basename(argv[i]));
-     if (file_exists(newname)) {
+     if (file_exists(newname) && !overwrite_mode) {
        fprintf(stderr,"jpegoptim: target file already exists: %s\n",
 	       newname);
        jpeg_abort_decompress(&dinfo);
@@ -513,8 +519,7 @@ int main(int argc, char **argv)
 		if (verbose_mode&&!quiet_mode) 
 		  fprintf(stderr,"Renaming: %s to %s\n",outfname,argv[i]);
 		if (rename(outfname,argv[i])) {
-		  fprintf(stderr,"Cannot rename temp file.\n");
-	          exit(3);
+		  fatal("cannot rename temp file");
 		}
 	}
 	
