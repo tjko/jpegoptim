@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "23 Sep 1996" 
+.TH JPEGOPTIM 1 "07 Dec 2002" 
 .UC 4 
 .SH NAME 
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -52,6 +52,12 @@ lossless optimization method.
 .B -n, --noaction
 Don't really optimize files, just print results.
 .TP 0.6i
+.B -o, --overwrite
+Overwrite target file even if it exists (when using -d option).
+.TP 0.6i
+.B -p, --preserve
+Preserve file modification times.
+.TP 0.6i
 .B -q, --quiet
 Quiet mode.
 .TP 0.6i
@@ -63,16 +69,16 @@ Enables verbose mode (positively chatty).
 
 
 .SH BUGS
-When optimizing progressive jpegs, result will be normal jpeg.
+When optimizing progressive jpeg, result will be a normal jpeg.
 
 .SH "SEE ALSO" 
 jpeginfo(1)
 
 .SH AUTHOR
-Timo Kokkonen (tjko@jyu.fi)
+Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996  Timo Kokkonen
+Copyright (C) 1996,2002  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

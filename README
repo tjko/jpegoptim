@@ -1,5 +1,5 @@
 
-Jpegoptim v1.1  Copyright (c)  Timo Kokkonen, 1996.
+Jpegoptim v1.2.0  Copyright (c)  Timo Kokkonen, 1996,2002.
 
 
 REQUIREMENTS
@@ -17,8 +17,8 @@ INSTALLATION
 	tar file, make nesessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.1.tar.gz | tar xf -
-		cd jpegoptim
+		zcat jpegoptim-1.2.0.tar.gz | tar xf -
+		cd jpegoptim-1.2.0
 		make
 		make strip
 		make install
@@ -26,20 +26,22 @@ INSTALLATION
 
 
 HISTORY
-	v1.1  - new -f option, and other minor changes, improved
-		support for other platforms
-	v1.0a - some changes in docs & makefile
-	v1.0  - first public release
+	v1.2.0 - Added new options --overwrite and --preserve.
+		 GNU autoconf support added, also.
+	v1.1   - new -f option, and other minor changes, improved
+	 	 support for other platforms
+	v1.0a  - some changes in docs & makefile
+	v1.0   - first public release
 
 
 
 LATEST VERSION
 
 	Latest version is always available from:
-		http://www.jyu.fi/~tjko/projects.html
+		http://www.iki.fi/tjko/projects.html
 
 
 
-Timo <tjko@jyu.fi>
-24-Oct-1996
+Timo <tjko@iki.fi>
+07-Dec-2002
 
