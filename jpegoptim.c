@@ -374,7 +374,7 @@ int main(int argc, char **argv)
 
     default:
       if (!quiet_mode) 
-	fprintf(stderr,"jpegoptim: error parsing parameters.\n",c);
+	fprintf(stderr,"jpegoptim: error parsing parameters.\n");
     }
   }
 
