@@ -1,0 +1,87 @@
+.TH JPEGOPTIM 1 "23 Sep 1996" 
+.UC 4 
+.SH NAME 
+jpegoptim \- utility to optimize/compress JPEG/JFIF files.
+
+
+.SH SYNOPSIS 
+.B jpegoptim
+[ 
+.B options 
+] [ 
+.B filenames 
+] 
+
+.SH DESCRIPTION 
+.I jpegoptim
+is used to optimize/compress jpeg files. Program supports lossless
+optimization, which is based on optimizing the Huffman tables. And
+so called "lossy" optimization where in addtition to optimizing Huffman
+tables user can specify upperlimit for image quality.
+
+
+.SH OPTIONS
+.PP
+Options may be either the traditional POSIX one letter options, or the
+GNU style long options.  POSIX style options start with a single
+``\-'', while GNU long options start with ``\-\^\-''.
+
+Options offered by
+.I jpegoptim
+are the following:
+.TP 0.6i
+.B -d<path>, --dest=<path>
+Sets alternative destination directory where to save optimized files
+(default is to overwrite the originals).
+.TP 0.6i
+.B -f, --force
+Force optimization, even if the result would be larger than the original
+file.
+.TP 0.6i
+.B -h, --help
+Displays short usage information and exits.
+.TP 0.6i
+.B -m[0..100], --max=[0..100]
+Sets the maximum image quality factor (disables lossless optimization
+mode, which is by default enabled). This option will reduce quality
+of those source files that were saved using higher quality setting. 
+While files
+that already have lower quality setting will be compressed using the
+lossless optimization method.
+.TP 0.6i
+.B -n, --noaction
+Don't really optimize files, just print results.
+.TP 0.6i
+.B -q, --quiet
+Quiet mode.
+.TP 0.6i
+.B -t, --totals
+Print totals after processing all files.
+.TP 0.6i
+.B -v, --verbose
+Enables verbose mode (positively chatty).
+
+
+.SH BUGS
+When optimizing progressive jpegs, result will be normal jpeg.
+
+.SH "SEE ALSO" 
+jpeginfo(1)
+
+.SH AUTHOR
+Timo Kokkonen (tjko@jyu.fi)
+
+.SH COPYING
+Copyright (C) 1996  Timo Kokkonen
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+ This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+ You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.

@@ -1,0 +1,45 @@
+
+Jpegoptim v1.1  Copyright (c)  Timo Kokkonen, 1996.
+
+
+REQUIREMENTS
+	Independent JPEG Group's jpeg library version 6a or later
+	(jpegsrc.v6a.tar.gz)
+
+TESTED PLATFORMS
+	Linux
+	Solaris 
+        SGI (IRIX 5.3)
+	HP-UX
+
+INSTALLATION
+	Installation should be very straightforward, just unpack the
+	tar file, make nesessary changes to the Makefile,  and then 
+        compile the program. You may wanna do something like this:
+
+		zcat jpegoptim-1.1.tar.gz | tar xf -
+		cd jpegoptim
+		make
+		make strip
+		make install
+
+
+
+HISTORY
+	v1.1  - new -f option, and other minor changes, improved
+		support for other platforms
+	v1.0a - some changes in docs & makefile
+	v1.0  - first public release
+
+
+
+LATEST VERSION
+
+	Latest version is always available from:
+		http://www.jyu.fi/~tjko/projects.html
+
+
+
+Timo <tjko@jyu.fi>
+24-Oct-1996
+
