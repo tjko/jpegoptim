@@ -67,6 +67,19 @@ Print totals after processing all files.
 .B -v, --verbose
 Enables verbose mode (positively chatty).
 
+.TP 0.6i
+.B --strip-all
+Strip all (Comment & Exif) markers from output file. (NOTE! by default
+only Comment & Exif markers are kept, everything else is discarded)
+.TP 0.6i
+.B --strip-com
+Strip Comment (COM) markers from output file.
+.TP 0.6i
+.B --strip-exif
+Strip EXIF markers from output file.
+
+
+
 
 .SH BUGS
 When optimizing progressive jpeg, result will be a normal jpeg.

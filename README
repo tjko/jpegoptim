@@ -1,5 +1,5 @@
 
-Jpegoptim v1.2.1  Copyright (c)  Timo Kokkonen, 1996,2002.
+Jpegoptim v1.2.2  Copyright (c)  Timo Kokkonen, 1996,2002.
 
 
 REQUIREMENTS
@@ -16,8 +16,8 @@ INSTALLATION
 	tar file, make nesessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.2.0.tar.gz | tar xf -
-		cd jpegoptim-1.2.0
+		zcat jpegoptim-1.2.2.tar.gz | tar xf -
+		cd jpegoptim-1.2.2
 		./configure
 		make
 		make strip
@@ -25,6 +25,10 @@ INSTALLATION
 
 
 HISTORY
+	v1.2.2 - Now Exif and COM markers are not discarded
+                 (all other markers are discarded as before).
+	         New options --strip-all, --strip-exif, and --strip-com
+	         added for controlling what markers to strip.
 	v1.2.1 - fixed buggy temp file handling
 	v1.2.0 - Added new options --overwrite and --preserve.
 		 GNU autoconf support added, also.
@@ -43,5 +47,5 @@ LATEST VERSION
 
 
 Timo <tjko@iki.fi>
-08-Dec-2002
+09-Dec-2002
 

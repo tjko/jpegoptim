@@ -36,14 +36,17 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.1"
+#define VERSIO "1.2.2"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
 #define METHODDEF(x) static x
 #endif
 
-#define LONG_OPTIONS
+
+#define EXIF_JPEG_MARKER   JPEG_APP0+1
+#define EXIF_IDENT_STRING  "Exif\000\000"
+
 
 void fatal(const char *msg);
 
@@ -60,7 +63,6 @@ struct my_error_mgr jcerr,jderr;
 
 const char *rcsid = "$Id$";
 
-#ifdef LONG_OPTIONS
 struct option long_options[] = {
   {"verbose",0,0,'v'},
   {"help",0,0,'h'},
@@ -72,9 +74,11 @@ struct option long_options[] = {
   {"force",0,0,'f'},
   {"version",0,0,'V'},
   {"preserve",0,0,'p'},
+  {"strip-all",0,0,'s'},
+  {"strip-com",0,0,'c'},
+  {"strip-exif",0,0,'e'},
   {0,0,0,0}
 };
-#endif
 
 int verbose_mode = 0;
 int quiet_mode = 0;
@@ -87,11 +91,14 @@ int quality = -1;
 int retry = 0;
 int dest = 0;
 int force = 0;
+int save_exif = 1;
+int save_com = 1;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
 
 JSAMPARRAY buf = NULL;
 jvirt_barray_ptr *coef_arrays = NULL;
+jpeg_saved_marker_ptr exif_marker = NULL;
 long average_count = 0;
 double average_rate = 0.0, total_save = 0.0;
 
@@ -124,7 +131,6 @@ void p_usage(void)
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
-#ifdef LONG_OPTIONS
     "  -d<path>, --dest=<path>\n"
     "                  specify alternative destination directory for \n"
     "                  optimized files (default is to overwrite originals)\n"
@@ -139,23 +145,11 @@ void p_usage(void)
     "  -q, --quiet     quiet mode\n"
     "  -t, --totals    print totals after processing all files\n"
     "  -v, --verbose   enable verbose mode (positively chatty)\n"
-    "  -V, --version   print program version\n"
-#else
-    "  -d<path>        specify alternative destination directory for \n"
-    "                  optimized files (default is to overwrite originals)\n"
-    "  -f              force optimization\n"
-    "  -h              display this help and exit\n"
-    "  -m[0..100]      set maximum image quality factor (disables lossless\n"
-    "                  optimization mode, which is by default on)\n"
-    "  -n              don't really optimize files, just print results\n"
-    "  -p              preserve file timestamps\n"
-    "  -o              overwrite target file even if it exists\n"
-    "  -q              quiet mode\n"
-    "  -t              print totals after processing all files\n"
-    "  -v              enable verbose mode (positively chatty)\n"
-    "  -V              print program version\n"
-#endif
-       "\n\n");
+    "  -V, --version   print program version\n\n"
+    "  --strip-all     strip all (Comment & Exif) markers from output file\n"
+    "  --strip-com     strip Comment markers from output file\n"
+    "  --strip-exif    strip Exif markers from output file\n"
+    "\n\n");
  }
 
  exit(1);
@@ -252,6 +246,21 @@ void fatal(const char *msg)
   exit(3);
 }
 
+void write_comment_markers(struct jpeg_decompress_struct *dinfo,
+			   struct jpeg_compress_struct *cinfo)
+{
+  jpeg_saved_marker_ptr mrk;
+
+  if (!cinfo || !dinfo) return;
+
+  mrk=dinfo->marker_list;
+  while (mrk) {
+    if (mrk->marker == JPEG_COM) 
+      jpeg_write_marker(cinfo,JPEG_COM,mrk->data,mrk->data_length);
+
+    mrk=mrk->next;
+  }
+}
 
 /*****************************************************************/
 int main(int argc, char **argv) 
@@ -264,6 +273,7 @@ int main(int argc, char **argv)
   long insize,outsize;
   double ratio;
   struct utimbuf time_save;
+  jpeg_saved_marker_ptr cmarker; 
 
 
   if (rcsid); /* so compiler won't complain about "unused" rcsid string */
@@ -286,26 +296,17 @@ int main(int argc, char **argv)
 
   if (argc<2) {
     if (!quiet_mode) fprintf(stderr,"jpegoptim: file arguments missing\n"
-			     "Try 'jpegoptim "
-#ifdef LONG_OPTIONS
-			     "--help"
-#else
-			     "-h"
-#endif
-			     "' for more information.\n");
+			     "Try 'jpegoptim --help' for more information.\n");
     exit(1);
   }
  
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-#ifdef LONG_OPTIONS
     if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
 	      == -1) 
-#else
-    if ((c=getopt(argc,argv,"d:hm:ntqvfVpo"o))==-1) 
-#endif
       break;
+
     switch (c) {
     case 'm':
       {
@@ -360,10 +361,20 @@ int main(int argc, char **argv)
     case 'p':
       preserve_mode=1;
       break;
+    case 's':
+      save_exif=0;
+      save_com=0;
+      break;
+    case 'c':
+      save_com=0;
+      break;
+    case 'e':
+      save_exif=0;
+      break;
 
     default:
       if (!quiet_mode) 
-	fprintf(stderr,"jpegoptim: error parsing parameters.\n");
+	fprintf(stderr,"jpegoptim: error parsing parameters.\n",c);
     }
   }
 
@@ -422,13 +433,29 @@ int main(int argc, char **argv)
    /* prepare to decompress */
    global_error_counter=0;
    err_count=jderr.pub.num_warnings;
+   if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
+   jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
+
+   /* check for Exif marker */
+   exif_marker=NULL;
+   cmarker=dinfo.marker_list;
+   while (cmarker) {
+     /* printf("marker %x len=%d\n",cmarker->marker,cmarker->data_length); */
+     if (cmarker->marker == EXIF_JPEG_MARKER) {
+       if (!memcmp(cmarker->data,EXIF_IDENT_STRING,6)) exif_marker=cmarker;
+     }
+     cmarker=cmarker->next;
+   }
+
 
    if (!retry) {
      printf("%dx%d %dbit ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8);
-     if (dinfo.saw_Adobe_marker) printf("Adobe ");
+
+     if (exif_marker) printf("Exif ");
+     else if (dinfo.saw_Adobe_marker) printf("Adobe ");
      else if (dinfo.saw_JFIF_marker) printf("JFIF ");
      else printf("Unknown ");
      fflush(stdout);
@@ -510,6 +537,13 @@ int main(int argc, char **argv)
      
      j=0;
      jpeg_start_compress(&cinfo,TRUE);
+     
+     /* write markers */
+     if (save_exif && exif_marker) 
+       jpeg_write_marker(&cinfo, EXIF_JPEG_MARKER, 
+			 exif_marker->data, exif_marker->data_length);
+     if (save_com) write_comment_markers(&dinfo,&cinfo);
+
      while (cinfo.next_scanline < cinfo.image_height) {
        jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
 			    dinfo.output_height);
@@ -520,7 +554,14 @@ int main(int argc, char **argv)
    } else {
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
      cinfo.optimize_coding = TRUE;
+
      jpeg_write_coefficients(&cinfo, coef_arrays);
+
+     /* write markers */
+     if (save_exif && exif_marker) 
+       jpeg_write_marker(&cinfo, EXIF_JPEG_MARKER, 
+			 exif_marker->data, exif_marker->data_length);
+     if (save_com) write_comment_markers(&dinfo,&cinfo);
    }
 
 
