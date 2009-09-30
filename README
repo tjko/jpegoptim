@@ -9,7 +9,7 @@ REQUIREMENTS
 TESTED PLATFORMS
 	Linux
 	Solaris 
-	OSX (Snow Leopard)
+	Darwin/OSX (compiles fine as 64bit app on Snow Leopard)
 
 
 INSTALLATION
@@ -51,5 +51,5 @@ LATEST VERSION
 
 
 Timo <tjko@iki.fi>
-09-Dec-2002
+30-Sep-2009
 
