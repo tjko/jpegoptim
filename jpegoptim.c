@@ -49,6 +49,9 @@
 
 #define IPTC_JPEG_MARKER   JPEG_APP0+13
 
+#define ICC_JPEG_MARKER   JPEG_APP0+2
+#define ICC_IDENT_STRING  "ICC_PROFILE\0"
+#define ICC_IDENT_STRING_SIZE 12
 
 void fatal(const char *msg);
 
@@ -80,6 +83,7 @@ struct option long_options[] = {
   {"strip-com",0,0,'c'},
   {"strip-exif",0,0,'e'},
   {"strip-iptc",0,0,'i'},
+  {"strip-icc",0,0,'P'},
   {0,0,0,0}
 };
 
@@ -97,6 +101,7 @@ int force = 0;
 int save_exif = 1;
 int save_iptc = 1;
 int save_com = 1;
+int save_icc = 1;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
 
@@ -104,6 +109,7 @@ JSAMPARRAY buf = NULL;
 jvirt_barray_ptr *coef_arrays = NULL;
 jpeg_saved_marker_ptr exif_marker = NULL;
 jpeg_saved_marker_ptr iptc_marker = NULL;
+jpeg_saved_marker_ptr icc_marker = NULL;
 long average_count = 0;
 double average_rate = 0.0, total_save = 0.0;
 
@@ -132,7 +138,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996,2002,2004.\n"); 
+	  "  Copyright (c) Timo Kokkonen, 1996-2009.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -155,6 +161,7 @@ void p_usage(void)
     "  --strip-com     strip Comment markers from output file\n"
     "  --strip-exif    strip Exif markers from output file\n"
     "  --strip-iptc    strip IPTC markers from output file\n"
+    "  --strip-icc     strip ICC profile markers from output file\n"
     "\n\n");
  }
 
@@ -273,6 +280,12 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
       }
     }
      
+    if (save_icc && mrk->marker == ICC_JPEG_MARKER) {
+      if (!memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) {
+	jpeg_write_marker(cinfo,ICC_JPEG_MARKER,mrk->data,mrk->data_length);
+      }
+    }
+     
     mrk=mrk->next;
   }
 }
@@ -367,7 +380,7 @@ int main(int argc, char **argv)
       break;
     case 'V':
       printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996,2002,2004.\n");
+      printf("Copyright (c) Timo Kokkonen, 1996-2009.\n");
       exit(0);
       break;
     case 'o':
@@ -380,6 +393,7 @@ int main(int argc, char **argv)
       save_exif=0;
       save_iptc=0;
       save_com=0;
+      save_icc=0;
       break;
     case 'c':
       save_com=0;
@@ -389,6 +403,9 @@ int main(int argc, char **argv)
       break;
     case 'i':
       save_iptc=0;
+      break;
+    case 'P':
+      save_icc=0;
       break;
 
     default:
@@ -455,6 +472,7 @@ int main(int argc, char **argv)
    if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
    if (save_iptc) jpeg_save_markers(&dinfo, IPTC_JPEG_MARKER, 0xffff);
    if (save_exif) jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
+   if (save_icc) jpeg_save_markers(&dinfo, ICC_JPEG_MARKER, 0xffff);
 
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
@@ -462,6 +480,7 @@ int main(int argc, char **argv)
    /* check for Exif/IPTC markers */
    exif_marker=NULL;
    iptc_marker=NULL;
+   icc_marker=NULL;
    cmarker=dinfo.marker_list;
    while (cmarker) {
      if (cmarker->marker == EXIF_JPEG_MARKER) {
@@ -471,6 +490,10 @@ int main(int argc, char **argv)
      if (cmarker->marker == IPTC_JPEG_MARKER) {
        iptc_marker=cmarker;
      }
+     if (cmarker->marker == ICC_JPEG_MARKER) {
+       if (!memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
+	 icc_marker=cmarker;
+     }
      cmarker=cmarker->next;
    }
 
@@ -479,12 +502,11 @@ int main(int argc, char **argv)
      printf("%dx%d %dbit ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8);
 
-     if (exif_marker && iptc_marker) printf("Exif/IPTC ");
-     else if (exif_marker) printf("Exif ");
-     else if (iptc_marker) printf("IPTC ");
-     else if (dinfo.saw_Adobe_marker) printf("Adobe ");
-     else if (dinfo.saw_JFIF_marker) printf("JFIF ");
-     else printf("Unknown ");
+     if (exif_marker) printf("Exif ");
+     if (iptc_marker) printf("IPTC ");
+     if (icc_marker) printf("ICC ");
+     if (dinfo.saw_Adobe_marker) printf("Adobe ");
+     if (dinfo.saw_JFIF_marker) printf("JFIF ");
      fflush(stdout);
    }
 
