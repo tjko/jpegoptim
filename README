@@ -1,5 +1,5 @@
 
-Jpegoptim v1.2.2  Copyright (c)  Timo Kokkonen, 1996,2002.
+Jpegoptim v1.2.3  Copyright (c)  Timo Kokkonen, 1996,2002,2009.
 
 
 REQUIREMENTS
@@ -9,6 +9,7 @@ REQUIREMENTS
 TESTED PLATFORMS
 	Linux
 	Solaris 
+	OSX (Snow Leopard)
 
 
 INSTALLATION
@@ -16,8 +17,8 @@ INSTALLATION
 	tar file, make nesessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.2.2.tar.gz | tar xf -
-		cd jpegoptim-1.2.2
+		zcat jpegoptim-1.2.3.tar.gz | tar xf -
+		cd jpegoptim-1.2.3
 		./configure
 		make
 		make strip
@@ -25,6 +26,9 @@ INSTALLATION
 
 
 HISTORY
+	v1.2.3 - IPTC marker support by Dustin Ward,
+		 ICC profile support by Dwight Kelly,
+		 minor fixes 
 	v1.2.2 - Now Exif and COM markers are not discarded
                  (all other markers are discarded as before).
 	         New options --strip-all, --strip-exif, and --strip-com
