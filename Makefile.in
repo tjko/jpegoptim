@@ -3,7 +3,7 @@
 # 
 # Makefile for jpegoptim
 #
-Version = 1.2.2
+Version = 1.2.3
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
@@ -79,7 +79,7 @@ printable.man:
 	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
 	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
 
-install.man:
+install.man: install.dirs
 	$(INSTALL) -m 644 $(PKGNAME).1 $(INSTALL_ROOT)/$(mandir)/man1/$(PKGNAME).1
 
 install.dirs:
