@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996,2002,2004.
+ * Copyright (c) Timo Kokkonen, 1996-2011.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
@@ -36,7 +36,7 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.3"
+#define VERSIO "1.2.4"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
@@ -84,6 +84,7 @@ struct option long_options[] = {
   {"strip-exif",0,0,'e'},
   {"strip-iptc",0,0,'i'},
   {"strip-icc",0,0,'P'},
+  {"threshold",1,0,'T'},
   {0,0,0,0}
 };
 
@@ -102,6 +103,7 @@ int save_exif = 1;
 int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
+int threshold = -1;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
 
@@ -151,6 +153,8 @@ void p_usage(void)
     "                  set maximum image quality factor (disables lossless\n"
     "                  optimization mode, which is by default on)\n"
     "  -n, --noaction  don't really optimize files, just print results\n"
+    "  -T[0..100], --threshold\n"
+    "                  keep old file if the gain is below a threshold (%%)\n"
     "  -o, --overwrite overwrite target file even if it exists\n"
     "  -p, --preserve  preserve file timestamps\n"
     "  -q, --quiet     quiet mode\n"
@@ -331,7 +335,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpo",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -407,6 +411,15 @@ int main(int argc, char **argv)
     case 'P':
       save_icc=0;
       break;
+    case 'T':
+      {
+	int tmpvar;
+	if (sscanf(optarg,"%d",&tmpvar) == 1)
+	  threshold=tmpvar;
+	if (threshold < 0) threshold=0;
+	if (threshold > 100) threshold=100;
+      }
+      break;
 
     default:
       if (!quiet_mode) 
@@ -415,9 +428,11 @@ int main(int argc, char **argv)
   }
 
 
-  if (verbose_mode && (quality>0)) 
+  if (verbose_mode && (quality>=0)) 
     fprintf(stderr,"Image quality limit set to: %d\n",quality);
-
+  if (verbose_mode && (threshold>=0)) 
+    fprintf(stderr,"Compression treshold (%%) set to: %d\n",threshold);
+  
 
   /* loop to process the input files */
   i=1;  
@@ -645,7 +660,7 @@ int main(int argc, char **argv)
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
-   if (outsize<insize || force) {
+   if ((outsize < insize && ratio >= threshold) || force) {
         total_save+=(insize-outsize)/1024.0;
 	printf("optimized.\n");
         if (noaction) continue;
