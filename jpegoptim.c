@@ -460,6 +460,10 @@ int main(int argc, char **argv)
    if (setjmp(jderr.setjmp_buffer)) {
       jpeg_abort_decompress(&dinfo);
       fclose(infile);
+      if (buf) {
+	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+	free(buf); buf=NULL;
+      }
       printf(" [ERROR]\n");
       continue;
    }
@@ -544,8 +548,10 @@ int main(int argc, char **argv)
        fprintf(stderr,"target file already exists!\n");
        jpeg_abort_decompress(&dinfo);
        fclose(infile);
-       for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-       free(buf); buf=NULL;
+       if (buf) {
+	 for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+	 free(buf); buf=NULL;
+       }
        continue;
      }
    }
@@ -565,8 +571,10 @@ int main(int argc, char **argv)
       fclose(outfile);
       if (infile) fclose(infile);
       printf(" [Compress ERROR]\n");
-      for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-      free(buf); buf=NULL;
+      if (buf) {
+	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+	free(buf); buf=NULL;
+      }
       if (file_exists(outfname)) delete_file(outfname);
       outfname=NULL;
       continue;
