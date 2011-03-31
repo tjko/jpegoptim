@@ -3,7 +3,7 @@
 # 
 # Makefile for jpegoptim
 #
-Version = 1.2.3
+Version = 1.2.4
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
@@ -32,7 +32,7 @@ mandir = $(prefix)/share/man
 
 CC        = @CC@ 
 XCPPFLAGS = @CPPFLAGS@
-CFLAGS    = @CFLAGS@ $(XCPPFLAGS) $(DEFS)
+CFLAGS    = @CFLAGS@ $(XCPPFLAGS) $(DEFS) -Wall
 LDFLAGS   = @LDFLAGS@
 LIBS      = @LIBS@
 STRIP     = strip

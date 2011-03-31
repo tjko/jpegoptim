@@ -32,7 +32,9 @@ are the following:
 .TP 0.6i
 .B -d<path>, --dest=<path>
 Sets alternative destination directory where to save optimized files
-(default is to overwrite the originals).
+(default is to overwrite the originals). Please note that unchanged files
+won't be added to the destination directory. This means if the source
+file can't be compressed, no file will be created in the destination path.
 .TP 0.6i
 .B -f, --force
 Force optimization, even if the result would be larger than the original
