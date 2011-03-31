@@ -140,7 +140,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996-2009.\n"); 
+	  "  Copyright (c) Timo Kokkonen, 1996-2011.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
       break;
     case 'V':
       printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996-2009.\n");
+      printf("Copyright (c) Timo Kokkonen, 1996-2011.\n");
       exit(0);
       break;
     case 'o':
