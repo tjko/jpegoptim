@@ -628,6 +628,14 @@ int main(int argc, char **argv)
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
      cinfo.optimize_coding = TRUE;
 
+#ifdef BROKEN_LIBJPEG_TURBO
+     /* Workaround to apparent bug in jpeg_read_coeffients() implementation
+	in libjpeg-turbo-1.1.0 when it is compiled with libjpeg v8 support.
+	This prevents the jpeg_write_coefficients() call below from always
+	failing  */
+     jpeg_calc_jpeg_dimensions(&cinfo);
+#endif
+
      jpeg_write_coefficients(&cinfo, coef_arrays);
 
      /* write markers */
