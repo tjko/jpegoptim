@@ -28,10 +28,7 @@ INSTALLATION
 HISTORY
 	v1.2.4 - new -T / --treshold option by Matteo Croce,
 		 minor fixes (potential memory leaks),
-		 merged some patches from Debian jpegoptim package (1.2.3-2),
-		 workaround to allow jpegoptim work when linked against 
-		 broken (?) libjpeg-turbo (1.1.0) that was compiled with
-		 libjpeg v8 support (use -DBROKEN_LIBJPEG_TURBO to enable)
+		 merged some patches from Debian jpegoptim package (1.2.3-2)
 	v1.2.3 - IPTC marker support by Dustin Ward,
 		 ICC profile support by Dwight Kelly,
 		 minor fixes 

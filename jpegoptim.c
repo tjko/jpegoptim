@@ -349,9 +349,8 @@ int main(int argc, char **argv)
 	  if (quality < 0) quality=0;
 	  if (quality > 100) quality=100;
 	}
-	else if (!quiet_mode) {
+	else 
 	  fatal("invalid argument for -m, --max");
-	}
       }
       break;
     case 'd':
@@ -414,10 +413,12 @@ int main(int argc, char **argv)
     case 'T':
       {
 	int tmpvar;
-	if (sscanf(optarg,"%d",&tmpvar) == 1)
+	if (sscanf(optarg,"%d",&tmpvar) == 1) {
 	  threshold=tmpvar;
-	if (threshold < 0) threshold=0;
-	if (threshold > 100) threshold=100;
+	  if (threshold < 0) threshold=0;
+	  if (threshold > 100) threshold=100;
+	}
+	else fatal("invalid argument for -T, --threshold");
       }
       break;
 
@@ -627,14 +628,6 @@ int main(int argc, char **argv)
 
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
      cinfo.optimize_coding = TRUE;
-
-#ifdef BROKEN_LIBJPEG_TURBO
-     /* Workaround to apparent bug in jpeg_read_coeffients() implementation
-	in libjpeg-turbo-1.1.0 when it is compiled with libjpeg v8 support.
-	This prevents the jpeg_write_coefficients() call below from always
-	failing  */
-     jpeg_calc_jpeg_dimensions(&cinfo);
-#endif
 
      jpeg_write_coefficients(&cinfo, coef_arrays);
 
