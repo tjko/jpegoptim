@@ -482,7 +482,9 @@ int main(int argc, char **argv)
       continue;
    }
 
-   if (!retry) { printf("%s ",argv[i]); fflush(stdout); }
+   if (!retry && !quiet_mode) {
+     printf("%s ",argv[i]); fflush(stdout); 
+   }
 
    /* prepare to decompress */
    global_error_counter=0;
@@ -516,7 +518,7 @@ int main(int argc, char **argv)
    }
 
 
-   if (!retry) {
+   if (!retry && !quiet_mode) {
      printf("%dx%d %dbit ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8);
 
@@ -550,7 +552,7 @@ int main(int argc, char **argv)
      coef_arrays = jpeg_read_coefficients(&dinfo);
    }
 
-   if (!retry) {
+   if (!retry && !quiet_mode) {
      if (!global_error_counter) printf(" [OK] ");
      else printf(" [WARNING] ");
      fflush(stdout);
@@ -668,27 +670,27 @@ int main(int argc, char **argv)
 
    retry=0;
    ratio=(insize-outsize)*100.0/insize;
-   printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+   if (!quiet_mode) printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
    if ((outsize < insize && ratio >= threshold) || force) {
         total_save+=(insize-outsize)/1024.0;
-	printf("optimized.\n");
+	if (!quiet_mode) printf("optimized.\n");
         if (noaction) continue;
 	if (verbose_mode > 1 && !quiet_mode) 
 	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
 	if (rename(outfname,newname)) fatal("cannot rename temp file");
    } else {
-	printf("skipped.\n");
-	if (!noaction) delete_file(outfname);
+     if (!quiet_mode) printf("skipped.\n");
+     if (!noaction) delete_file(outfname);
    }
    
 
   } while (++i<argc);
 
 
-  if (totals_mode&&!quiet_mode)
+  if (totals_mode && !quiet_mode)
     printf("Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
 	   average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
