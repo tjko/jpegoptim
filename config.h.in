@@ -16,6 +16,9 @@
 /* Define if you have the getopt_long function.  */
 #undef HAVE_GETOPT_LONG
 
+/* Define if you have mkstemps function. */
+#undef HAVE_MKSTEMPS
+
 /* Define if you have the <getopt.h> header file.  */
 #undef HAVE_GETOPT_H
 
