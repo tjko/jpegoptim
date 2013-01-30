@@ -587,7 +587,6 @@ int main(int argc, char **argv)
        fatal("error opening target file");
 #endif
      outfname=tmpfilename;
-     fprintf(stderr,"kala: opened temp file '%s'\n",tmpfilename);
    }
 
    if (setjmp(jcerr.setjmp_buffer)) {
