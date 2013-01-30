@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2011.
+ * Copyright (c) Timo Kokkonen, 1996-2013.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
@@ -36,7 +36,7 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.4"
+#define VERSIO "1.2.5"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
@@ -140,7 +140,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996-2011.\n"); 
+	  "  Copyright (c) Timo Kokkonen, 1996-2013.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -300,7 +300,7 @@ int main(int argc, char **argv)
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
-  int c,j, err_count;
+  int c,j, err_count, tmpfd;
   int opt_index = 0;
   long insize,outsize;
   double ratio;
@@ -383,7 +383,7 @@ int main(int argc, char **argv)
       break;
     case 'V':
       printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996-2011.\n");
+      printf("Copyright (c) Timo Kokkonen, 1996-2013.\n");
       exit(0);
       break;
     case 'o':
@@ -457,8 +457,6 @@ int main(int argc, char **argv)
 	 fatal("splitdir() failed!");
        strncpy(newname,argv[i],sizeof(newname));
      }
-     snprintf(tmpfilename,sizeof(tmpfilename),
-	      "%sjpegoptim-%d-%d.tmp", tmpdir, (int)getuid(), (int)getpid());
    }
 
   retry_point:
@@ -576,15 +574,27 @@ int main(int argc, char **argv)
      outfname=NULL;
      if ((outfile=tmpfile())==NULL) fatal("error opening temp file");
    } else {
-     outfname=tmpfilename;
-     if ((outfile=fopen(outfname,"w"))==NULL) 
+     snprintf(tmpfilename,sizeof(tmpfilename),
+	      "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
+#ifdef HAVE_MKSTEMPS
+     if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
+       fatal("error creating temp file: mkstemps() failed");
+     if ((outfile=fdopen(tmpfd,"w"))==NULL) 
        fatal("error opening target file");
+#else
+     tmpfd=0;
+     if ((outfile=fopen(tmpfilename,"w"))==NULL) 
+       fatal("error opening target file");
+#endif
+     outfname=tmpfilename;
+     fprintf(stderr,"kala: opened temp file '%s'\n",tmpfilename);
    }
 
    if (setjmp(jcerr.setjmp_buffer)) {
       jpeg_abort_compress(&cinfo);
       jpeg_abort_decompress(&dinfo);
       fclose(outfile);
+      outfile=NULL;
       if (infile) fclose(infile);
       printf(" [Compress ERROR]\n");
       if (buf) {
@@ -642,6 +652,7 @@ int main(int argc, char **argv)
    fclose(infile);
    outsize=file_size(outfile);
    fclose(outfile);
+   outfile=NULL;
 
    if (preserve_mode && !noaction) {
      if (utime(outfname,&time_save) != 0) {
@@ -650,6 +661,7 @@ int main(int argc, char **argv)
    }
 
    if (quality>=0 && outsize>=insize && !retry) {
+     if (!noaction) delete_file(outfname);
      if (verbose_mode) printf("(retry w/lossless) ");
      retry=1;
      goto retry_point; 
