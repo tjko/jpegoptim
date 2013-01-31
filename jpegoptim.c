@@ -1,6 +1,7 @@
 /*******************************************************************
  * JPEGoptim
  * Copyright (c) Timo Kokkonen, 1996-2013.
+ * All Rights Reserved.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
  *                     release 6a or later...)
@@ -574,7 +575,7 @@ int main(int argc, char **argv)
 
    if (noaction) {
      outfname=NULL;
-     if ((outfile=tmpfile())==NULL) fatal("error opening temp file");
+     if ((outfile=tmpfile())==NULL) fatal("error creating temp file: tmpfile() failed");
    } else {
      snprintf(tmpfilename,sizeof(tmpfilename),
 	      "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
@@ -582,12 +583,11 @@ int main(int argc, char **argv)
      if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
        fatal("error creating temp file: mkstemps() failed");
      if ((outfile=fdopen(tmpfd,"w"))==NULL) 
-       fatal("error opening target file");
 #else
      tmpfd=0;
      if ((outfile=fopen(tmpfilename,"w"))==NULL) 
-       fatal("error opening target file");
 #endif
+       fatal("error opening temporary file");
      outfname=tmpfilename;
    }
 
