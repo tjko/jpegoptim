@@ -71,6 +71,10 @@ dist:	clean_all
 
 backup:	dist
 
+archive:
+	git archive --format tar --prefix ${DISTNAME}/ -o ../${DISTNAME}.tar master
+	gzip -v -9 ../${DISTNAME}.tar
+
 
 install: all install.dirs install.man
 	$(INSTALL) -m 755 $(PKGNAME) $(INSTALL_ROOT)/$(bindir)/$(PKGNAME)
