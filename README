@@ -26,8 +26,8 @@ INSTALLATION
 
 
 HISTORY
-        v1.2.5 - safer temp file handling (if mkstemps() available),
-                 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
+	v1.2.5 - safer temp file handling (if mkstemps() available),
+		 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
 	v1.2.4 - new -T / --treshold option by Matteo Croce,
 		 minor fixes (potential memory leaks),
 		 merged some patches from Debian jpegoptim package (1.2.3-2)
