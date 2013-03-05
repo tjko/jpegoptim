@@ -44,6 +44,10 @@
 #define METHODDEF(x) static x
 #endif
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 1024
+#endif
+
 #define EXIF_JPEG_MARKER   JPEG_APP0+1
 #define EXIF_IDENT_STRING  "Exif\000\000"
 #define EXIF_IDENT_STRING_SIZE 6
