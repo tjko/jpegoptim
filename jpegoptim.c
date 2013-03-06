@@ -524,8 +524,9 @@ int main(int argc, char **argv)
 
 
    if (!retry && !quiet_mode) {
-     printf("%dx%d %dbit ",(int)dinfo.image_width,
-	    (int)dinfo.image_height,(int)dinfo.num_components*8);
+     printf("%dx%d %dbit %c ",(int)dinfo.image_width,
+	    (int)dinfo.image_height,(int)dinfo.num_components*8,
+	    (dinfo.progressive_mode?'P':'N'));
 
      if (exif_marker) printf("Exif ");
      if (iptc_marker) printf("IPTC ");
@@ -623,8 +624,9 @@ int main(int argc, char **argv)
      cinfo.image_height=dinfo.image_height;
      jpeg_set_defaults(&cinfo); 
      jpeg_set_quality(&cinfo,quality,TRUE);
+     if (dinfo.progressive_mode) jpeg_simple_progression(&cinfo);
      cinfo.optimize_coding = TRUE;
-     
+
      j=0;
      jpeg_start_compress(&cinfo,TRUE);
      
@@ -642,6 +644,7 @@ int main(int argc, char **argv)
      /* lossless "optimization" ... */
 
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
+     if (dinfo.progressive_mode) jpeg_simple_progression(&cinfo);
      cinfo.optimize_coding = TRUE;
 
      jpeg_write_coefficients(&cinfo, coef_arrays);
