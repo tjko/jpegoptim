@@ -1,5 +1,5 @@
 
-Jpegoptim v1.2.5  Copyright (c)  Timo Kokkonen, 1996-2013.
+Jpegoptim v1.3beta  Copyright (c)  Timo Kokkonen, 1996-2013.
 
 
 REQUIREMENTS
@@ -26,6 +26,11 @@ INSTALLATION
 
 
 HISTORY
+        v1.3b  - support for progressive jpegs added,
+		 new options --all-normal & --all-progressive for
+                 converting jpegs non-progressive and progressive,
+                 new -S / --size option to set target size for output
+                 file (enables lossy optimization)
 	v1.2.5 - safer temp file handling (if mkstemps() available),
 		 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
 	v1.2.4 - new -T / --treshold option by Matteo Croce,

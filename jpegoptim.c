@@ -33,11 +33,12 @@
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <time.h>
+#include <math.h>
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.2.5"
+#define VERSIO "1.3beta"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
@@ -73,25 +74,6 @@ struct my_error_mgr jcerr,jderr;
 
 const char *rcsid = "$Id$";
 
-struct option long_options[] = {
-  {"verbose",0,0,'v'},
-  {"help",0,0,'h'},
-  {"quiet",0,0,'q'},
-  {"max",1,0,'m'},
-  {"totals",0,0,'t'},
-  {"noaction",0,0,'n'},
-  {"dest",1,0,'d'},
-  {"force",0,0,'f'},
-  {"version",0,0,'V'},
-  {"preserve",0,0,'p'},
-  {"strip-all",0,0,'s'},
-  {"strip-com",0,0,'c'},
-  {"strip-exif",0,0,'e'},
-  {"strip-iptc",0,0,'i'},
-  {"strip-icc",0,0,'P'},
-  {"threshold",1,0,'T'},
-  {0,0,0,0}
-};
 
 int verbose_mode = 0;
 int quiet_mode = 0;
@@ -109,8 +91,34 @@ int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
 int threshold = -1;
+int all_normal = 0;
+int all_progressive = 0;
+int target_size = 0;
 char *outfname = NULL;
 FILE *infile = NULL, *outfile = NULL;
+
+struct option long_options[] = {
+  {"verbose",0,0,'v'},
+  {"help",0,0,'h'},
+  {"quiet",0,0,'q'},
+  {"max",1,0,'m'},
+  {"totals",0,0,'t'},
+  {"noaction",0,0,'n'},
+  {"dest",1,0,'d'},
+  {"force",0,0,'f'},
+  {"version",0,0,'V'},
+  {"preserve",0,0,'p'},
+  {"strip-all",0,0,'s'},
+  {"strip-com",0,&save_com,0},
+  {"strip-exif",0,&save_exif,0},
+  {"strip-iptc",0,&save_iptc,0},
+  {"strip-icc",0,&save_icc,0},
+  {"threshold",1,0,'T'},
+  {"all-normal",0,&all_normal,1},
+  {"all-progressive",0,&all_progressive,1},
+  {"size",1,0,'S'},
+  {0,0,0,0}
+};
 
 JSAMPARRAY buf = NULL;
 jvirt_barray_ptr *coef_arrays = NULL;
@@ -150,27 +158,35 @@ void p_usage(void)
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
     "  -d<path>, --dest=<path>\n"
-    "                  specify alternative destination directory for \n"
-    "                  optimized files (default is to overwrite originals)\n"
-    "  -f, --force     force optimization\n"
-    "  -h, --help      display this help and exit\n"
-    "  -m[0..100], --max=[0..100] \n"
-    "                  set maximum image quality factor (disables lossless\n"
-    "                  optimization mode, which is by default on)\n"
-    "  -n, --noaction  don't really optimize files, just print results\n"
-    "  -T[0..100], --threshold\n"
-    "                  keep old file if the gain is below a threshold (%%)\n"
-    "  -o, --overwrite overwrite target file even if it exists\n"
-    "  -p, --preserve  preserve file timestamps\n"
-    "  -q, --quiet     quiet mode\n"
-    "  -t, --totals    print totals after processing all files\n"
-    "  -v, --verbose   enable verbose mode (positively chatty)\n"
-    "  -V, --version   print program version\n\n"
-    "  --strip-all     strip all (Comment & Exif) markers from output file\n"
-    "  --strip-com     strip Comment markers from output file\n"
-    "  --strip-exif    strip Exif markers from output file\n"
-    "  --strip-iptc    strip IPTC markers from output file\n"
-    "  --strip-icc     strip ICC profile markers from output file\n"
+    "                    specify alternative destination directory for \n"
+    "                    optimized files (default is to overwrite originals)\n"
+    "  -f, --force       force optimization\n"
+    "  -h, --help        display this help and exit\n"
+    "  -m<quality>, --max=<quality>\n"
+    "                    set maximum image quality factor (disables lossless\n"
+    "                    optimization mode, which is by default on)\n"
+    "                    Valid quality values: 0 - 100\n"
+    "  -n, --noaction    don't really optimize files, just print results\n"
+    "  -S<size>, --size=<size>\n"
+    "                    Try to optimize file to given size (disables lossless\n"
+    "                    optimizaiont mode). Target size is specified either in\n"
+    "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
+    "  -T<treshold>, --threshold=<treshold>\n"
+    "                    keep old file if the gain is below a threshold (%%)\n"
+    "  -o, --overwrite   overwrite target file even if it exists\n"
+    "  -p, --preserve    preserve file timestamps\n"
+    "  -q, --quiet       quiet mode\n"
+    "  -t, --totals      print totals after processing all files\n"
+    "  -v, --verbose     enable verbose mode (positively chatty)\n"
+    "  -V, --version     print program version\n\n"
+    "  --strip-all       strip all (Comment & Exif) markers from output file\n"
+    "  --strip-com       strip Comment markers from output file\n"
+    "  --strip-exif      strip Exif markers from output file\n"
+    "  --strip-iptc      strip IPTC markers from output file\n"
+    "  --strip-icc       strip ICC profile markers from output file\n"
+    "\n"
+    "  --all-normal      force all output files to be non-progressive\n"
+    "  --all-progressive force all output files to be progressive\n"
     "\n\n");
  }
 
@@ -305,9 +321,10 @@ int main(int argc, char **argv)
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
-  int c,j, err_count, tmpfd;
+  int c,j, err_count, tmpfd, searchcount, searchdone;;
   int opt_index = 0;
-  long insize,outsize;
+  long insize,outsize,lastsize;
+  int oldquality;
   double ratio;
   struct utimbuf time_save;
   jpeg_saved_marker_ptr cmarker; 
@@ -340,7 +357,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:S:",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -403,18 +420,6 @@ int main(int argc, char **argv)
       save_com=0;
       save_icc=0;
       break;
-    case 'c':
-      save_com=0;
-      break;
-    case 'e':
-      save_exif=0;
-      break;
-    case 'i':
-      save_iptc=0;
-      break;
-    case 'P':
-      save_icc=0;
-      break;
     case 'T':
       {
 	int tmpvar;
@@ -426,19 +431,44 @@ int main(int argc, char **argv)
 	else fatal("invalid argument for -T, --threshold");
       }
       break;
+    case 'S':
+      {
+	unsigned int tmpvar;
+	if (sscanf(optarg,"%u",&tmpvar) == 1) {
+	  if (tmpvar > 0 && tmpvar < 100 && optarg[strlen(optarg)-1] == '%' ) {
+	    target_size=-tmpvar;
+	  } else {
+	    target_size=tmpvar;
+	  }
+	  quality=100;
+	}
+	else fatal("invalid argument for -S, --size");
+      }
+      break;
 
-    default:
-      if (!quiet_mode) 
-	fprintf(stderr,"jpegoptim: error parsing parameters.\n");
     }
   }
 
+  if (all_normal && all_progressive)
+    fatal("cannot specify both --all-normal and --all-progressive"); 
 
-  if (verbose_mode && (quality>=0)) 
-    fprintf(stderr,"Image quality limit set to: %d\n",quality);
-  if (verbose_mode && (threshold>=0)) 
-    fprintf(stderr,"Compression treshold (%%) set to: %d\n",threshold);
-  
+  if (verbose_mode) {
+    if (quality>=0 && target_size==0) 
+      fprintf(stderr,"Image quality limit set to: %d\n",quality);
+    if (threshold>=0) 
+      fprintf(stderr,"Compression threshold (%%) set to: %d\n",threshold);
+    if (all_normal) 
+      fprintf(stderr,"All output files will be non-progressive\n");
+    if (all_progressive) 
+      fprintf(stderr,"All output files will be progressive\n");
+    if (target_size > 0) 
+      fprintf(stderr,"Target size for output files set to: %u Kbytes.\n",
+	      target_size);
+    if (target_size < 0) 
+      fprintf(stderr,"Target size for output files set to: %u%%\n",
+	      -target_size);
+  }
+
 
   /* loop to process the input files */
   i=1;  
@@ -613,6 +643,15 @@ int main(int argc, char **argv)
    }
 
 
+
+   lastsize = 0;
+   searchcount = 0;
+   searchdone = 0;
+   oldquality = 200;
+
+
+  binary_search_loop:
+
    jpeg_stdio_dest(&cinfo, outfile);
 
    if (quality>=0 && !retry) {
@@ -624,7 +663,8 @@ int main(int argc, char **argv)
      cinfo.image_height=dinfo.image_height;
      jpeg_set_defaults(&cinfo); 
      jpeg_set_quality(&cinfo,quality,TRUE);
-     if (dinfo.progressive_mode) jpeg_simple_progression(&cinfo);
+     if ( (dinfo.progressive_mode || all_progressive) && !all_normal )
+       jpeg_simple_progression(&cinfo);
      cinfo.optimize_coding = TRUE;
 
      j=0;
@@ -633,32 +673,89 @@ int main(int argc, char **argv)
      /* write markers */
      write_markers(&dinfo,&cinfo);
 
+     /* write image */
      while (cinfo.next_scanline < cinfo.image_height) {
        jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
 			    dinfo.output_height);
      }
      
-     for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-     free(buf); buf=NULL;
    } else {
      /* lossless "optimization" ... */
 
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
-     if (dinfo.progressive_mode) jpeg_simple_progression(&cinfo);
+     if ( (dinfo.progressive_mode || all_progressive) && !all_normal )
+       jpeg_simple_progression(&cinfo);
      cinfo.optimize_coding = TRUE;
-
-     jpeg_write_coefficients(&cinfo, coef_arrays);
 
      /* write markers */
      write_markers(&dinfo,&cinfo);
+
+     /* write image */
+     jpeg_write_coefficients(&cinfo, coef_arrays);
    }
 
-
-
    jpeg_finish_compress(&cinfo);
+   fflush(outfile);
+   outsize=file_size(outfile);
+
+   if (target_size != 0 && !retry) {
+     /* perform (binary) search to try to reach target file size... */
+
+     long osize = outsize/1024;
+     long isize = insize/1024;
+     long tsize = target_size;;
+
+     if (tsize < 0) { 
+       tsize=((-target_size)*insize/100)/1024; 
+       if (tsize < 1) tsize=1;
+     }
+
+     if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
+       if (searchdone < 42 && lastsize > 0) {
+	 if (abs(osize-tsize) > abs(lastsize-tsize)) {
+	   if (verbose_mode) printf("(revert to %d)",oldquality);
+	   searchdone=42;
+	   quality=oldquality;
+	   rewind(outfile);
+	   if (ftruncate(fileno(outfile),0) != 0) 
+	     fatal("failed to truncate output file");
+	   goto binary_search_loop;
+	 }
+       }
+       if (verbose_mode) printf(" ");
+       
+     } else {
+       int newquality;
+       int dif = round(abs(oldquality-quality)/2.0);
+       if (osize > tsize) {
+	 newquality=quality-dif;
+	 if (dif < 1) { newquality--; searchdone=1; }
+	 if (newquality < 0) { newquality=0; searchdone=2; }
+       } else {
+	 newquality=quality+dif;
+	 if (dif < 1) { newquality++; searchdone=3; }
+	 if (newquality > 100) { newquality=100; searchdone=4; }
+       }
+       oldquality=quality;
+       quality=newquality;
+
+       if (verbose_mode) fprintf(stderr,"(try %d)",quality);
+
+       lastsize=osize;
+       searchcount++;
+       rewind(outfile);
+       if (ftruncate(fileno(outfile),0) != 0) 
+	 fatal("failed to truncate output file");
+       goto binary_search_loop;
+     }
+   } 
+
+   if (buf) {
+     for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+     free(buf); buf=NULL;
+   }
    jpeg_finish_decompress(&dinfo);
    fclose(infile);
-   outsize=file_size(outfile);
    fclose(outfile);
    outfile=NULL;
 
@@ -677,7 +774,8 @@ int main(int argc, char **argv)
 
    retry=0;
    ratio=(insize-outsize)*100.0/insize;
-   if (!quiet_mode) printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+   if (!quiet_mode) 
+     printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
