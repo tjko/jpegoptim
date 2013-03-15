@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "30 Sep 2009" 
+.TH JPEGOPTIM 1 "14 Mar 2013" 
 .UC 4 
 .SH NAME 
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -43,19 +43,28 @@ file.
 .B -h, --help
 Displays short usage information and exits.
 .TP 0.6i
-.B -m[0..100], --max=[0..100]
+.B -m<quality>, --max=<quality>
 Sets the maximum image quality factor (disables lossless optimization
 mode, which is by default enabled). This option will reduce quality
 of those source files that were saved using higher quality setting. 
 While files
 that already have lower quality setting will be compressed using the
 lossless optimization method.
+
+Valid values for quality parameter are: 0 - 100
 .TP 0.6i
 .B -n, --noaction
 Don't really optimize files, just print results.
 .TP 0.6i
-.B -T[0..100], --threshold=[0..100]
+.B -S<size>, --size=<size>
+Try to optimize file to given size (disables lossless
+optimizaiont mode). Target size is specified either in
+kilobytes (1 - n) or as percentage (1% - 99%) of the original file size.
+.TP 0.6i
+.B -T<treshold>, --threshold=<treshold>
 Keep the file unchanged if the compression gain is lower than the threshold (%).
+
+Valid values for treshold are: 0 - 100
 .TP 0.6i
 .B -o, --overwrite
 Overwrite target file even if it exists (when using -d option).
@@ -71,6 +80,15 @@ Print totals after processing all files.
 .TP 0.6i
 .B -v, --verbose
 Enables verbose mode (positively chatty).
+
+.TP 0.6i
+.B --all-normal
+Force all output files to be non-progressive. Can be used to convert
+all input files to progressive JPEGs when used with --force option.
+.TP 0.6i
+.B --all-progressive
+Force all output files to be progressive. Can be used to convert 
+all input files to normal (non-progressive) JPEGs when used with --force option.
 
 .TP 0.6i
 .B --strip-all
@@ -93,7 +111,9 @@ Strip ICC profiles from output file.
 
 
 .SH BUGS
-When optimizing progressive jpeg, result will be a normal jpeg.
+When using --size option, resulting file is not always exactly the
+requested size. Workaround is to re-run jpegoptim on the same file again
+which often will result file closer to target size.
 
 .SH "SEE ALSO" 
 jpeginfo(1)
@@ -102,7 +122,7 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996,2002,2009  Timo Kokkonen
+Copyright (C) 1996-2013  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -114,4 +134,5 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
  You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
