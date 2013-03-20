@@ -678,7 +678,7 @@ int main(int argc, char **argv)
        jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
 			    dinfo.output_height);
      }
-     
+
    } else {
      /* lossless "optimization" ... */
 
@@ -687,11 +687,12 @@ int main(int argc, char **argv)
        jpeg_simple_progression(&cinfo);
      cinfo.optimize_coding = TRUE;
 
+     /* write image */
+     jpeg_write_coefficients(&cinfo, coef_arrays);
+
      /* write markers */
      write_markers(&dinfo,&cinfo);
 
-     /* write image */
-     jpeg_write_coefficients(&cinfo, coef_arrays);
    }
 
    jpeg_finish_compress(&cinfo);
