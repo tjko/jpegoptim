@@ -330,7 +330,8 @@ int main(int argc, char **argv)
   jpeg_saved_marker_ptr cmarker; 
 
 
-  if (rcsid); /* so compiler won't complain about "unused" rcsid string */
+  if (rcsid)
+  ; /* so compiler won't complain about "unused" rcsid string */
 
   signal(SIGINT,own_signal_handler);
   signal(SIGTERM,own_signal_handler);
@@ -482,11 +483,11 @@ int main(int argc, char **argv)
        strncpy(tmpdir,dest_path,sizeof(tmpdir));
        strncpy(newname,dest_path,sizeof(newname));
        if (tmpdir[strlen(tmpdir)-1] != '/') {
-	 strncat(tmpdir,"/",sizeof(tmpdir)-strlen(tmpdir));
-	 strncat(newname,"/",sizeof(newname)-strlen(newname));
+	 strncat(tmpdir,"/",sizeof(tmpdir)-strlen(tmpdir)-1);
+	 strncat(newname,"/",sizeof(newname)-strlen(newname)-1);
        }
        strncat(newname,(char*)basename(argv[i]),
-	       sizeof(newname)-strlen(newname));
+	       sizeof(newname)-strlen(newname)-1);
      } else {
        if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
 	 fatal("splitdir() failed!");
