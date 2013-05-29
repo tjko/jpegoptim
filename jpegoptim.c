@@ -225,15 +225,14 @@ int is_directory(const char *path)
 }
 
 
-int is_dir(FILE *fp, time_t *atime, time_t *mtime)
+int is_file(const char *filename, struct stat *st)
 {
  struct stat buf;
 
- if (!fp) return 0;
- if (fstat(fileno(fp),&buf)) return 0;
- if (atime) *atime=buf.st_atime;
- if (mtime) *mtime=buf.st_mtime;
- if (S_ISDIR(buf.st_mode)) return 1;
+ if (!filename) return 0;
+ if (lstat(filename,&buf) != 0) return 0;
+ if (st) *st=buf;
+ if (S_ISREG(buf.st_mode)) return 1;
  return 0;
 }
 
@@ -326,13 +325,14 @@ int main(int argc, char **argv)
   long insize,outsize,lastsize;
   int oldquality;
   double ratio;
-  struct utimbuf time_save;
+  struct stat file_stat;
   jpeg_saved_marker_ptr cmarker; 
 
 
   if (rcsid)
   ; /* so compiler won't complain about "unused" rcsid string */
 
+  umask(077);
   signal(SIGINT,own_signal_handler);
   signal(SIGTERM,own_signal_handler);
 
@@ -496,13 +496,17 @@ int main(int argc, char **argv)
    }
 
   retry_point:
-   if ((infile=fopen(argv[i],"r"))==NULL) {
-     if (!quiet_mode) fprintf(stderr, "jpegoptim: can't open %s\n", argv[i]);
+   if (!is_file(argv[i],&file_stat)) {
+     if (!quiet_mode) {
+       if (S_ISDIR(file_stat.st_mode)) 
+	 fprintf(stderr,"jpegoptim: skipping directory: %s\n",argv[i]);
+       else
+	 fprintf(stderr,"jpegoptim: skipping special file: %s\n",argv[i]); 
+     }
      continue;
    }
-   if (is_dir(infile,&time_save.actime,&time_save.modtime)) {
-     fclose(infile);
-     if (verbose_mode) printf("directory: %s  skipped\n",argv[i]); 
+   if ((infile=fopen(argv[i],"r"))==NULL) {
+     if (!quiet_mode) fprintf(stderr, "jpegoptim: can't open %s\n", argv[i]);
      continue;
    }
 
@@ -514,7 +518,7 @@ int main(int argc, char **argv)
 	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
 	free(buf); buf=NULL;
       }
-      printf(" [ERROR]\n");
+      if (!quiet_mode) printf(" [ERROR]\n");
       continue;
    }
 
@@ -633,7 +637,7 @@ int main(int argc, char **argv)
       fclose(outfile);
       outfile=NULL;
       if (infile) fclose(infile);
-      printf(" [Compress ERROR]\n");
+      if (!quiet_mode) printf(" [Compress ERROR]\n");
       if (buf) {
 	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
 	free(buf); buf=NULL;
@@ -761,12 +765,6 @@ int main(int argc, char **argv)
    fclose(outfile);
    outfile=NULL;
 
-   if (preserve_mode && !noaction) {
-     if (utime(outfname,&time_save) != 0) {
-       fprintf(stderr,"jpegoptim: failed to reset output file time/date\n");
-     }
-   }
-
    if (quality>=0 && outsize>=insize && !retry) {
      if (!noaction) delete_file(outfname);
      if (verbose_mode) printf("(retry w/lossless) ");
@@ -785,6 +783,29 @@ int main(int argc, char **argv)
         total_save+=(insize-outsize)/1024.0;
 	if (!quiet_mode) printf("optimized.\n");
         if (noaction) continue;
+
+	/* preserve file mode */
+	if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) {
+	  if (!quiet_mode) 
+	    fprintf(stderr,"jpegoptim: failed to set output file mode\n"); 
+	}
+	if (geteuid() == 0) {
+	  /* preserve file ownership */
+	  if (chown(outfname,file_stat.st_uid,file_stat.st_gid) != 0) {
+	    if (!quiet_mode)
+	      fprintf(stderr,"jpegoptim: failed to reset output file ownership\n");
+	  }
+	}
+	if (preserve_mode) {
+	  /* preserve file modification time */
+	  struct utimbuf time_save;
+	  time_save.actime=file_stat.st_atime;
+	  time_save.modtime=file_stat.st_mtime;
+	  if (utime(outfname,&time_save) != 0) {
+	    if (!quiet_mode) 
+	      fprintf(stderr,"jpegoptim: failed to reset output file time/date\n");
+	  }
+	}
 	if (verbose_mode > 1 && !quiet_mode) 
 	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
 	if (rename(outfname,newname)) fatal("cannot rename temp file");
