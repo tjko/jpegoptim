@@ -38,7 +38,7 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.3.0"
+#define VERSIO "1.3.1beta"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
