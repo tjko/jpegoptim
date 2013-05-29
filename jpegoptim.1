@@ -19,6 +19,14 @@ optimization, which is based on optimizing the Huffman tables. And
 so called "lossy" optimization where in addition to optimizing Huffman
 tables user can specify upperlimit for image quality.
 
+NOTE! By default jpegoptim modifies the input files (if they are optimized),
+to preserve original files use option \fB\-d\fR to specify alternate directory for saving the optimized files to.
+
+Only normal files are optimized (symbolic links and special files are skipped). 
+Also, any other hard links to the file being optimized (as created using
+.BR link (2))
+are unaffected.
+
 
 .SH OPTIONS
 .PP
