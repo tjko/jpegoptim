@@ -13,15 +13,40 @@
 #include "config.h"
 #endif
 
+#ifndef HOST_TYPE
+#if _WIN64
+#define HOST_TYPE "Win64"
+#elseif WIN32
+#define HOST_TYPE "Win32"
+#endif 
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef WIN32
+#include <process.h>
+#include <errno.h>
+#include <io.h> /* _findfirst and _findnext set errno iff they return -1 */
+#include <fcntl.h>
+#include <sys/utime.h>
+#define realpath(N,R) _fullpath((R),(N),MAXPATHLEN)
+#define snprintf _snprintf
+#define round(x) ((int) (x))
+#define getuid(x) 0
+#define rename renamewin32
+#define DIR_SEPARATOR_C '\\'
+#define DIR_SEPARATOR_S "\\"
+#else
 #include <sys/param.h>
+#include <utime.h>
+#define DIR_SEPARATOR_C '/'
+#define DIR_SEPARATOR_S "/"
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include <utime.h>
 #include <dirent.h>
 #if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
@@ -255,7 +280,7 @@ char *splitdir(const char *pathname, char *buf, int buflen)
 
   if (!pathname || !buf || buflen < 2) return NULL;
 
-  if ((s = strrchr(pathname,'/'))) size = (s-pathname)+1;
+  if ((s = strrchr(pathname,DIR_SEPARATOR_C))) size = (s-pathname)+1;
   if (size >= buflen) return NULL;
   if (size > 0) memcpy(buf,pathname,size);
   buf[size]=0;
@@ -314,13 +339,26 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
   }
 }
 
+#ifdef WIN32
+int ftruncate(int fildes, off_t length)
+{
+  return(open(fildes, O_TRUNC|O_WRONLY));
+}
+
+int renamewin32(const char *fonta_dnomo, const char *cela_dnomo)
+{
+  if (file_exists(cela_dnomo)) delete_file(cela_dnomo);
+  return rename(fonta_dnomo,cela_dnomo);
+}
+#endif
+
 /*****************************************************************/
 int main(int argc, char **argv) 
 {
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
-  int c,j, err_count, tmpfd, searchcount, searchdone;;
+  int c,j, err_count, tmpfd, searchcount, searchdone;
   int opt_index = 0;
   long insize,outsize,lastsize;
   int oldquality;
@@ -482,9 +520,9 @@ int main(int argc, char **argv)
      if (dest) {
        strncpy(tmpdir,dest_path,sizeof(tmpdir));
        strncpy(newname,dest_path,sizeof(newname));
-       if (tmpdir[strlen(tmpdir)-1] != '/') {
-	 strncat(tmpdir,"/",sizeof(tmpdir)-strlen(tmpdir)-1);
-	 strncat(newname,"/",sizeof(newname)-strlen(newname)-1);
+       if (tmpdir[strlen(tmpdir)-1] != DIR_SEPARATOR_C) {
+	 strncat(tmpdir,DIR_SEPARATOR_S,sizeof(tmpdir)-strlen(tmpdir)-1);
+	 strncat(newname,DIR_SEPARATOR_S,sizeof(newname)-strlen(newname)-1);
        }
        strncat(newname,(char*)basename(argv[i]),
 	       sizeof(newname)-strlen(newname)-1);
@@ -709,7 +747,7 @@ int main(int argc, char **argv)
 
      long osize = outsize/1024;
      long isize = insize/1024;
-     long tsize = target_size;;
+     long tsize = target_size;
 
      if (tsize < 0) { 
        tsize=((-target_size)*insize/100)/1024; 

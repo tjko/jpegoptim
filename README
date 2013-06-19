@@ -27,6 +27,8 @@ INSTALLATION
 
 HISTORY
 	v1.3.1beta
+		 changes to make compiling under Win32 and Win64
+		 easier (thanks to Javier Gutiérrez),
                  preserve permissions of files being optimized,
                  skip symlinks (and other special files),
                  minor fixes
