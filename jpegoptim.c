@@ -12,28 +12,12 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-#ifndef HOST_TYPE
-#if _WIN64
-#define HOST_TYPE "Win64"
-#elseif WIN32
-#define HOST_TYPE "Win32"
-#endif 
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #ifdef WIN32
-#include <process.h>
-#include <errno.h>
-#include <io.h> /* _findfirst and _findnext set errno iff they return -1 */
-#include <fcntl.h>
-#include <sys/utime.h>
-#define realpath(N,R) _fullpath((R),(N),MAXPATHLEN)
-#define snprintf _snprintf
-#define round(x) ((int) (x))
-#define getuid(x) 0
-#define rename renamewin32
+#include "win32_compat.h"
 #define DIR_SEPARATOR_C '\\'
 #define DIR_SEPARATOR_S "\\"
 #else
@@ -42,8 +26,6 @@
 #define DIR_SEPARATOR_C '/'
 #define DIR_SEPARATOR_S "/"
 #endif
-#include <sys/types.h>
-#include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -273,6 +255,16 @@ int file_exists(const char *pathname)
 }
 
 
+int rename_file(const char *old_path, const char *new_path)
+{
+  if (!old_path || !new_path) return -1;
+#ifdef WIN32
+  if (file_exists(new_path)) delete_file(new_path);
+#endif
+  return rename(old_path,new_path);
+}
+
+
 char *splitdir(const char *pathname, char *buf, int buflen)
 {
   char *s = NULL;
@@ -339,18 +331,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
   }
 }
 
-#ifdef WIN32
-int ftruncate(int fildes, off_t length)
-{
-  return(open(fildes, O_TRUNC|O_WRONLY));
-}
 
-int renamewin32(const char *fonta_dnomo, const char *cela_dnomo)
-{
-  if (file_exists(cela_dnomo)) delete_file(cela_dnomo);
-  return rename(fonta_dnomo,cela_dnomo);
-}
-#endif
 
 /*****************************************************************/
 int main(int argc, char **argv) 
@@ -846,7 +827,7 @@ int main(int argc, char **argv)
 	}
 	if (verbose_mode > 1 && !quiet_mode) 
 	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
-	if (rename(outfname,newname)) fatal("cannot rename temp file");
+	if (rename_file(outfname,newname)) fatal("cannot rename temp file");
    } else {
      if (!quiet_mode) printf("skipped.\n");
      if (!noaction) delete_file(outfname);
