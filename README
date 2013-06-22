@@ -14,7 +14,7 @@ TESTED PLATFORMS
 
 INSTALLATION
 	Installation should be very straightforward, just unpack the
-	tar file, make nesessary changes to the Makefile,  and then 
+	tar file, make necessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
 		zcat jpegoptim-1.3.1.tar.gz | tar xf -
@@ -42,7 +42,7 @@ HISTORY
 		 updated GPL/Copyrights language (thanks to Nicolas Vieville)
 	v1.2.5 - safer temp file handling (if mkstemps() available),
 		 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
-	v1.2.4 - new -T / --treshold option by Matteo Croce,
+	v1.2.4 - new -T / --threshold option by Matteo Croce,
 		 minor fixes (potential memory leaks),
 		 merged some patches from Debian jpegoptim package (1.2.3-2)
 	v1.2.3 - IPTC marker support by Dustin Ward,
