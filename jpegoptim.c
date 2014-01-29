@@ -66,6 +66,10 @@
 #define ICC_IDENT_STRING  "ICC_PROFILE\0"
 #define ICC_IDENT_STRING_SIZE 12
 
+#define XMP_JPEG_MARKER   JPEG_APP0+1
+#define XMP_IDENT_STRING  "http://ns.adobe.com/xap/1.0/\000"
+#define XMP_IDENT_STRING_SIZE 29
+
 void fatal(const char *msg);
 
 struct my_error_mgr {
@@ -97,6 +101,7 @@ int save_exif = 1;
 int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
+int save_xmp = 1;
 int threshold = -1;
 int csv = 0;
 int all_normal = 0;
@@ -121,6 +126,7 @@ struct option long_options[] = {
   {"strip-exif",0,&save_exif,0},
   {"strip-iptc",0,&save_iptc,0},
   {"strip-icc",0,&save_icc,0},
+  {"strip-xmp",0,&save_xmp,0},
   {"threshold",1,0,'T'},
   {"csv",0,0,'b'},
   {"all-normal",0,&all_normal,1},
@@ -189,11 +195,12 @@ void p_usage(void)
     "  -t, --totals      print totals after processing all files\n"
     "  -v, --verbose     enable verbose mode (positively chatty)\n"
     "  -V, --version     print program version\n\n"
-    "  --strip-all       strip all (Comment & Exif) markers from output file\n"
+    "  -s, --strip-all   strip all (Comment & Exif) markers from output file\n"
     "  --strip-com       strip Comment markers from output file\n"
     "  --strip-exif      strip Exif markers from output file\n"
     "  --strip-iptc      strip IPTC markers from output file\n"
     "  --strip-icc       strip ICC profile markers from output file\n"
+    "  --strip-xmp       strip XMP markers markers from output file\n"
     "\n"
     "  --all-normal      force all output files to be non-progressive\n"
     "  --all-progressive force all output files to be progressive\n"
@@ -323,13 +330,19 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 	jpeg_write_marker(cinfo,EXIF_JPEG_MARKER,mrk->data,mrk->data_length);
       }
     }
-     
+
     if (save_icc && mrk->marker == ICC_JPEG_MARKER) {
       if (!memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) {
 	jpeg_write_marker(cinfo,ICC_JPEG_MARKER,mrk->data,mrk->data_length);
       }
     }
-     
+
+    if (save_xmp && mrk->marker == XMP_JPEG_MARKER) {
+      if (!memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) {
+	jpeg_write_marker(cinfo,XMP_JPEG_MARKER,mrk->data,mrk->data_length);
+      }
+    }
+
     mrk=mrk->next;
   }
 }
