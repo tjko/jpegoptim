@@ -98,6 +98,7 @@ int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
 int threshold = -1;
+int csv = 0;
 int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
@@ -121,6 +122,7 @@ struct option long_options[] = {
   {"strip-iptc",0,&save_iptc,0},
   {"strip-icc",0,&save_icc,0},
   {"threshold",1,0,'T'},
+  {"csv",0,0,'b'},
   {"all-normal",0,&all_normal,1},
   {"all-progressive",0,&all_progressive,1},
   {"size",1,0,'S'},
@@ -180,6 +182,7 @@ void p_usage(void)
     "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
     "  -T<threshold>, --threshold=<threshold>\n"
     "                    keep old file if the gain is below a threshold (%%)\n"
+    "  -b, --csv       print progress info in CSV format\n"
     "  -o, --overwrite   overwrite target file even if it exists\n"
     "  -p, --preserve    preserve file timestamps\n"
     "  -q, --quiet       quiet mode\n"
@@ -377,7 +380,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:S:",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:S:b",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -420,6 +423,10 @@ int main(int argc, char **argv)
       break;
     case 'f':
       force=1;
+      break;
+    case 'b':
+      csv=1;
+      quiet_mode=1;
       break;
     case '?':
       break;
@@ -537,12 +544,12 @@ int main(int argc, char **argv)
 	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
 	free(buf); buf=NULL;
       }
-      if (!quiet_mode) printf(" [ERROR]\n");
+      if (!quiet_mode || csv) printf(csv ? ",,,,,error\n" : " [ERROR]\n");
       continue;
    }
 
-   if (!retry && !quiet_mode) {
-     printf("%s ",argv[i]); fflush(stdout); 
+   if (!retry && !quiet_mode || csv) {
+     printf(csv ? "%s," : "%s ",argv[i]); fflush(stdout); 
    }
 
    /* prepare to decompress */
@@ -577,16 +584,18 @@ int main(int argc, char **argv)
    }
 
 
-   if (!retry && !quiet_mode) {
-     printf("%dx%d %dbit %c ",(int)dinfo.image_width,
+   if (!retry && !quiet_mode || csv) {
+     printf(csv ? "%dx%d,%dbit," : "%dx%d %dbit ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8,
 	    (dinfo.progressive_mode?'P':'N'));
 
-     if (exif_marker) printf("Exif ");
-     if (iptc_marker) printf("IPTC ");
-     if (icc_marker) printf("ICC ");
-     if (dinfo.saw_Adobe_marker) printf("Adobe ");
-     if (dinfo.saw_JFIF_marker) printf("JFIF ");
+     if(!csv) {
+	if (exif_marker) printf("Exif ");
+	if (iptc_marker) printf("IPTC ");
+	if (icc_marker) printf("ICC ");
+	if (dinfo.saw_Adobe_marker) printf("Adobe ");
+	if (dinfo.saw_JFIF_marker) printf("JFIF ");
+     }
      fflush(stdout);
    }
 
@@ -793,14 +802,14 @@ int main(int argc, char **argv)
 
    retry=0;
    ratio=(insize-outsize)*100.0/insize;
-   if (!quiet_mode) 
-     printf("%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+   if (!quiet_mode || csv)
+     printf(csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
    if ((outsize < insize && ratio >= threshold) || force) {
         total_save+=(insize-outsize)/1024.0;
-	if (!quiet_mode) printf("optimized.\n");
+	if (!quiet_mode || csv) printf(csv ? "optimized\n" : "optimized.\n");
         if (noaction) continue;
 
 	/* preserve file mode */
@@ -829,7 +838,7 @@ int main(int argc, char **argv)
 	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
 	if (rename_file(outfname,newname)) fatal("cannot rename temp file");
    } else {
-     if (!quiet_mode) printf("skipped.\n");
+     if (!quiet_mode || csv) printf(csv ? "skipped\n" : "skipped.\n");
      if (!noaction) delete_file(outfname);
    }
    
