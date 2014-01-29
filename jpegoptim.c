@@ -598,7 +598,7 @@ int main(int argc, char **argv)
 
 
    if (!retry && !quiet_mode || csv) {
-     printf(csv ? "%dx%d,%dbit," : "%dx%d %dbit ",(int)dinfo.image_width,
+      printf(csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8,
 	    (dinfo.progressive_mode?'P':'N'));
 
