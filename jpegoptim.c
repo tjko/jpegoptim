@@ -561,7 +561,7 @@ int main(int argc, char **argv)
       continue;
    }
 
-   if (!retry && !quiet_mode || csv) {
+   if (!retry && (!quiet_mode || csv)) {
      printf(csv ? "%s," : "%s ",argv[i]); fflush(stdout); 
    }
 
