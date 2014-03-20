@@ -27,6 +27,7 @@ INSTALLATION
 
 HISTORY
 	v1.3.1beta
+		 use DESTDIR instead of INSTALL_ROOT (thanks to Samuli Suominen),
 		 changes to make compiling under Win32 and Win64
 		 easier (thanks to Javier Gutiérrez),
                  preserve permissions of files being optimized,

@@ -77,18 +77,18 @@ archive:
 
 
 install: all install.dirs install.man
-	$(INSTALL) -m 755 $(PKGNAME) $(INSTALL_ROOT)/$(bindir)/$(PKGNAME)
+	$(INSTALL) -m 755 $(PKGNAME) $(DESTDIR)/$(bindir)/$(PKGNAME)
 
 printable.man:
 	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
 	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
 
 install.man: install.dirs
-	$(INSTALL) -m 644 $(PKGNAME).1 $(INSTALL_ROOT)/$(mandir)/man1/$(PKGNAME).1
+	$(INSTALL) -m 644 $(PKGNAME).1 $(DESTDIR)/$(mandir)/man1/$(PKGNAME).1
 
 install.dirs:
-	$(INSTALL) -d -m 755 $(INSTALL_ROOT)/$(mandir)/man1
-	$(INSTALL) -d -m 755 $(INSTALL_ROOT)/$(bindir)
+	$(INSTALL) -d -m 755 $(DESTDIR)/$(mandir)/man1
+	$(INSTALL) -d -m 755 $(DESTDIR)/$(bindir)
 
 # a tradition !
 love:	
