@@ -74,6 +74,9 @@ Keep the file unchanged if the compression gain is lower than the threshold (%).
 
 Valid values for threshold are: 0 - 100
 .TP 0.6i
+.B -b, --csv
+Print progress info in CSV format.
+.TP 0.6i
 .B -o, --overwrite
 Overwrite target file even if it exists (when using -d option).
 .TP 0.6i
@@ -99,7 +102,7 @@ Force all output files to be progressive. Can be used to convert
 all input files to normal (non-progressive) JPEGs when used with --force option.
 
 .TP 0.6i
-.B --strip-all
+.B -s, --strip-all
 Strip all (Comment & Exif) markers from output file. (NOTE! by default
 only Comment & Exif markers are kept, everything else is discarded)
 .TP 0.6i
@@ -114,6 +117,9 @@ Strip IPTC markers from output file.
 .TP 0.6i
 .B --strip-icc
 Strip ICC profiles from output file.
+.TP 0.6i
+.B --strip-xmp
+Strip XMP profiles from output file.
 
 
 
@@ -130,7 +136,7 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996-2013  Timo Kokkonen
+Copyright (C) 1996-2014  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
