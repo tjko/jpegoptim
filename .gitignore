@@ -1,5 +1,7 @@
 Makefile
-config.*
+config.h
+config.status
+config.log
 jpegoptim
 *.o
 *.jpg

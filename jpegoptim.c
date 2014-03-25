@@ -140,6 +140,7 @@ jvirt_barray_ptr *coef_arrays = NULL;
 jpeg_saved_marker_ptr exif_marker = NULL;
 jpeg_saved_marker_ptr iptc_marker = NULL;
 jpeg_saved_marker_ptr icc_marker = NULL;
+jpeg_saved_marker_ptr xmp_marker = NULL;
 long average_count = 0;
 double average_rate = 0.0, total_save = 0.0;
 
@@ -188,7 +189,7 @@ void p_usage(void)
     "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
     "  -T<threshold>, --threshold=<threshold>\n"
     "                    keep old file if the gain is below a threshold (%%)\n"
-    "  -b, --csv       print progress info in CSV format\n"
+    "  -b, --csv         print progress info in CSV format\n"
     "  -o, --overwrite   overwrite target file even if it exists\n"
     "  -p, --preserve    preserve file timestamps\n"
     "  -q, --quiet       quiet mode\n"
@@ -393,7 +394,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:ntqvfVpoT:S:b",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:nstqvfVpoT:S:b",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -459,6 +460,7 @@ int main(int argc, char **argv)
       save_iptc=0;
       save_com=0;
       save_icc=0;
+      save_xmp=0;
       break;
     case 'T':
       {
@@ -572,6 +574,7 @@ int main(int argc, char **argv)
    if (save_iptc) jpeg_save_markers(&dinfo, IPTC_JPEG_MARKER, 0xffff);
    if (save_exif) jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
    if (save_icc) jpeg_save_markers(&dinfo, ICC_JPEG_MARKER, 0xffff);
+   if (save_xmp) jpeg_save_markers(&dinfo, XMP_JPEG_MARKER, 0xffff);
 
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
@@ -580,6 +583,7 @@ int main(int argc, char **argv)
    exif_marker=NULL;
    iptc_marker=NULL;
    icc_marker=NULL;
+   xmp_marker=NULL;
    cmarker=dinfo.marker_list;
    while (cmarker) {
      if (cmarker->marker == EXIF_JPEG_MARKER) {
@@ -593,19 +597,24 @@ int main(int argc, char **argv)
        if (!memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
 	 icc_marker=cmarker;
      }
+     if (cmarker->marker == XMP_JPEG_MARKER) {
+       if (!memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+	 xmp_marker=cmarker;
+     }
      cmarker=cmarker->next;
    }
 
 
-   if (!retry && !quiet_mode || csv) {
+   if (!retry && (!quiet_mode || csv)) {
       printf(csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 	    (int)dinfo.image_height,(int)dinfo.num_components*8,
 	    (dinfo.progressive_mode?'P':'N'));
 
-     if(!csv) {
+     if (!csv) {
 	if (exif_marker) printf("Exif ");
 	if (iptc_marker) printf("IPTC ");
 	if (icc_marker) printf("ICC ");
+	if (xmp_marker) printf("XMP ");
 	if (dinfo.saw_Adobe_marker) printf("Adobe ");
 	if (dinfo.saw_JFIF_marker) printf("JFIF ");
      }
