@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2013.
+ * Copyright (c) Timo Kokkonen, 1996-2014.
  * All Rights Reserved.
  *
  * requires libjpeg.a (from JPEG Group's JPEG software 
@@ -45,7 +45,7 @@
 #include <libgen.h>
 #endif
 
-#define VERSIO "1.3.1beta"
+#define VERSIO "1.3.1"
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
@@ -169,7 +169,7 @@ void p_usage(void)
 {
  if (!quiet_mode) {
   fprintf(stderr,"jpegoptim v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996-2013.\n"); 
+	  "  Copyright (c) Timo Kokkonen, 1996-2014.\n"); 
 
   fprintf(stderr,
        "Usage: jpegoptim [options] <filenames> \n\n"
@@ -446,7 +446,7 @@ int main(int argc, char **argv)
       break;
     case 'V':
       printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996-2013.\n");
+      printf("Copyright (c) Timo Kokkonen, 1996-2014.\n");
       exit(0);
       break;
     case 'o':
