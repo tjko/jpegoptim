@@ -649,12 +649,14 @@ int main(int argc, char **argv)
      fflush(stdout);
    }
 
+   fclose(infile);
+   infile=NULL;
+     
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
        fprintf(stderr,"target file already exists!\n");
        jpeg_abort_decompress(&dinfo);
-       fclose(infile);
        if (buf) {
 	 for (j=0;j<dinfo.output_height;j++) free(buf[j]);
 	 free(buf); buf=NULL;
@@ -686,7 +688,6 @@ int main(int argc, char **argv)
       jpeg_abort_decompress(&dinfo);
       fclose(outfile);
       outfile=NULL;
-      if (infile) fclose(infile);
       if (!quiet_mode) printf(" [Compress ERROR]\n");
       if (buf) {
 	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
@@ -811,7 +812,6 @@ int main(int argc, char **argv)
      free(buf); buf=NULL;
    }
    jpeg_finish_decompress(&dinfo);
-   fclose(infile);
    fclose(outfile);
    outfile=NULL;
 
