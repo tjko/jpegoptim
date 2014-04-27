@@ -257,11 +257,10 @@ int is_file(const char *filename, struct stat *st)
 
 int file_exists(const char *pathname)
 {
-  FILE *file;
+  struct stat buf;
 
   if (!pathname) return 0;
-  if (!(file=fopen(pathname,"r"))) return 0;
-  fclose(file);
+  if (stat(pathname,&buf) != 0) return 0;
   return 1;
 }
 
