@@ -16,16 +16,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef WIN32
-#include "win32_compat.h"
-#define DIR_SEPARATOR_C '\\'
-#define DIR_SEPARATOR_S "\\"
-#else
-#include <sys/param.h>
-#include <utime.h>
-#define DIR_SEPARATOR_C '/'
-#define DIR_SEPARATOR_S "/"
-#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -44,33 +34,11 @@
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
+#include "jpegoptim.h"
 
-#define VERSIO "1.3.1"
 
-#ifdef BROKEN_METHODDEF
-#undef METHODDEF
-#define METHODDEF(x) static x
-#endif
+#define VERSIO "1.4.0beta"
 
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 1024
-#endif
-
-#define EXIF_JPEG_MARKER   JPEG_APP0+1
-#define EXIF_IDENT_STRING  "Exif\000\000"
-#define EXIF_IDENT_STRING_SIZE 6
-
-#define IPTC_JPEG_MARKER   JPEG_APP0+13
-
-#define ICC_JPEG_MARKER   JPEG_APP0+2
-#define ICC_IDENT_STRING  "ICC_PROFILE\0"
-#define ICC_IDENT_STRING_SIZE 12
-
-#define XMP_JPEG_MARKER   JPEG_APP0+1
-#define XMP_IDENT_STRING  "http://ns.adobe.com/xap/1.0/\000"
-#define XMP_IDENT_STRING_SIZE 29
-
-void fatal(const char *msg);
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
@@ -92,6 +60,8 @@ int global_error_counter = 0;
 int preserve_mode = 0;
 int overwrite_mode = 0;
 int totals_mode = 0;
+int stdin_mode = 0;
+int stdout_mode = 0;
 int noaction = 0;
 int quality = -1;
 int retry = 0;
@@ -107,8 +77,11 @@ int csv = 0;
 int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
-char *outfname = NULL;
-FILE *infile = NULL, *outfile = NULL;
+int logs_to_stdout = 1;
+
+
+#define LOG_FH (logs_to_stdout ? stdout : stderr)
+
 
 struct option long_options[] = {
   {"verbose",0,0,'v'},
@@ -132,6 +105,8 @@ struct option long_options[] = {
   {"all-normal",0,&all_normal,1},
   {"all-progressive",0,&all_progressive,1},
   {"size",1,0,'S'},
+  {"stdout",0,&stdout_mode,1},
+  {"stdin",0,&stdin_mode,1},
   {0,0,0,0}
 };
 
@@ -160,7 +135,7 @@ my_output_message (j_common_ptr cinfo)
   char buffer[JMSG_LENGTH_MAX];
 
   (*cinfo->err->format_message) (cinfo, buffer); 
-  if (verbose_mode) printf(" (%s) ",buffer);
+  if (verbose_mode) fprintf(LOG_FH," (%s) ",buffer);
   global_error_counter++;
 }
 
@@ -168,11 +143,11 @@ my_output_message (j_common_ptr cinfo)
 void p_usage(void) 
 {
  if (!quiet_mode) {
-  fprintf(stderr,"jpegoptim v" VERSIO 
+  fprintf(stderr,PROGRAMNAME " v" VERSIO 
 	  "  Copyright (c) Timo Kokkonen, 1996-2014.\n"); 
 
   fprintf(stderr,
-       "Usage: jpegoptim [options] <filenames> \n\n"
+       "Usage: " PROGRAMNAME " [options] <filenames> \n\n"
     "  -d<path>, --dest=<path>\n"
     "                    specify alternative destination directory for \n"
     "                    optimized files (default is to overwrite originals)\n"
@@ -205,110 +180,26 @@ void p_usage(void)
     "\n"
     "  --all-normal      force all output files to be non-progressive\n"
     "  --all-progressive force all output files to be progressive\n"
+    "  --stdout          send output to standard output (instead of a file)\n"
+    "  --stdin           read input from standard input (instead of a file)\n"
     "\n\n");
  }
 
  exit(1);
 }
 
-int delete_file(char *name)
-{
-  int retval;
-
-  if (!name) return -1;
-  if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
-  if ((retval=unlink(name)) && !quiet_mode) 
-    fprintf(stderr,"jpegoptim: error removing file: %s\n",name);
-
-  return retval;
-}
-
-long file_size(FILE *fp)
-{
-  struct stat buf;
-
-  if (!fp) return -1;
-  if (fstat(fileno(fp),&buf)) return -2;
-  return (long)buf.st_size;
-}
-
-int is_directory(const char *path)
-{
-  DIR *dir;
-
-  if (!path) return 0;
-  if (!(dir = opendir(path))) return 0;
-  closedir(dir);
-  return 1;
-}
-
-
-int is_file(const char *filename, struct stat *st)
-{
- struct stat buf;
-
- if (!filename) return 0;
- if (lstat(filename,&buf) != 0) return 0;
- if (st) *st=buf;
- if (S_ISREG(buf.st_mode)) return 1;
- return 0;
-}
-
-
-int file_exists(const char *pathname)
-{
-  struct stat buf;
-
-  if (!pathname) return 0;
-  if (stat(pathname,&buf) != 0) return 0;
-  return 1;
-}
-
-
-int rename_file(const char *old_path, const char *new_path)
-{
-  if (!old_path || !new_path) return -1;
-#ifdef WIN32
-  if (file_exists(new_path)) delete_file(new_path);
-#endif
-  return rename(old_path,new_path);
-}
-
-
-char *splitdir(const char *pathname, char *buf, int buflen)
-{
-  char *s = NULL;
-  int size = 0;
-
-  if (!pathname || !buf || buflen < 2) return NULL;
-
-  if ((s = strrchr(pathname,DIR_SEPARATOR_C))) size = (s-pathname)+1;
-  if (size >= buflen) return NULL;
-  if (size > 0) memcpy(buf,pathname,size);
-  buf[size]=0;
-
-  return buf;
-}
-
 
 void own_signal_handler(int a)
 {
-  if (verbose_mode > 1) printf("jpegoptim: signal: %d\n",a);
-  if (outfile) fclose(outfile);
-  if (outfname) if (file_exists(outfname)) delete_file(outfname);
+  if (verbose_mode > 1) 
+    fprintf(stderr,PROGRAMNAME ": signal: %d\n",a);
   exit(1);
 }
 
 
-void fatal(const char *msg)
-{
-  if (!msg) msg="(NULL)";
-  fprintf(stderr,"jpegoptim: %s.\n",msg);
 
-  if (outfile) fclose(outfile);
-  if (outfname) if (file_exists(outfname)) delete_file(outfname);
-  exit(3);
-}
+
+
 
 void write_markers(struct jpeg_decompress_struct *dinfo,
 		   struct jpeg_compress_struct *cinfo)
@@ -355,13 +246,19 @@ int main(int argc, char **argv)
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
-  int c,j, err_count, tmpfd, searchcount, searchdone;
+  int c,j, tmpfd, searchcount, searchdone;
   int opt_index = 0;
   long insize,outsize,lastsize;
   int oldquality;
   double ratio;
   struct stat file_stat;
   jpeg_saved_marker_ptr cmarker; 
+  unsigned char *outbuffer = NULL;
+  size_t outbuffersize;
+  char *outfname = NULL;
+  FILE *infile = NULL, *outfile = NULL;
+  int compress_err_count = 0;
+  int decompress_err_count = 0;
 
 
   if (rcsid)
@@ -385,8 +282,8 @@ int main(int argc, char **argv)
 
 
   if (argc<2) {
-    if (!quiet_mode) fprintf(stderr,"jpegoptim: file arguments missing\n"
-			     "Try 'jpegoptim --help' for more information.\n");
+    if (!quiet_mode) fprintf(stderr,PROGRAMNAME ": file arguments missing\n"
+			     "Try '" PROGRAMNAME " --help' for more information.\n");
     exit(1);
   }
  
@@ -444,7 +341,7 @@ int main(int argc, char **argv)
     case '?':
       break;
     case 'V':
-      printf("jpegoptim v%s  %s\n",VERSIO,HOST_TYPE);
+      printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
       printf("Copyright (c) Timo Kokkonen, 1996-2014.\n");
       exit(0);
       break;
@@ -490,6 +387,10 @@ int main(int argc, char **argv)
     }
   }
 
+  if (stdin_mode) stdout_mode=1;
+  if (stdout_mode) { logs_to_stdout=0; }
+
+
   if (all_normal && all_progressive)
     fatal("cannot specify both --all-normal and --all-progressive"); 
 
@@ -514,61 +415,67 @@ int main(int argc, char **argv)
   /* loop to process the input files */
   i=1;  
   do {
-   if (!argv[i][0]) continue;
-   if (argv[i][0]=='-') continue;
-
-   if (!noaction) {
-     /* generate temp (& new) filename */
-     if (dest) {
-       strncpy(tmpdir,dest_path,sizeof(tmpdir));
-       strncpy(newname,dest_path,sizeof(newname));
-       if (tmpdir[strlen(tmpdir)-1] != DIR_SEPARATOR_C) {
-	 strncat(tmpdir,DIR_SEPARATOR_S,sizeof(tmpdir)-strlen(tmpdir)-1);
-	 strncat(newname,DIR_SEPARATOR_S,sizeof(newname)-strlen(newname)-1);
-       }
-       strncat(newname,(char*)basename(argv[i]),
-	       sizeof(newname)-strlen(newname)-1);
-     } else {
-       if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
-	 fatal("splitdir() failed!");
-       strncpy(newname,argv[i],sizeof(newname));
-     }
-   }
-
-  retry_point:
-   if (!is_file(argv[i],&file_stat)) {
-     if (!quiet_mode) {
-       if (S_ISDIR(file_stat.st_mode)) 
-	 fprintf(stderr,"jpegoptim: skipping directory: %s\n",argv[i]);
-       else
-	 fprintf(stderr,"jpegoptim: skipping special file: %s\n",argv[i]); 
-     }
-     continue;
-   }
-   if ((infile=fopen(argv[i],"r"))==NULL) {
-     if (!quiet_mode) fprintf(stderr, "jpegoptim: can't open %s\n", argv[i]);
-     continue;
-   }
-
-   /* setup error handling for decompress */
-   if (setjmp(jderr.setjmp_buffer)) {
-      jpeg_abort_decompress(&dinfo);
-      fclose(infile);
-      if (buf) {
-	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-	free(buf); buf=NULL;
+    if (stdin_mode) {
+      infile=stdin;
+    } else {
+      if (!argv[i][0]) continue;
+      if (argv[i][0]=='-') continue;
+      
+      if (!noaction) {
+	/* generate temp (& new) filename */
+	if (dest) {
+	  strncpy(tmpdir,dest_path,sizeof(tmpdir));
+	  strncpy(newname,dest_path,sizeof(newname));
+	  if (tmpdir[strlen(tmpdir)-1] != DIR_SEPARATOR_C) {
+	    strncat(tmpdir,DIR_SEPARATOR_S,sizeof(tmpdir)-strlen(tmpdir)-1);
+	    strncat(newname,DIR_SEPARATOR_S,sizeof(newname)-strlen(newname)-1);
+	  }
+	  strncat(newname,(char*)basename(argv[i]),
+		  sizeof(newname)-strlen(newname)-1);
+	} else {
+	  if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
+	    fatal("splitdir() failed!");
+	  strncpy(newname,argv[i],sizeof(newname));
+	}
       }
-      if (!quiet_mode || csv) printf(csv ? ",,,,,error\n" : " [ERROR]\n");
-      continue;
+      
+    retry_point:
+      
+      if (!is_file(argv[i],&file_stat)) {
+	if (!quiet_mode) {
+	  if (S_ISDIR(file_stat.st_mode)) 
+	    warn("skipping directory: %s",argv[i]);
+	  else
+	    warn("skipping special file: %s",argv[i]); 
+	}
+	continue;
+      }
+      if ((infile=fopen(argv[i],"r"))==NULL) {
+	if (!quiet_mode) warn("cannot open file: %s", argv[i]);
+	continue;
+      }
+    }
+
+   if (setjmp(jderr.setjmp_buffer)) {
+     /* error handler for decompress */
+     jpeg_abort_decompress(&dinfo);
+     fclose(infile);
+     if (buf) {
+       for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+       free(buf); buf=NULL;
+     }
+     if (!quiet_mode || csv) 
+       fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
+     decompress_err_count++;
+     continue;
    }
 
    if (!retry && (!quiet_mode || csv)) {
-     printf(csv ? "%s," : "%s ",argv[i]); fflush(stdout); 
+     fprintf(LOG_FH,csv ? "%s," : "%s ",(stdin_mode?"stdin":argv[i])); fflush(LOG_FH); 
    }
 
    /* prepare to decompress */
    global_error_counter=0;
-   err_count=jderr.pub.num_warnings;
    if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
    if (save_iptc) jpeg_save_markers(&dinfo, IPTC_JPEG_MARKER, 0xffff);
    if (save_exif) jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
@@ -605,19 +512,19 @@ int main(int argc, char **argv)
 
 
    if (!retry && (!quiet_mode || csv)) {
-      printf(csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
-	    (int)dinfo.image_height,(int)dinfo.num_components*8,
-	    (dinfo.progressive_mode?'P':'N'));
+     fprintf(LOG_FH,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
+	     (int)dinfo.image_height,(int)dinfo.num_components*8,
+	     (dinfo.progressive_mode?'P':'N'));
 
      if (!csv) {
-	if (exif_marker) printf("Exif ");
-	if (iptc_marker) printf("IPTC ");
-	if (icc_marker) printf("ICC ");
-	if (xmp_marker) printf("XMP ");
-	if (dinfo.saw_Adobe_marker) printf("Adobe ");
-	if (dinfo.saw_JFIF_marker) printf("JFIF ");
+       if (exif_marker) fprintf(LOG_FH,"Exif ");
+       if (iptc_marker) fprintf(LOG_FH,"IPTC ");
+       if (icc_marker) fprintf(LOG_FH,"ICC ");
+       if (xmp_marker) fprintf(LOG_FH,"XMP ");
+       if (dinfo.saw_Adobe_marker) fprintf(LOG_FH,"Adobe ");
+       if (dinfo.saw_JFIF_marker) fprintf(LOG_FH,"JFIF ");
      }
-     fflush(stdout);
+     fflush(LOG_FH);
    }
 
    insize=file_size(infile);
@@ -643,9 +550,9 @@ int main(int argc, char **argv)
    }
 
    if (!retry && !quiet_mode) {
-     if (!global_error_counter) printf(" [OK] ");
-     else printf(" [WARNING] ");
-     fflush(stdout);
+     if (global_error_counter==0) fprintf(LOG_FH," [OK] ");
+     else fprintf(LOG_FH," [WARNING] ");
+     fflush(LOG_FH);
    }
 
    fclose(infile);
@@ -654,7 +561,7 @@ int main(int argc, char **argv)
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
-       fprintf(stderr,"target file already exists!\n");
+       fprintf(stderr,"target file already exists: %s\n",newname);
        jpeg_abort_decompress(&dinfo);
        if (buf) {
 	 for (j=0;j<dinfo.output_height;j++) free(buf[j]);
@@ -664,39 +571,20 @@ int main(int argc, char **argv)
      }
    }
 
-   if (noaction) {
-     outfname=NULL;
-     if ((outfile=tmpfile())==NULL) fatal("error creating temp file: tmpfile() failed");
-   } else {
-     snprintf(tmpfilename,sizeof(tmpfilename),
-	      "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-#ifdef HAVE_MKSTEMPS
-     if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
-       fatal("error creating temp file: mkstemps() failed");
-     if ((outfile=fdopen(tmpfd,"w"))==NULL) 
-#else
-     tmpfd=0;
-     if ((outfile=fopen(tmpfilename,"w"))==NULL) 
-#endif
-       fatal("error opening temporary file");
-     outfname=tmpfilename;
-   }
 
    if (setjmp(jcerr.setjmp_buffer)) {
-      jpeg_abort_compress(&cinfo);
-      jpeg_abort_decompress(&dinfo);
-      fclose(outfile);
-      outfile=NULL;
-      if (!quiet_mode) printf(" [Compress ERROR]\n");
-      if (buf) {
-	for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-	free(buf); buf=NULL;
-      }
-      if (file_exists(outfname)) delete_file(outfname);
-      outfname=NULL;
-      continue;
+     /* error handler for compress failures */
+     
+     jpeg_abort_compress(&cinfo);
+     jpeg_abort_decompress(&dinfo);
+     if (!quiet_mode) fprintf(LOG_FH," [Compress ERROR]\n");
+     if (buf) {
+       for (j=0;j<dinfo.output_height;j++) free(buf[j]);
+       free(buf); buf=NULL;
+     }
+     compress_err_count++;
+     continue;
    }
-
 
 
    lastsize = 0;
@@ -705,9 +593,14 @@ int main(int argc, char **argv)
    oldquality = 200;
 
 
+
   binary_search_loop:
 
-   jpeg_stdio_dest(&cinfo, outfile);
+   if (outbuffer) free(outbuffer);
+   outbuffersize=insize + 32768;
+   outbuffer=malloc(outbuffersize);
+   if (!outbuffer) fatal("not enough memory");
+   jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
 
    if (quality>=0 && !retry) {
      /* lossy "optimization" ... */
@@ -751,8 +644,7 @@ int main(int argc, char **argv)
    }
 
    jpeg_finish_compress(&cinfo);
-   fflush(outfile);
-   outsize=file_size(outfile);
+   outsize=outbuffersize;
 
    if (target_size != 0 && !retry) {
      /* perform (binary) search to try to reach target file size... */
@@ -769,16 +661,13 @@ int main(int argc, char **argv)
      if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
        if (searchdone < 42 && lastsize > 0) {
 	 if (abs(osize-tsize) > abs(lastsize-tsize)) {
-	   if (verbose_mode) printf("(revert to %d)",oldquality);
+	   if (verbose_mode) fprintf(LOG_FH,"(revert to %d)",oldquality);
 	   searchdone=42;
 	   quality=oldquality;
-	   rewind(outfile);
-	   if (ftruncate(fileno(outfile),0) != 0) 
-	     fatal("failed to truncate output file");
 	   goto binary_search_loop;
 	 }
        }
-       if (verbose_mode) printf(" ");
+       if (verbose_mode) fprintf(LOG_FH," ");
        
      } else {
        int newquality;
@@ -795,13 +684,10 @@ int main(int argc, char **argv)
        oldquality=quality;
        quality=newquality;
 
-       if (verbose_mode) fprintf(stderr,"(try %d)",quality);
+       if (verbose_mode) fprintf(LOG_FH,"(try %d)",quality);
 
        lastsize=osize;
        searchcount++;
-       rewind(outfile);
-       if (ftruncate(fileno(outfile),0) != 0) 
-	 fatal("failed to truncate output file");
        goto binary_search_loop;
      }
    } 
@@ -811,12 +697,10 @@ int main(int argc, char **argv)
      free(buf); buf=NULL;
    }
    jpeg_finish_decompress(&dinfo);
-   fclose(outfile);
-   outfile=NULL;
 
-   if (quality>=0 && outsize>=insize && !retry) {
-     if (!noaction) delete_file(outfname);
-     if (verbose_mode) printf("(retry w/lossless) ");
+
+   if (quality>=0 && outsize>=insize && !retry && !stdin_mode) {
+     if (verbose_mode) fprintf(LOG_FH,"(retry w/lossless) ");
      retry=1;
      goto retry_point; 
    }
@@ -824,56 +708,82 @@ int main(int argc, char **argv)
    retry=0;
    ratio=(insize-outsize)*100.0/insize;
    if (!quiet_mode || csv)
-     printf(csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+     fprintf(LOG_FH,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
    average_count++;
    average_rate+=(ratio<0 ? 0.0 : ratio);
 
    if ((outsize < insize && ratio >= threshold) || force) {
         total_save+=(insize-outsize)/1024.0;
-	if (!quiet_mode || csv) printf(csv ? "optimized\n" : "optimized.\n");
+	if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "optimized\n" : "optimized.\n");
         if (noaction) continue;
 
-	/* preserve file mode */
-	if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) {
-	  if (!quiet_mode) 
-	    fprintf(stderr,"jpegoptim: failed to set output file mode\n"); 
+
+
+	if (stdout_mode) {
+	  outfile=stdout;
+	  outfname=NULL;
+	} else {
+	  snprintf(tmpfilename,sizeof(tmpfilename),
+		   "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
+#ifdef HAVE_MKSTEMPS
+	  if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
+	    fatal("error creating temp file: mkstemps() failed");
+	  if ((outfile=fdopen(tmpfd,"w"))==NULL) 
+#else
+	    tmpfd=0;
+	  if ((outfile=fopen(tmpfilename,"w"))==NULL) 
+#endif
+	    fatal("error opening temporary file");
+	  outfname=tmpfilename;
 	}
-	if (geteuid() == 0) {
-	  /* preserve file ownership */
-	  if (chown(outfname,file_stat.st_uid,file_stat.st_gid) != 0) {
-	    if (!quiet_mode)
-	      fprintf(stderr,"jpegoptim: failed to reset output file ownership\n");
-	  }
-	}
-	if (preserve_mode) {
-	  /* preserve file modification time */
-	  struct utimbuf time_save;
-	  time_save.actime=file_stat.st_atime;
-	  time_save.modtime=file_stat.st_mtime;
-	  if (utime(outfname,&time_save) != 0) {
-	    if (!quiet_mode) 
-	      fprintf(stderr,"jpegoptim: failed to reset output file time/date\n");
-	  }
-	}
+
 	if (verbose_mode > 1 && !quiet_mode) 
-	  fprintf(stderr,"renaming: %s to %s\n",outfname,newname);
-	if (rename_file(outfname,newname)) fatal("cannot rename temp file");
+	  fprintf(LOG_FH,"writing %ld bytes to temporary file: %s\n",outbuffersize,outfname);
+	if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
+	  fatal("write failed to temporary file");
+	fclose(outfile);
+	outfile=NULL;
+
+	if (outfname) {
+	  /* preserve file mode */
+	  if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) {
+	    if (!quiet_mode) warn("failed to set output file mode"); 
+	  }
+	  if (geteuid() == 0) {
+	    /* preserve file ownership */
+	    if (chown(outfname,file_stat.st_uid,file_stat.st_gid) != 0) {
+	      if (!quiet_mode) warn("failed to reset output file owner");
+	    }
+	  }
+	  if (preserve_mode) {
+	    /* preserve file modification time */
+	    struct utimbuf time_save;
+	    time_save.actime=file_stat.st_atime;
+	    time_save.modtime=file_stat.st_mtime;
+	    if (utime(outfname,&time_save) != 0) {
+	      if (!quiet_mode) warn("failed to reset output file time/date");
+	    }
+	  }
+
+	  if (verbose_mode > 1 && !quiet_mode) 
+	    fprintf(LOG_FH,"renaming: %s to %s\n",outfname,newname);
+	  if (rename_file(outfname,newname)) fatal("cannot rename temp file");
+	}
    } else {
-     if (!quiet_mode || csv) printf(csv ? "skipped\n" : "skipped.\n");
-     if (!noaction) delete_file(outfname);
+     if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "skipped\n" : "skipped.\n");
    }
    
 
-  } while (++i<argc);
+  } while (++i<argc && !stdin_mode);
 
 
   if (totals_mode && !quiet_mode)
-    printf("Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
-	   average_count, average_rate/average_count, total_save);
+    fprintf(LOG_FH,"Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
+	    average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
 
-  return 0;
+  return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
 }
 
 /* :-) */

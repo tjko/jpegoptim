@@ -1,5 +1,5 @@
 
-Jpegoptim v1.3.1  Copyright (c)  Timo Kokkonen, 1996-2014.
+Jpegoptim v1.4.0beta  Copyright (c)  Timo Kokkonen, 1996-2014.
 
 
 REQUIREMENTS
@@ -17,8 +17,8 @@ INSTALLATION
 	tar file, make necessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.3.1.tar.gz | tar xf -
-		cd jpegoptim-1.3.1
+		zcat jpegoptim-1.4.0.tar.gz | tar xf -
+		cd jpegoptim-1.4.0
 		./configure
 		make
 		make strip
@@ -26,6 +26,9 @@ INSTALLATION
 
 
 HISTORY
+    v1.4.0beta - use memory (instead of temporary files) during optimization,
+		 support for input/ouput via stdin/stdout,
+		 other minor fixes & cleanup
 	v1.3.1 - XMP marker support and new --csv option (by Matteo Croce),
 		 use DESTDIR instead of INSTALL_ROOT (by Samuli Suominen),
 		 changes to make compiling under Win32 and Win64
