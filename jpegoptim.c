@@ -44,12 +44,8 @@ struct my_error_mgr {
   struct jpeg_error_mgr pub;
   jmp_buf setjmp_buffer;   
 };
-
 typedef struct my_error_mgr * my_error_ptr;
 
-struct jpeg_decompress_struct dinfo;
-struct jpeg_compress_struct cinfo;
-struct my_error_mgr jcerr,jderr;
 
 const char *rcsid = "$Id$";
 
@@ -110,14 +106,6 @@ struct option long_options[] = {
   {0,0,0,0}
 };
 
-JSAMPARRAY buf = NULL;
-jvirt_barray_ptr *coef_arrays = NULL;
-jpeg_saved_marker_ptr exif_marker = NULL;
-jpeg_saved_marker_ptr iptc_marker = NULL;
-jpeg_saved_marker_ptr icc_marker = NULL;
-jpeg_saved_marker_ptr xmp_marker = NULL;
-long average_count = 0;
-double average_rate = 0.0, total_save = 0.0;
 
 /*****************************************************************/
 
@@ -243,6 +231,15 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 /*****************************************************************/
 int main(int argc, char **argv) 
 {
+  struct jpeg_decompress_struct dinfo;
+  struct jpeg_compress_struct cinfo;
+  struct my_error_mgr jcerr,jderr;
+  JSAMPARRAY buf = NULL;
+  jvirt_barray_ptr *coef_arrays = NULL;
+  jpeg_saved_marker_ptr exif_marker = NULL;
+  jpeg_saved_marker_ptr iptc_marker = NULL;
+  jpeg_saved_marker_ptr icc_marker = NULL;
+  jpeg_saved_marker_ptr xmp_marker = NULL;
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
@@ -259,6 +256,8 @@ int main(int argc, char **argv)
   FILE *infile = NULL, *outfile = NULL;
   int compress_err_count = 0;
   int decompress_err_count = 0;
+  long average_count = 0;
+  double average_rate = 0.0, total_save = 0.0;
 
 
   if (rcsid)
