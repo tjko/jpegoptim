@@ -723,17 +723,21 @@ int main(int argc, char **argv)
 	  outfile=stdout;
 	  outfname=NULL;
 	} else {
+#ifdef HAVE_MKSTEMPS
+          /* rely on mkstemps() to create us temporary file safely... */  
 	  snprintf(tmpfilename,sizeof(tmpfilename),
 		   "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-#ifdef HAVE_MKSTEMPS
 	  if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
 	    fatal("error creating temp file: mkstemps() failed");
 	  if ((outfile=fdopen(tmpfd,"w"))==NULL) 
 #else
-	    tmpfd=0;
+	  /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
+	  snprintf(tmpfilename,sizeof(tmpfilename),
+		   "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
+	  tmpfd=0;
 	  if ((outfile=fopen(tmpfilename,"w"))==NULL) 
 #endif
-	    fatal("error opening temporary file");
+	    fatal("error opening temporary file: %s",tmpfilename);
 	  outfname=tmpfilename;
 	}
 
