@@ -228,6 +228,10 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 
+
+#define FREE_LINE_BUF(buf,lines)  { int j; for (j=0;j<lines;j++) free(buf[j]); free(buf); buf=NULL; }
+
+
 /*****************************************************************/
 int main(int argc, char **argv) 
 {
@@ -459,10 +463,7 @@ int main(int argc, char **argv)
      /* error handler for decompress */
      jpeg_abort_decompress(&dinfo);
      fclose(infile);
-     if (buf) {
-       for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-       free(buf); buf=NULL;
-     }
+     if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
      if (!quiet_mode || csv) 
        fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
      decompress_err_count++;
@@ -532,6 +533,7 @@ int main(int argc, char **argv)
    if (quality>=0 && !retry) {
      jpeg_start_decompress(&dinfo);
 
+     /* allocate line buffer to store the decompressed image */
      buf = malloc(sizeof(JSAMPROW)*dinfo.output_height);
      if (!buf) fatal("not enough memory");
      for (j=0;j<dinfo.output_height;j++) {
@@ -562,10 +564,7 @@ int main(int argc, char **argv)
      if (file_exists(newname) && !overwrite_mode) {
        fprintf(stderr,"target file already exists: %s\n",newname);
        jpeg_abort_decompress(&dinfo);
-       if (buf) {
-	 for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-	 free(buf); buf=NULL;
-       }
+       if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
        continue;
      }
    }
@@ -577,10 +576,7 @@ int main(int argc, char **argv)
      jpeg_abort_compress(&cinfo);
      jpeg_abort_decompress(&dinfo);
      if (!quiet_mode) fprintf(LOG_FH," [Compress ERROR]\n");
-     if (buf) {
-       for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-       free(buf); buf=NULL;
-     }
+     if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
      compress_err_count++;
      continue;
    }
@@ -595,10 +591,13 @@ int main(int argc, char **argv)
 
   binary_search_loop:
 
+   /* allocate memory buffer that should be large enough to store the output JPEG... */
    if (outbuffer) free(outbuffer);
    outbuffersize=insize + 32768;
    outbuffer=malloc(outbuffersize);
    if (!outbuffer) fatal("not enough memory");
+
+   /* setup custom "destination manager" for libjpeg to write to our buffer */
    jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
 
    if (quality>=0 && !retry) {
@@ -691,10 +690,7 @@ int main(int argc, char **argv)
      }
    } 
 
-   if (buf) {
-     for (j=0;j<dinfo.output_height;j++) free(buf[j]);
-     free(buf); buf=NULL;
-   }
+   if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
    jpeg_finish_decompress(&dinfo);
 
 
