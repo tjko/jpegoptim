@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <string.h>
 #include <jpeglib.h>
+#include <jerror.h>
 #include <setjmp.h>
 #include <time.h>
 #include <math.h>
@@ -120,9 +121,10 @@ my_error_exit (j_common_ptr cinfo)
 METHODDEF(void)
 my_output_message (j_common_ptr cinfo)
 {
-  char buffer[JMSG_LENGTH_MAX];
+  char buffer[JMSG_LENGTH_MAX+1];
 
   (*cinfo->err->format_message) (cinfo, buffer); 
+  buffer[JMSG_LENGTH_MAX]=0;
   if (verbose_mode) fprintf(LOG_FH," (%s) ",buffer);
   global_error_counter++;
 }
@@ -246,6 +248,7 @@ int main(int argc, char **argv)
   jpeg_saved_marker_ptr xmp_marker = NULL;
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
+  char jmsg_buf[JMSG_LENGTH_MAX+1];
   volatile int i;
   int c,j, tmpfd, searchcount, searchdone;
   int opt_index = 0;
@@ -345,7 +348,15 @@ int main(int argc, char **argv)
       break;
     case 'V':
       printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) Timo Kokkonen, 1996-2014.\n");
+      printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
+      cinfo.err->msg_code=JMSG_VERSION;
+      (cinfo.err->format_message)((j_common_ptr)&cinfo,jmsg_buf);
+      jmsg_buf[JMSG_LENGTH_MAX]=0;
+      printf("\nlibjpeg version: %s  ",jmsg_buf);
+      cinfo.err->msg_code=JMSG_COPYRIGHT;
+      (cinfo.err->format_message)((j_common_ptr)&cinfo,jmsg_buf);
+      jmsg_buf[JMSG_LENGTH_MAX]=0;
+      printf("(%s)\n",jmsg_buf);
       exit(0);
       break;
     case 'o':
