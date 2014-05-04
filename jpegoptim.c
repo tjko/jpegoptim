@@ -39,6 +39,9 @@
 
 
 #define VERSIO "1.4.0beta"
+#define LOG_FH (logs_to_stdout ? stdout : stderr)
+#define FREE_LINE_BUF(buf,lines)  { int j; for (j=0;j<lines;j++) free(buf[j]); free(buf); buf=NULL; }
+#define COPY_JPEG_ERRSTR(jptr,buf) { ((jptr)->err->format_message)((j_common_ptr)jptr,buf); buf[JMSG_LENGTH_MAX-1]=0; }
 
 
 struct my_error_mgr {
@@ -46,7 +49,6 @@ struct my_error_mgr {
   jmp_buf setjmp_buffer;   
 };
 typedef struct my_error_mgr * my_error_ptr;
-
 
 const char *rcsid = "$Id$";
 
@@ -75,9 +77,6 @@ int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
 int logs_to_stdout = 1;
-
-
-#define LOG_FH (logs_to_stdout ? stdout : stderr)
 
 
 struct option long_options[] = {
@@ -121,61 +120,56 @@ my_error_exit (j_common_ptr cinfo)
 METHODDEF(void)
 my_output_message (j_common_ptr cinfo)
 {
-  char buffer[JMSG_LENGTH_MAX+1];
+  char buffer[JMSG_LENGTH_MAX];
 
-  (*cinfo->err->format_message) (cinfo, buffer); 
-  buffer[JMSG_LENGTH_MAX]=0;
+  COPY_JPEG_ERRSTR(cinfo,buffer);
   if (verbose_mode) fprintf(LOG_FH," (%s) ",buffer);
   global_error_counter++;
 }
 
 
-void p_usage(void) 
+void print_usage(void) 
 {
- if (!quiet_mode) {
   fprintf(stderr,PROGRAMNAME " v" VERSIO 
 	  "  Copyright (c) Timo Kokkonen, 1996-2014.\n"); 
 
   fprintf(stderr,
-       "Usage: " PROGRAMNAME " [options] <filenames> \n\n"
-    "  -d<path>, --dest=<path>\n"
-    "                    specify alternative destination directory for \n"
-    "                    optimized files (default is to overwrite originals)\n"
-    "  -f, --force       force optimization\n"
-    "  -h, --help        display this help and exit\n"
-    "  -m<quality>, --max=<quality>\n"
-    "                    set maximum image quality factor (disables lossless\n"
-    "                    optimization mode, which is by default on)\n"
-    "                    Valid quality values: 0 - 100\n"
-    "  -n, --noaction    don't really optimize files, just print results\n"
-    "  -S<size>, --size=<size>\n"
-    "                    Try to optimize file to given size (disables lossless\n"
-    "                    optimization mode). Target size is specified either in\n"
-    "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
-    "  -T<threshold>, --threshold=<threshold>\n"
-    "                    keep old file if the gain is below a threshold (%%)\n"
-    "  -b, --csv         print progress info in CSV format\n"
-    "  -o, --overwrite   overwrite target file even if it exists\n"
-    "  -p, --preserve    preserve file timestamps\n"
-    "  -q, --quiet       quiet mode\n"
-    "  -t, --totals      print totals after processing all files\n"
-    "  -v, --verbose     enable verbose mode (positively chatty)\n"
-    "  -V, --version     print program version\n\n"
-    "  -s, --strip-all   strip all (Comment & Exif) markers from output file\n"
-    "  --strip-com       strip Comment markers from output file\n"
-    "  --strip-exif      strip Exif markers from output file\n"
-    "  --strip-iptc      strip IPTC markers from output file\n"
-    "  --strip-icc       strip ICC profile markers from output file\n"
-    "  --strip-xmp       strip XMP markers markers from output file\n"
-    "\n"
-    "  --all-normal      force all output files to be non-progressive\n"
-    "  --all-progressive force all output files to be progressive\n"
-    "  --stdout          send output to standard output (instead of a file)\n"
-    "  --stdin           read input from standard input (instead of a file)\n"
-    "\n\n");
- }
-
- exit(1);
+	  "Usage: " PROGRAMNAME " [options] <filenames> \n\n"
+	  "  -d<path>, --dest=<path>\n"
+	  "                    specify alternative destination directory for \n"
+	  "                    optimized files (default is to overwrite originals)\n"
+	  "  -f, --force       force optimization\n"
+	  "  -h, --help        display this help and exit\n"
+	  "  -m<quality>, --max=<quality>\n"
+	  "                    set maximum image quality factor (disables lossless\n"
+	  "                    optimization mode, which is by default on)\n"
+	  "                    Valid quality values: 0 - 100\n"
+	  "  -n, --noaction    don't really optimize files, just print results\n"
+	  "  -S<size>, --size=<size>\n"
+	  "                    Try to optimize file to given size (disables lossless\n"
+	  "                    optimization mode). Target size is specified either in\n"
+	  "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
+	  "  -T<threshold>, --threshold=<threshold>\n"
+	  "                    keep old file if the gain is below a threshold (%%)\n"
+	  "  -b, --csv         print progress info in CSV format\n"
+	  "  -o, --overwrite   overwrite target file even if it exists\n"
+	  "  -p, --preserve    preserve file timestamps\n"
+	  "  -q, --quiet       quiet mode\n"
+	  "  -t, --totals      print totals after processing all files\n"
+	  "  -v, --verbose     enable verbose mode (positively chatty)\n"
+	  "  -V, --version     print program version\n\n"
+	  "  -s, --strip-all   strip all (Comment & Exif) markers from output file\n"
+	  "  --strip-com       strip Comment markers from output file\n"
+	  "  --strip-exif      strip Exif markers from output file\n"
+	  "  --strip-iptc      strip IPTC markers from output file\n"
+	  "  --strip-icc       strip ICC profile markers from output file\n"
+	  "  --strip-xmp       strip XMP markers markers from output file\n"
+	  "\n"
+	  "  --all-normal      force all output files to be non-progressive\n"
+	  "  --all-progressive force all output files to be progressive\n"
+	  "  --stdout          send output to standard output (instead of a file)\n"
+	  "  --stdin           read input from standard input (instead of a file)\n"
+	  "\n\n");
 }
 
 
@@ -231,8 +225,6 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 
-#define FREE_LINE_BUF(buf,lines)  { int j; for (j=0;j<lines;j++) free(buf[j]); free(buf); buf=NULL; }
-
 
 /*****************************************************************/
 int main(int argc, char **argv) 
@@ -248,7 +240,6 @@ int main(int argc, char **argv)
   jpeg_saved_marker_ptr xmp_marker = NULL;
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
-  char jmsg_buf[JMSG_LENGTH_MAX+1];
   volatile int i;
   int c,j, tmpfd, searchcount, searchdone;
   int opt_index = 0;
@@ -326,7 +317,8 @@ int main(int argc, char **argv)
       verbose_mode++;
       break;
     case 'h':
-      p_usage();
+      print_usage();
+      exit(0);
       break;
     case 'q':
       quiet_mode=1;
@@ -347,17 +339,19 @@ int main(int argc, char **argv)
     case '?':
       break;
     case 'V':
-      printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
-      printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
-      cinfo.err->msg_code=JMSG_VERSION;
-      (cinfo.err->format_message)((j_common_ptr)&cinfo,jmsg_buf);
-      jmsg_buf[JMSG_LENGTH_MAX]=0;
-      printf("\nlibjpeg version: %s  ",jmsg_buf);
-      cinfo.err->msg_code=JMSG_COPYRIGHT;
-      (cinfo.err->format_message)((j_common_ptr)&cinfo,jmsg_buf);
-      jmsg_buf[JMSG_LENGTH_MAX]=0;
-      printf("(%s)\n",jmsg_buf);
-      exit(0);
+      {
+	char jmsg_buf[JMSG_LENGTH_MAX];
+
+	printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
+	printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
+	cinfo.err->msg_code=JMSG_VERSION;
+	COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
+	printf("\nlibjpeg version: %s  ",jmsg_buf);
+	cinfo.err->msg_code=JMSG_COPYRIGHT;
+	COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
+	printf("(%s)\n",jmsg_buf);
+	exit(0);
+      }
       break;
     case 'o':
       overwrite_mode=1;
