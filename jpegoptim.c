@@ -759,12 +759,11 @@ int main(int argc, char **argv)
 	  if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) {
 	    if (!quiet_mode) warn("failed to set output file mode"); 
 	  }
-	  if (geteuid() == 0) {
-	    /* preserve file ownership */
-	    if (chown(outfname,file_stat.st_uid,file_stat.st_gid) != 0) {
-	      if (!quiet_mode) warn("failed to reset output file owner");
-	    }
+	  /* preserve file group (and owner if run by root) */
+	  if (chown(outfname,(geteuid()==0 ? file_stat.st_uid : -1),file_stat.st_gid) != 0) {
+	      if (!quiet_mode) warn("failed to reset output file group/owner");
 	  }
+	  
 	  if (preserve_mode) {
 	    /* preserve file modification time */
 	    struct utimbuf time_save;
