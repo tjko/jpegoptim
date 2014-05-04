@@ -395,9 +395,16 @@ int main(int argc, char **argv)
     }
   }
 
+
+  /* check for '-' option indicating input is from stdin... */
+  i=1;
+  while (argv[i]) {
+    if (argv[i][0]=='-' && argv[i][1]==0) stdin_mode=1;
+    i++;
+  }
+
   if (stdin_mode) stdout_mode=1;
   if (stdout_mode) { logs_to_stdout=0; }
-
 
   if (all_normal && all_progressive)
     fatal("cannot specify both --all-normal and --all-progressive"); 
@@ -717,11 +724,10 @@ int main(int argc, char **argv)
 	if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "optimized\n" : "optimized.\n");
         if (noaction) continue;
 
-
-
 	if (stdout_mode) {
-	  outfile=stdout;
 	  outfname=NULL;
+	  if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
+	    fatal("write failed to stdout");
 	} else {
 #ifdef HAVE_MKSTEMPS
           /* rely on mkstemps() to create us temporary file safely... */  
@@ -739,14 +745,14 @@ int main(int argc, char **argv)
 #endif
 	    fatal("error opening temporary file: %s",tmpfilename);
 	  outfname=tmpfilename;
-	}
 
-	if (verbose_mode > 1 && !quiet_mode) 
-	  fprintf(LOG_FH,"writing %ld bytes to temporary file: %s\n",outbuffersize,outfname);
-	if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
-	  fatal("write failed to temporary file");
-	fclose(outfile);
-	outfile=NULL;
+
+	  if (verbose_mode > 1 && !quiet_mode) 
+	    fprintf(LOG_FH,"writing %ld bytes to temporary file: %s\n",outbuffersize,outfname);
+	  if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
+	    fatal("write failed to temporary file");
+	  fclose(outfile);
+	}
 
 	if (outfname) {
 	  /* preserve file mode */

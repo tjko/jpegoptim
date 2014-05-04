@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "24 Mar 2014" 
+.TH JPEGOPTIM 1 "03 May 2014" 
 .UC 4 
 .SH NAME 
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -104,7 +104,7 @@ all input files to normal (non-progressive) JPEGs when used with --force option.
 .TP 0.6i
 .B -s, --strip-all
 Strip all (Comment & Exif) markers from output file. (NOTE! by default
-only Comment & Exif markers are kept, everything else is discarded)
+only Comment & Exif/IPTC/ICC/XMP markers are kept, everything else is discarded)
 .TP 0.6i
 .B --strip-com
 Strip Comment (COM) markers from output file.
@@ -120,6 +120,21 @@ Strip ICC profiles from output file.
 .TP 0.6i
 .B --strip-xmp
 Strip XMP profiles from output file.
+
+
+.TP 0.6i
+.B --stdout
+Send output image to standard output. Note, if optimization didn't create smaller file
+than the input file, then no output (image) is sent to standard output. (Option
+.B -f
+can be used to force output of image always, even if optimized image was not smaller than input).
+
+.TP 0.6i
+.B --stdin
+Read input image from standard input. When this option is used then only one
+image is read from standard output. Any (other) input files specified on command
+line are ignored. 
+Note, if input file '-' is seen on command line then standard input is also assumed.
 
 
 
