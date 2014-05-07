@@ -3,7 +3,7 @@
  * Copyright (c) Timo Kokkonen, 1996-2014.
  * All Rights Reserved.
  *
- * requires libjpeg.a (from JPEG Group's JPEG software 
+ * requires libjpeg (Independent JPEG Group's JPEG software 
  *                     release 6a or later...)
  *
  * $Id$
@@ -71,6 +71,7 @@ int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
 int save_xmp = 1;
+int strip_none = 0;
 int threshold = -1;
 int csv = 0;
 int all_normal = 0;
@@ -91,6 +92,7 @@ struct option long_options[] = {
   {"version",0,0,'V'},
   {"preserve",0,0,'p'},
   {"strip-all",0,0,'s'},
+  {"strip-none",0,&strip_none,1},
   {"strip-com",0,&save_com,0},
   {"strip-exif",0,&save_exif,0},
   {"strip-iptc",0,&save_iptc,0},
@@ -158,10 +160,11 @@ void print_usage(void)
 	  "  -t, --totals      print totals after processing all files\n"
 	  "  -v, --verbose     enable verbose mode (positively chatty)\n"
 	  "  -V, --version     print program version\n\n"
-	  "  -s, --strip-all   strip all (Comment & Exif) markers from output file\n"
+	  "  -s, --strip-all   strip all markers from output file\n"
+	  "  --strip-none      do not strip any markers\n"
 	  "  --strip-com       strip Comment markers from output file\n"
 	  "  --strip-exif      strip Exif markers from output file\n"
-	  "  --strip-iptc      strip IPTC markers from output file\n"
+	  "  --strip-iptc      strip IPTC/Photoshop (APP13) markers from output file\n"
 	  "  --strip-icc       strip ICC profile markers from output file\n"
 	  "  --strip-xmp       strip XMP markers markers from output file\n"
 	  "\n"
@@ -189,35 +192,62 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 		   struct jpeg_compress_struct *cinfo)
 {
   jpeg_saved_marker_ptr mrk;
+  int write_marker;
 
-  if (!cinfo || !dinfo) return;
+  if (!cinfo || !dinfo) fatal("invalid call to write_markers()");
 
   mrk=dinfo->marker_list;
   while (mrk) {
+    write_marker=0;
+
+    /* check for markers to save... */
+
     if (save_com && mrk->marker == JPEG_COM) 
-      jpeg_write_marker(cinfo,JPEG_COM,mrk->data,mrk->data_length);
-
+      write_marker++;
+   
     if (save_iptc && mrk->marker == IPTC_JPEG_MARKER) 
-      jpeg_write_marker(cinfo,IPTC_JPEG_MARKER,mrk->data,mrk->data_length);
+      write_marker++;
+    
+    if (save_exif && mrk->marker == EXIF_JPEG_MARKER &&
+	!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
+      write_marker++;
+    
+    if (save_icc && mrk->marker == ICC_JPEG_MARKER &&
+	     !memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
+      write_marker++;
+   
+    if (save_xmp && mrk->marker == XMP_JPEG_MARKER &&
+	     !memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+      write_marker++;
 
-    if (save_exif && mrk->marker == EXIF_JPEG_MARKER) {
-      if (!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) {
-	jpeg_write_marker(cinfo,EXIF_JPEG_MARKER,mrk->data,mrk->data_length);
-      }
-    }
+    if (strip_none) write_marker++;
 
-    if (save_icc && mrk->marker == ICC_JPEG_MARKER) {
-      if (!memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) {
-	jpeg_write_marker(cinfo,ICC_JPEG_MARKER,mrk->data,mrk->data_length);
-      }
-    }
 
-    if (save_xmp && mrk->marker == XMP_JPEG_MARKER) {
-      if (!memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) {
-	jpeg_write_marker(cinfo,XMP_JPEG_MARKER,mrk->data,mrk->data_length);
-      }
-    }
+    /* libjpeg emits some markers automatically so skip these to avoid duplicates... */
 
+    /* skip JFIF (APP0) marker */
+    if ( mrk->marker == JPEG_APP0 && mrk->data_length >= 14 &&
+	 mrk->data[0] == 0x4a &&
+	 mrk->data[1] == 0x46 &&
+	 mrk->data[2] == 0x49 &&
+	 mrk->data[3] == 0x46 &&
+	 mrk->data[4] == 0x00 ) 
+      write_marker=0;
+
+    /* skip Adobe (APP14) marker */
+    if ( mrk->marker == JPEG_APP0+14 && mrk->data_length >= 12 &&
+	 mrk->data[0] == 0x41 &&
+	 mrk->data[1] == 0x64 &&
+	 mrk->data[2] == 0x6f &&
+	 mrk->data[3] == 0x62 &&
+	 mrk->data[4] == 0x65 ) 
+      write_marker=0;
+
+    
+
+    if (write_marker) 
+      jpeg_write_marker(cinfo,mrk->marker,mrk->data,mrk->data_length);
+    
     mrk=mrk->next;
   }
 }
@@ -252,6 +282,7 @@ int main(int argc, char **argv)
   size_t outbuffersize;
   char *outfname = NULL;
   FILE *infile = NULL, *outfile = NULL;
+  int marker_in_count, marker_in_size;
   int compress_err_count = 0;
   int decompress_err_count = 0;
   long average_count = 0;
@@ -488,12 +519,9 @@ int main(int argc, char **argv)
 
    /* prepare to decompress */
    global_error_counter=0;
-   if (save_com) jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-   if (save_iptc) jpeg_save_markers(&dinfo, IPTC_JPEG_MARKER, 0xffff);
-   if (save_exif) jpeg_save_markers(&dinfo, EXIF_JPEG_MARKER, 0xffff);
-   if (save_icc) jpeg_save_markers(&dinfo, ICC_JPEG_MARKER, 0xffff);
-   if (save_xmp) jpeg_save_markers(&dinfo, XMP_JPEG_MARKER, 0xffff);
-
+   jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
+   for (j=0;j<=15;j++) 
+     jpeg_save_markers(&dinfo, JPEG_APP0+j, 0xffff);
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
 
@@ -502,8 +530,13 @@ int main(int argc, char **argv)
    iptc_marker=NULL;
    icc_marker=NULL;
    xmp_marker=NULL;
+   marker_in_count=0;
+   marker_in_size=0;
    cmarker=dinfo.marker_list;
    while (cmarker) {
+     marker_in_count++;
+     marker_in_size+=cmarker->data_length;
+
      if (cmarker->marker == EXIF_JPEG_MARKER) {
        if (!memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
 	 exif_marker=cmarker;
@@ -522,7 +555,9 @@ int main(int argc, char **argv)
      cmarker=cmarker->next;
    }
 
-
+   if (verbose_mode > 1) 
+     fprintf(LOG_FH,"%d markers found in input file (total size %d bytes)\n",
+	     marker_in_count,marker_in_size);
    if (!retry && (!quiet_mode || csv)) {
      fprintf(LOG_FH,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 	     (int)dinfo.image_height,(int)dinfo.num_components*8,
