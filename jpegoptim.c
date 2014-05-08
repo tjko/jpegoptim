@@ -14,8 +14,6 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -40,8 +38,18 @@
 
 #define VERSIO "1.4.0beta"
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
-#define FREE_LINE_BUF(buf,lines)  { int j; for (j=0;j<lines;j++) free(buf[j]); free(buf); buf=NULL; }
-#define COPY_JPEG_ERRSTR(jptr,buf) { ((jptr)->err->format_message)((j_common_ptr)jptr,buf); buf[JMSG_LENGTH_MAX-1]=0; }
+
+#define FREE_LINE_BUF(buf,lines)  {				\
+    int j;							\
+    for (j=0;j<lines;j++) free(buf[j]);				\
+    free(buf);							\
+    buf=NULL;							\
+  }
+
+#define COPY_JPEG_ERRSTR(jptr,buf) {			   \
+    ((jptr)->err->format_message)((j_common_ptr)jptr,buf); \
+    buf[JMSG_LENGTH_MAX-1]=0;				   \
+  }
 
 
 struct my_error_mgr {
@@ -173,6 +181,24 @@ void print_usage(void)
 	  "  --stdout          send output to standard output (instead of a file)\n"
 	  "  --stdin           read input from standard input (instead of a file)\n"
 	  "\n\n");
+}
+
+void print_version() 
+{
+  struct jpeg_error_mgr jcerr;
+  struct jpeg_compress_struct cinfo;
+  char jmsg_buf[JMSG_LENGTH_MAX];
+  
+  printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
+  printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
+
+  cinfo.err = jpeg_std_error(&jcerr);
+  cinfo.err->msg_code=JMSG_VERSION;
+  COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
+  printf("\nlibjpeg version: %s  ",jmsg_buf);
+  cinfo.err->msg_code=JMSG_COPYRIGHT;
+  COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
+  printf("(%s)\n",jmsg_buf);
 }
 
 
@@ -370,19 +396,8 @@ int main(int argc, char **argv)
     case '?':
       break;
     case 'V':
-      {
-	char jmsg_buf[JMSG_LENGTH_MAX];
-
-	printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
-	printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
-	cinfo.err->msg_code=JMSG_VERSION;
-	COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-	printf("\nlibjpeg version: %s  ",jmsg_buf);
-	cinfo.err->msg_code=JMSG_COPYRIGHT;
-	COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-	printf("(%s)\n",jmsg_buf);
-	exit(0);
-      }
+      print_version();
+      exit(0);
       break;
     case 'o':
       overwrite_mode=1;
@@ -466,6 +481,10 @@ int main(int argc, char **argv)
     } else {
       if (!argv[i][0]) continue;
       if (argv[i][0]=='-') continue;
+      if (strlen(argv[i]) >= MAXPATHLEN) {
+	warn("skipping too long filename: %s",argv[i]);
+	continue;
+      }
       
       if (!noaction) {
 	/* generate temp (& new) filename */
@@ -480,7 +499,7 @@ int main(int argc, char **argv)
 		  sizeof(newname)-strlen(newname)-1);
 	} else {
 	  if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
-	    fatal("splitdir() failed!");
+	    fatal("splitdir() failed for: %s",argv[i]);
 	  strncpy(newname,argv[i],sizeof(newname));
 	}
       }
@@ -489,7 +508,7 @@ int main(int argc, char **argv)
       
       if (!is_file(argv[i],&file_stat)) {
 	if (!quiet_mode) {
-	  if (S_ISDIR(file_stat.st_mode)) 
+	  if (is_directory(argv[i])) 
 	    warn("skipping directory: %s",argv[i]);
 	  else
 	    warn("skipping special file: %s",argv[i]); 
