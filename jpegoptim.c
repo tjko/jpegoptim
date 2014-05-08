@@ -30,9 +30,7 @@
 #include <setjmp.h>
 #include <time.h>
 #include <math.h>
-#ifdef HAVE_LIBGEN_H
-#include <libgen.h>
-#endif
+
 #include "jpegoptim.h"
 
 
@@ -51,6 +49,7 @@
     buf[JMSG_LENGTH_MAX-1]=0;				   \
   }
 
+#define STRNCPY(dest,src,n) { strncpy(dest,src,n); dest[n-1]=0; }
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
@@ -366,6 +365,8 @@ int main(int argc, char **argv)
       if (realpath(optarg,dest_path)==NULL || !is_directory(dest_path)) {
 	fatal("invalid argument for option -d, --dest");
       }
+      strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
+
       if (verbose_mode) 
 	fprintf(stderr,"Destination directory: %s\n",dest_path);
       dest=1;
@@ -485,22 +486,19 @@ int main(int argc, char **argv)
 	warn("skipping too long filename: %s",argv[i]);
 	continue;
       }
-      
+
       if (!noaction) {
-	/* generate temp (& new) filename */
+	/* generate tmp dir & new filename */
 	if (dest) {
-	  strncpy(tmpdir,dest_path,sizeof(tmpdir));
-	  strncpy(newname,dest_path,sizeof(newname));
-	  if (tmpdir[strlen(tmpdir)-1] != DIR_SEPARATOR_C) {
-	    strncat(tmpdir,DIR_SEPARATOR_S,sizeof(tmpdir)-strlen(tmpdir)-1);
-	    strncat(newname,DIR_SEPARATOR_S,sizeof(newname)-strlen(newname)-1);
-	  }
-	  strncat(newname,(char*)basename(argv[i]),
-		  sizeof(newname)-strlen(newname)-1);
+	  STRNCPY(tmpdir,dest_path,sizeof(tmpdir));
+	  STRNCPY(newname,dest_path,sizeof(newname));
+	  if (!splitname(argv[i],tmpfilename,sizeof(tmpfilename)))
+	    fatal("splitname() failed for: %s",argv[i]);
+	  strncat(newname,tmpfilename,sizeof(newname)-strlen(newname)-1);
 	} else {
 	  if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
 	    fatal("splitdir() failed for: %s",argv[i]);
-	  strncpy(newname,argv[i],sizeof(newname));
+	  STRNCPY(newname,argv[i],sizeof(newname));
 	}
       }
       

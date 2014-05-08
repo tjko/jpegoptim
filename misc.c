@@ -103,6 +103,26 @@ char *splitdir(const char *pathname, char *buf, int buflen)
   return buf;
 }
 
+char *splitname(const char *pathname, char *buf, int buflen)
+{
+  const char *s = NULL;
+  int size = 0;
+
+  if (!pathname || !buf || buflen < 2) return NULL;
+
+  if ((s = strrchr(pathname,DIR_SEPARATOR_C))) {
+    s++;
+  } else {
+    s=pathname;
+  }
+
+  size=strlen(s);
+  if (size >= buflen) return NULL;
+  if (size > 0) memcpy(buf,s,size);
+  buf[size]=0;
+
+  return buf;
+}
 
 void fatal(const char *format, ...)
 {
