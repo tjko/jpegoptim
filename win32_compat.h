@@ -27,7 +27,8 @@ extern "C" {
 #define getuid(x) 0
 #define geteuid() 0
 #define chown(outfname,st_uid,st_gid) 0
-#define S_ISREG(x) 1
+#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
+#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
 
 #ifndef HOST_TYPE
 #if _WIN64
