@@ -142,6 +142,8 @@ void warn(const char *format, ...)
 {
   va_list args;
 
+  if (quiet_mode) return;
+
   fprintf(stderr, PROGRAMNAME ": ");
   va_start(args,format);
   vfprintf(stderr, format, args);

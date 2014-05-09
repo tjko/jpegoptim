@@ -194,10 +194,10 @@ void print_version()
   cinfo.err = jpeg_std_error(&jcerr);
   cinfo.err->msg_code=JMSG_VERSION;
   COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-  printf("\nlibjpeg version: %s  ",jmsg_buf);
+  printf("\nlibjpeg version: %s\n",jmsg_buf);
   cinfo.err->msg_code=JMSG_COPYRIGHT;
   COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-  printf("(%s)\n",jmsg_buf);
+  printf("%s\n",jmsg_buf);
 }
 
 
@@ -505,16 +505,14 @@ int main(int argc, char **argv)
     retry_point:
       
       if (!is_file(argv[i],&file_stat)) {
-	if (!quiet_mode) {
-	  if (is_directory(argv[i])) 
-	    warn("skipping directory: %s",argv[i]);
-	  else
-	    warn("skipping special file: %s",argv[i]); 
-	}
+	if (is_directory(argv[i])) 
+	  warn("skipping directory: %s",argv[i]);
+	else
+	  warn("skipping special file: %s",argv[i]); 
 	continue;
       }
       if ((infile=fopen(argv[i],"r"))==NULL) {
-	if (!quiet_mode) warn("cannot open file: %s", argv[i]);
+	warn("cannot open file: %s", argv[i]);
 	continue;
       }
     }
@@ -626,7 +624,7 @@ int main(int argc, char **argv)
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
-       fprintf(stderr,"target file already exists: %s\n",newname);
+       warn("target file already exists: %s\n",newname);
        jpeg_abort_decompress(&dinfo);
        if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
        continue;
@@ -808,22 +806,23 @@ int main(int argc, char **argv)
 
 	if (outfname) {
 	  /* preserve file mode */
-	  if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) {
-	    if (!quiet_mode) warn("failed to set output file mode"); 
-	  }
+	  if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) 
+	    warn("failed to set output file mode"); 
+
 	  /* preserve file group (and owner if run by root) */
-	  if (chown(outfname,(geteuid()==0 ? file_stat.st_uid : -1),file_stat.st_gid) != 0) {
-	      if (!quiet_mode) warn("failed to reset output file group/owner");
-	  }
+	  if (chown(outfname,
+		    (geteuid()==0 ? file_stat.st_uid : -1),
+		    file_stat.st_gid) != 0)
+	    warn("failed to reset output file group/owner");
+
 	  
 	  if (preserve_mode) {
 	    /* preserve file modification time */
 	    struct utimbuf time_save;
 	    time_save.actime=file_stat.st_atime;
 	    time_save.modtime=file_stat.st_mtime;
-	    if (utime(outfname,&time_save) != 0) {
-	      if (!quiet_mode) warn("failed to reset output file time/date");
-	    }
+	    if (utime(outfname,&time_save) != 0) 
+	      warn("failed to reset output file time/date");
 	  }
 
 	  if (verbose_mode > 1 && !quiet_mode) 
