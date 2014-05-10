@@ -289,10 +289,7 @@ int main(int argc, char **argv)
   struct my_error_mgr jcerr,jderr;
   JSAMPARRAY buf = NULL;
   jvirt_barray_ptr *coef_arrays = NULL;
-  jpeg_saved_marker_ptr exif_marker = NULL;
-  jpeg_saved_marker_ptr iptc_marker = NULL;
-  jpeg_saved_marker_ptr icc_marker = NULL;
-  jpeg_saved_marker_ptr xmp_marker = NULL;
+  char marker_str[256];
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
@@ -540,35 +537,34 @@ int main(int argc, char **argv)
    jpeg_stdio_src(&dinfo, infile);
    jpeg_read_header(&dinfo, TRUE); 
 
-   /* check for Exif/IPTC markers */
-   exif_marker=NULL;
-   iptc_marker=NULL;
-   icc_marker=NULL;
-   xmp_marker=NULL;
+   /* check for Exif/IPTC/ICC/XMP markers */
+   marker_str[0]=0;
    marker_in_count=0;
    marker_in_size=0;
    cmarker=dinfo.marker_list;
+
    while (cmarker) {
      marker_in_count++;
      marker_in_size+=cmarker->data_length;
 
-     if (cmarker->marker == EXIF_JPEG_MARKER) {
-       if (!memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
-	 exif_marker=cmarker;
-     }
-     if (cmarker->marker == IPTC_JPEG_MARKER) {
-       iptc_marker=cmarker;
-     }
-     if (cmarker->marker == ICC_JPEG_MARKER) {
-       if (!memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
-	 icc_marker=cmarker;
-     }
-     if (cmarker->marker == XMP_JPEG_MARKER) {
-       if (!memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
-	 xmp_marker=cmarker;
-     }
+     if (cmarker->marker == EXIF_JPEG_MARKER &&
+	 !memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
+       strncat(marker_str,"Exiff ",sizeof(marker_str)-strlen(marker_str)-1);
+
+     if (cmarker->marker == IPTC_JPEG_MARKER)
+       strncat(marker_str,"IPTC ",sizeof(marker_str)-strlen(marker_str)-1);
+
+     if (cmarker->marker == ICC_JPEG_MARKER &&
+	 !memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
+       strncat(marker_str,"ICC ",sizeof(marker_str)-strlen(marker_str)-1);
+
+     if (cmarker->marker == XMP_JPEG_MARKER &&
+	 !memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+       strncat(marker_str,"XMP ",sizeof(marker_str)-strlen(marker_str)-1);
+
      cmarker=cmarker->next;
    }
+
 
    if (verbose_mode > 1) 
      fprintf(LOG_FH,"%d markers found in input file (total size %d bytes)\n",
@@ -579,10 +575,7 @@ int main(int argc, char **argv)
 	     (dinfo.progressive_mode?'P':'N'));
 
      if (!csv) {
-       if (exif_marker) fprintf(LOG_FH,"Exif ");
-       if (iptc_marker) fprintf(LOG_FH,"IPTC ");
-       if (icc_marker) fprintf(LOG_FH,"ICC ");
-       if (xmp_marker) fprintf(LOG_FH,"XMP ");
+       fprintf(LOG_FH,marker_str);
        if (dinfo.saw_Adobe_marker) fprintf(LOG_FH,"Adobe ");
        if (dinfo.saw_JFIF_marker) fprintf(LOG_FH,"JFIF ");
      }
