@@ -1,5 +1,5 @@
 
-Jpegoptim v1.4.0 - Copyright (c)  Timo Kokkonen, 1996-2014. All Rights Reserved.
+Jpegoptim v1.4.1beta - Copyright (c)  Timo Kokkonen, 1996-2014. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -17,8 +17,8 @@ INSTALLATION
 	tar file, make necessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.4.0.tar.gz | tar xf -
-		cd jpegoptim-1.4.0
+		zcat jpegoptim-1.4.1.tar.gz | tar xf -
+		cd jpegoptim-1.4.1
 		./configure
 		make
 		make strip
@@ -26,6 +26,9 @@ INSTALLATION
 
 
 HISTORY
+    v1.4.1beta - workaround to bug in libjpeg-turbo triggered with option
+		 -V or --version,
+                 other minor fixes
 	v1.4.0 - use memory (instead of temporary files) during optimization,
 		 support for reading input from stdin (and sending output to
                  stdout), 

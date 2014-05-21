@@ -34,7 +34,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.4.0"
+#define VERSIO "1.4.1beta"
 
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
 
