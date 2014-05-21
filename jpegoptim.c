@@ -576,7 +576,7 @@ int main(int argc, char **argv)
 	     (dinfo.progressive_mode?'P':'N'));
 
      if (!csv) {
-       fprintf(LOG_FH,marker_str);
+       fprintf(LOG_FH,"%s",marker_str);
        if (dinfo.saw_Adobe_marker) fprintf(LOG_FH,"Adobe ");
        if (dinfo.saw_JFIF_marker) fprintf(LOG_FH,"JFIF ");
      }
