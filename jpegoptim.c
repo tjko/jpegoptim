@@ -187,18 +187,16 @@ void print_version()
 {
   struct jpeg_error_mgr jcerr;
   struct jpeg_compress_struct cinfo;
-  char jmsg_buf[JMSG_LENGTH_MAX];
+
   
   printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
   printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
 
   cinfo.err = jpeg_std_error(&jcerr);
-  cinfo.err->msg_code=JMSG_VERSION;
-  COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-  printf("\nlibjpeg version: %s\n",jmsg_buf);
-  cinfo.err->msg_code=JMSG_COPYRIGHT;
-  COPY_JPEG_ERRSTR(&cinfo,jmsg_buf);
-  printf("%s\n",jmsg_buf);
+
+  printf("\nlibjpeg version: %s\n%s\n",
+	 cinfo.err->jpeg_message_table[JMSG_VERSION],
+	 cinfo.err->jpeg_message_table[JMSG_COPYRIGHT]);
 }
 
 
