@@ -446,7 +446,7 @@ int main(int argc, char **argv)
     i++;
   }
 
-  if (stdin_mode) stdout_mode=1;
+  if (stdin_mode) { stdout_mode=1; force=1; }
   if (stdout_mode) { logs_to_stdout=0; }
 
   if (all_normal && all_progressive)
@@ -581,7 +581,8 @@ int main(int argc, char **argv)
      fflush(LOG_FH);
    }
 
-   insize=file_size(infile);
+   if ((insize=file_size(infile)) < 0)
+     fatal("failed to stat() input file");
 
   /* decompress the file */
    if (quality>=0 && !retry) {
@@ -790,7 +791,8 @@ int main(int argc, char **argv)
 
 
 	  if (verbose_mode > 1 && !quiet_mode) 
-	    fprintf(LOG_FH,"writing %ld bytes to temporary file: %s\n",outbuffersize,outfname);
+	    fprintf(LOG_FH,"writing %lu bytes to temporary file: %s\n",
+		    (long unsigned int)outbuffersize, outfname);
 	  if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
 	    fatal("write failed to temporary file");
 	  fclose(outfile);
