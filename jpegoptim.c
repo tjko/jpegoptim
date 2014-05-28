@@ -294,7 +294,7 @@ int main(int argc, char **argv)
   volatile int i;
   int c,j, tmpfd, searchcount, searchdone;
   int opt_index = 0;
-  long insize,outsize,lastsize;
+  long insize = 0, outsize = 0, lastsize = 0;
   int oldquality;
   double ratio;
   struct stat file_stat;
