@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "11 May 2014" 
+.TH JPEGOPTIM 1 "27 May 2014" 
 .UC 4 
 .SH NAME 
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -143,6 +143,9 @@ image is read from standard output. Any (other) input files specified on command
 line are ignored. 
 Note, if input file '-' is seen on command line then standard input is also assumed.
 
+Currently this option will explicitly enable 
+.B -f
+option, thus output image is always sent to standard output (even if no optimization was possible).
 
 
 

@@ -26,8 +26,9 @@ INSTALLATION
 
 
 HISTORY
-    v1.4.1beta - workaround to bug in libjpeg-turbo triggered with option
-		 -V or --version,
+    v1.4.1beta - fix --stdin option (assume --force when --stdin is used),
+		 workaround to bug in libjpeg-turboi (v1.3.1) triggered
+		 when option -V or --version was used,
                  other minor fixes
 	v1.4.0 - use memory (instead of temporary files) during optimization,
 		 support for reading input from stdin (and sending output to
