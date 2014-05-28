@@ -45,16 +45,12 @@
     buf=NULL;							\
   }
 
-#define COPY_JPEG_ERRSTR(jptr,buf) {			   \
-    ((jptr)->err->format_message)((j_common_ptr)jptr,buf); \
-    buf[JMSG_LENGTH_MAX-1]=0;				   \
-  }
-
 #define STRNCPY(dest,src,n) { strncpy(dest,src,n); dest[n-1]=0; }
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
   jmp_buf setjmp_buffer;   
+  int     jump_set;
 };
 typedef struct my_error_mgr * my_error_ptr;
 
@@ -123,17 +119,24 @@ METHODDEF(void)
 my_error_exit (j_common_ptr cinfo)
 {
   my_error_ptr myerr = (my_error_ptr)cinfo->err;
+
   (*cinfo->err->output_message) (cinfo);
-  longjmp(myerr->setjmp_buffer,1);
+  if (myerr->jump_set) 
+    longjmp(myerr->setjmp_buffer,1);
+  else
+    fatal("fatal error");
 }
 
 METHODDEF(void)
 my_output_message (j_common_ptr cinfo)
 {
-  char buffer[JMSG_LENGTH_MAX];
+  char buffer[JMSG_LENGTH_MAX+1];
 
-  COPY_JPEG_ERRSTR(cinfo,buffer);
-  if (verbose_mode) fprintf(LOG_FH," (%s) ",buffer);
+  if (verbose_mode) {
+    (*cinfo->err->format_message)((j_common_ptr)cinfo,buffer);
+    buffer[sizeof(buffer)-1]=0;
+    fprintf(LOG_FH," (%s) ",buffer);
+  }
   global_error_counter++;
 }
 
@@ -322,12 +325,14 @@ int main(int argc, char **argv)
   jpeg_create_decompress(&dinfo);
   jderr.pub.error_exit=my_error_exit;
   jderr.pub.output_message=my_output_message;
+  jderr.jump_set = 0;
 
   /* initialize compression object */
   cinfo.err = jpeg_std_error(&jcerr.pub);
   jpeg_create_compress(&cinfo);
   jcerr.pub.error_exit=my_error_exit;
   jcerr.pub.output_message=my_output_message;
+  jcerr.jump_set = 0;
 
 
   if (argc<2) {
@@ -521,7 +526,10 @@ int main(int argc, char **argv)
      if (!quiet_mode || csv) 
        fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
      decompress_err_count++;
+     jderr.jump_set=0;
      continue;
+   } else {
+     jderr.jump_set=1;
    }
 
    if (!retry && (!quiet_mode || csv)) {
@@ -633,7 +641,10 @@ int main(int argc, char **argv)
      if (!quiet_mode) fprintf(LOG_FH," [Compress ERROR]\n");
      if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
      compress_err_count++;
+     jcerr.jump_set=0;
      continue;
+   } else {
+     jcerr.jump_set=1;
    }
 
 
