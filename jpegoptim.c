@@ -556,7 +556,7 @@ int main(int argc, char **argv)
 
      if (cmarker->marker == EXIF_JPEG_MARKER &&
 	 !memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
-       strncat(marker_str,"Exiff ",sizeof(marker_str)-strlen(marker_str)-1);
+       strncat(marker_str,"Exif ",sizeof(marker_str)-strlen(marker_str)-1);
 
      if (cmarker->marker == IPTC_JPEG_MARKER)
        strncat(marker_str,"IPTC ",sizeof(marker_str)-strlen(marker_str)-1);
