@@ -512,7 +512,7 @@ int main(int argc, char **argv)
 	  warn("skipping special file: %s",argv[i]); 
 	continue;
       }
-      if ((infile=fopen(argv[i],"r"))==NULL) {
+      if ((infile=fopen(argv[i],"rb"))==NULL) {
 	warn("cannot open file: %s", argv[i]);
 	continue;
       }
@@ -795,7 +795,7 @@ int main(int argc, char **argv)
 	  snprintf(tmpfilename,sizeof(tmpfilename),
 		   "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
 	  tmpfd=0;
-	  if ((outfile=fopen(tmpfilename,"w"))==NULL) 
+	  if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
 #endif
 	    fatal("error opening temporary file: %s",tmpfilename);
 	  outfname=tmpfilename;
