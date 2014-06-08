@@ -1,6 +1,8 @@
 /* win32_compat.h
  *
  * compatibility stuff for Windows
+ *
+ * Thanks to Javier Gutiérrez Chamorro for Windows support.
  */
 
 #ifndef _WIN32_COMPAT_H

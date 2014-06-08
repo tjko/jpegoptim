@@ -10,7 +10,7 @@ TESTED PLATFORMS
 	Linux
 	Solaris 
 	Darwin/OS X j
-	Windows (should now compile with minimal effort...)
+	Windows (setargv.obj "link option" may be needed for wildcards expansion to work)
 
 
 INSTALLATION
