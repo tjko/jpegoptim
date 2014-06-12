@@ -15,24 +15,27 @@ VPATH = @srcdir@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
+datarootdir = @datarootdir@
+datadir = @datadir@
 
 # Where to install the executables.
-bindir = $(exec_prefix)/bin
+bindir = @bindir@
 
 # Where to put libraries
-libdir = $(prefix)/lib
+libdir = @libdir@
 
 # Where to put the Info files
-infodir = $(prefix)/share/info
+infodir = @infodir@
 
 # Where to put the manual pages.
-mandir = $(prefix)/share/man
+mandir = @mandir@
 
 
 
 CC        = @CC@ 
 XCPPFLAGS = @CPPFLAGS@
 CFLAGS    = @CFLAGS@ $(XCPPFLAGS) $(DEFS)
+#CFLAGS	 += -Wall -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security -D_FORTIFY_SOURCE=2 
 LDFLAGS   = @LDFLAGS@
 LIBS      = @LIBS@
 STRIP     = strip
@@ -77,18 +80,18 @@ archive:
 
 
 install: all install.dirs install.man
-	$(INSTALL) -m 755 $(PKGNAME) $(DESTDIR)/$(bindir)/$(PKGNAME)
+	$(INSTALL) -m 755 $(PKGNAME) $(DESTDIR)$(bindir)/$(PKGNAME)
 
 printable.man:
 	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
 	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
 
 install.man: install.dirs
-	$(INSTALL) -m 644 $(PKGNAME).1 $(DESTDIR)/$(mandir)/man1/$(PKGNAME).1
+	$(INSTALL) -m 644 $(PKGNAME).1 $(DESTDIR)$(mandir)/man1/$(PKGNAME).1
 
 install.dirs:
-	$(INSTALL) -d -m 755 $(DESTDIR)/$(mandir)/man1
-	$(INSTALL) -d -m 755 $(DESTDIR)/$(bindir)
+	$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -d -m 755 $(DESTDIR)$(bindir)
 
 # a tradition !
 love:	
