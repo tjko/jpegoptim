@@ -796,6 +796,8 @@ int main(int argc, char **argv)
 	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
 	    if (verbose_mode > 1 && !quiet_mode) 
 	      fprintf(LOG_FH,"creating backup of original image as: %s\n",tmpfilename);
+	    if (file_exists(tmpfilename))
+	      fatal("backup file already exists: %s",tmpfilename);
 	    if (copy_file(newname,tmpfilename))
 	      fatal("failed to create backup of original file");
 	    if ((outfile=fopen(newname,"wb"))==NULL)
