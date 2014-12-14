@@ -62,6 +62,7 @@ int is_directory(const char *path);
 int is_file(const char *filename, struct stat *st);
 int file_exists(const char *pathname);
 int rename_file(const char *old_path, const char *new_path);
+int copy_file(const char *srcname, const char *dstname);
 char *splitdir(const char *pathname, char *buf, int buflen);
 char *splitname(const char *pathname, char *buf, int buflen);
 void fatal(const char *format, ...);

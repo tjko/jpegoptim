@@ -61,6 +61,7 @@ int verbose_mode = 0;
 int quiet_mode = 0;
 int global_error_counter = 0;
 int preserve_mode = 0;
+int preserve_perms = 0;
 int overwrite_mode = 0;
 int totals_mode = 0;
 int stdin_mode = 0;
@@ -95,6 +96,7 @@ struct option long_options[] = {
   {"force",0,0,'f'},
   {"version",0,0,'V'},
   {"preserve",0,0,'p'},
+  {"preserve-perms",0,0,'P'},
   {"strip-all",0,0,'s'},
   {"strip-none",0,&strip_none,1},
   {"strip-com",0,&save_com,0},
@@ -165,8 +167,11 @@ void print_usage(void)
 	  "  -T<threshold>, --threshold=<threshold>\n"
 	  "                    keep old file if the gain is below a threshold (%%)\n"
 	  "  -b, --csv         print progress info in CSV format\n"
-	  "  -o, --overwrite   overwrite target file even if it exists\n"
+	  "  -o, --overwrite   overwrite target file even if it exists (meaningful\n"
+          "                    only when used with -d, --dest option)\n"
 	  "  -p, --preserve    preserve file timestamps\n"
+	  "  -P, --preserve-perms\n"
+          "                    preserve original file permissions by overwriting it\n"
 	  "  -q, --quiet       quiet mode\n"
 	  "  -t, --totals      print totals after processing all files\n"
 	  "  -v, --verbose     enable verbose mode (positively chatty)\n"
@@ -344,7 +349,7 @@ int main(int argc, char **argv)
   /* parse command line parameters */
   while(1) {
     opt_index=0;
-    if ((c=getopt_long(argc,argv,"d:hm:nstqvfVpoT:S:b",long_options,&opt_index))
+    if ((c=getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:b",long_options,&opt_index))
 	      == -1) 
       break;
 
@@ -406,6 +411,9 @@ int main(int argc, char **argv)
       break;
     case 'p':
       preserve_mode=1;
+      break;
+    case 'P':
+      preserve_perms=1;
       break;
     case 's':
       save_exif=0;
@@ -783,43 +791,44 @@ int main(int argc, char **argv)
 	  if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
 	    fatal("write failed to stdout");
 	} else {
+	  if (preserve_perms && !dest) {
+	    /* make backup of the original file */
+	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
+	    if (verbose_mode > 1 && !quiet_mode) 
+	      fprintf(LOG_FH,"creating backup of original image as: %s\n",tmpfilename);
+	    if (copy_file(newname,tmpfilename))
+	      fatal("failed to create backup of original file");
+	    if ((outfile=fopen(newname,"wb"))==NULL)
+	      fatal("error opening output file: %s", newname);
+	    outfname=newname;
+	  } else {
 #ifdef HAVE_MKSTEMPS
-          /* rely on mkstemps() to create us temporary file safely... */  
-	  snprintf(tmpfilename,sizeof(tmpfilename),
-		   "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-	  if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
-	    fatal("error creating temp file: mkstemps() failed");
-	  if ((outfile=fdopen(tmpfd,"w"))==NULL) 
+	    /* rely on mkstemps() to create us temporary file safely... */  
+	    snprintf(tmpfilename,sizeof(tmpfilename),
+		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
+	    if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
+	      fatal("error creating temp file: mkstemps() failed");
+	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
 #else
-	  /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
-	  snprintf(tmpfilename,sizeof(tmpfilename),
-		   "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
-	  tmpfd=0;
-	  if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
+	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
+	      snprintf(tmpfilename,sizeof(tmpfilename),
+		       "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
+	    tmpfd=0;
+	    if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
 #endif
-	    fatal("error opening temporary file: %s",tmpfilename);
-	  outfname=tmpfilename;
-
+	      fatal("error opening temporary file: %s",tmpfilename);
+	    outfname=tmpfilename;
+	  }
 
 	  if (verbose_mode > 1 && !quiet_mode) 
-	    fprintf(LOG_FH,"writing %lu bytes to temporary file: %s\n",
+	    fprintf(LOG_FH,"writing %lu bytes to file: %s\n",
 		    (long unsigned int)outbuffersize, outfname);
 	  if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
-	    fatal("write failed to temporary file");
+	    fatal("write failed to file: %s", outfname);
 	  fclose(outfile);
 	}
 
 	if (outfname) {
-	  /* preserve file mode */
-	  if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) 
-	    warn("failed to set output file mode"); 
-
-	  /* preserve file group (and owner if run by root) */
-	  if (chown(outfname,
-		    (geteuid()==0 ? file_stat.st_uid : -1),
-		    file_stat.st_gid) != 0)
-	    warn("failed to reset output file group/owner");
-
 	  
 	  if (preserve_mode) {
 	    /* preserve file modification time */
@@ -830,9 +839,27 @@ int main(int argc, char **argv)
 	      warn("failed to reset output file time/date");
 	  }
 
-	  if (verbose_mode > 1 && !quiet_mode) 
-	    fprintf(LOG_FH,"renaming: %s to %s\n",outfname,newname);
-	  if (rename_file(outfname,newname)) fatal("cannot rename temp file");
+	  if (preserve_perms && !dest) {
+	    /* original file was already replaced, remove backup... */
+	    if (delete_file(tmpfilename))
+	      warn("failed to remove backup file: %s",tmpfilename);
+	  } else {
+	    /* make temp file to be the original file... */
+
+	    /* preserve file mode */
+	    if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) 
+	      warn("failed to set output file mode"); 
+
+	    /* preserve file group (and owner if run by root) */
+	    if (chown(outfname,
+		      (geteuid()==0 ? file_stat.st_uid : -1),
+		      file_stat.st_gid) != 0)
+	      warn("failed to reset output file group/owner");
+
+	    if (verbose_mode > 1 && !quiet_mode) 
+	      fprintf(LOG_FH,"renaming: %s to %s\n",outfname,newname);
+	    if (rename_file(outfname,newname)) fatal("cannot rename temp file");
+	  }
 	}
    } else {
      if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "skipped\n" : "skipped.\n");

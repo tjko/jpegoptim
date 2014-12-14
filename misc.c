@@ -29,7 +29,7 @@ int delete_file(char *name)
   if (!name) return -1;
   if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
   if ((retval=unlink(name)) && !quiet_mode) 
-    fprintf(stderr,PROGRAMNAME ": error removing file: %s\n",name);
+    warn("error removing file: %s",name);
 
   return retval;
 }
@@ -85,6 +85,54 @@ int rename_file(const char *old_path, const char *new_path)
   if (file_exists(new_path)) delete_file(new_path);
 #endif
   return rename(old_path,new_path);
+}
+
+
+#define COPY_BUF_SIZE  (256*1024)
+
+int copy_file(const char *srcfile, const char *dstfile)
+{
+  FILE *in,*out;
+  unsigned char buf[COPY_BUF_SIZE];
+  int r,w;
+  int err=0;
+
+  if (!srcfile || !dstfile) return -1;
+
+  in=fopen(srcfile,"rb");
+  if (!in) {
+    warn("failed to open file for reading: %s", srcfile);
+    return -2;
+  }
+  out=fopen(dstfile,"wb");
+  if (!out) {
+    fclose(in);
+    warn("failed to open file for writing: %s", dstfile);
+    return -3;
+  }
+
+
+  do {
+    r=fread(buf,1,sizeof(buf),in);
+    if (r > 0) {
+      w=fwrite(buf,1,r,out);
+      if (w != r) {
+	err=1;
+	warn("error writing to file: %s", dstfile);
+	break;
+      }
+    } else {
+      if (ferror(in)) {
+	  err=2;
+	  warn("error reading file: %s", srcfile);
+	  break;
+      }
+    }
+  } while (!feof(in));
+
+  fclose(out);
+  fclose(in);
+  return err;
 }
 
 
