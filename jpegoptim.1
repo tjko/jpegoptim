@@ -84,9 +84,9 @@ Overwrite target file even if it exists (when using -d option).
 Preserve file modification times.
 .TP 0.6i
 .B -P, --preserve-perms
-Preserve file permissions (owner/group) by owervriting the original file. This is 
-slightly less safe than default mode of operation where new file is first saved
-as temporary file and then renamed over the original.
+Preserve file permissions (owner/group) by overwriting the original file. This is 
+slightly less safe than the default mode of operation (where new file is first saved
+as temporary file and then renamed over the original file).
 In this mode a backup of the original file is made with .jpegoptim.bak extension,
 and this file is removed after the original file has been successfully replaced.
 NOTE! if running jpegoptim as root there is generally no need to use this option,
