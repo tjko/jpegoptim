@@ -627,14 +627,13 @@ int main(int argc, char **argv)
      fflush(LOG_FH);
    }
 
-   fclose(infile);
-   infile=NULL;
      
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
        warn("target file already exists: %s\n",newname);
        jpeg_abort_decompress(&dinfo);
+       fclose(infile);
        if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
        continue;
      }
@@ -646,6 +645,7 @@ int main(int argc, char **argv)
      
      jpeg_abort_compress(&cinfo);
      jpeg_abort_decompress(&dinfo);
+     fclose(infile);
      if (!quiet_mode) fprintf(LOG_FH," [Compress ERROR]\n");
      if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
      compress_err_count++;
@@ -766,6 +766,7 @@ int main(int argc, char **argv)
 
    if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
    jpeg_finish_decompress(&dinfo);
+   fclose(infile);
 
 
    if (quality>=0 && outsize>=insize && !retry && !stdin_mode) {
