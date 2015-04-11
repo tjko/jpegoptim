@@ -3,7 +3,7 @@
 # 
 # Makefile for jpegoptim
 #
-Version = 1.4.2
+Version = 1.4.3
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
@@ -55,10 +55,14 @@ DISTNAME  = $(PKGNAME)-$(Version)
 
 OBJS = $(PKGNAME).o jpegdest.o misc.o @GNUGETOPT@
 
+all:	$(PKGNAME) 
+
+dssim.o:	dssim.c
+	$(CC) $(CFLAGS) -std=c99 -c
+
 $(PKGNAME):	$(OBJS) 
 	$(CC) $(CFLAGS) -o $(PKGNAME) $(OBJS) $(LDFLAGS) $(LIBS) 
 
-all:	$(PKGNAME) 
 
 strip:
 	for i in $(PKGNAME) ; do [ -x $$i ] && $(STRIP) $$i ; done
