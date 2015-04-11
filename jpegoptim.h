@@ -20,6 +20,7 @@ extern "C" {
 #include <utime.h>
 #define DIR_SEPARATOR_C '/'
 #define DIR_SEPARATOR_S "/"
+#define set_filemode_binary(file) {}
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>

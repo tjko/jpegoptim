@@ -488,6 +488,7 @@ int main(int argc, char **argv)
   do {
     if (stdin_mode) {
       infile=stdin;
+      set_filemode_binary(infile);
     } else {
       if (!argv[i][0]) continue;
       if (argv[i][0]=='-') continue;
@@ -789,6 +790,7 @@ int main(int argc, char **argv)
 
 	if (stdout_mode) {
 	  outfname=NULL;
+	  set_filemode_binary(stdout);
 	  if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
 	    fatal("write failed to stdout");
 	} else {
