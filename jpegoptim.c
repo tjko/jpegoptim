@@ -35,6 +35,8 @@
 
 
 #define VERSIO "1.4.3beta"
+#define COPYRIGHT  "Copyright (c) 1996-2015, Timo Kokkonen"
+
 
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
 
@@ -145,8 +147,7 @@ my_output_message (j_common_ptr cinfo)
 
 void print_usage(void) 
 {
-  fprintf(stderr,PROGRAMNAME " v" VERSIO 
-	  "  Copyright (c) Timo Kokkonen, 1996-2014.\n"); 
+  fprintf(stderr,PROGRAMNAME " v" VERSIO "  " COPYRIGHT "\n");
 
   fprintf(stderr,
 	  "Usage: " PROGRAMNAME " [options] <filenames> \n\n"
@@ -197,7 +198,7 @@ void print_version()
 
   
   printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
-  printf("Copyright (c) 1996-2014  Timo Kokkonen.\n");
+  printf(COPYRIGHT "\n");
 
   if (!(err=jpeg_std_error(&jcerr)))
     fatal("jpeg_std_error() failed");
