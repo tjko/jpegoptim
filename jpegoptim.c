@@ -744,7 +744,7 @@ int main(int argc, char **argv)
        
      } else {
        int newquality;
-       int dif = round(abs(oldquality-quality)/2.0);
+       int dif = floor((abs(oldquality-quality)/2.0)+0.5);
        if (osize > tsize) {
 	 newquality=quality-dif;
 	 if (dif < 1) { newquality--; searchdone=1; }

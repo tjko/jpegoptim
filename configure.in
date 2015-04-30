@@ -36,7 +36,8 @@ echo "Cannot find libjpeg or you have too old version (v6 or later required)."
 exit 1
 ])
 
-AC_CHECK_LIB(m, round)
+dnl AC_CHECK_LIB(m, round)
+AC_CHECK_LIB(m, floor)
 
 dnl Checks for header files.
 
