@@ -734,7 +734,7 @@ int main(int argc, char **argv)
 
      if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
        if (searchdone < 42 && lastsize > 0) {
-	 if (abs(osize-tsize) > abs(lastsize-tsize)) {
+	 if (labs(osize-tsize) > labs(lastsize-tsize)) {
 	   if (verbose_mode) fprintf(LOG_FH,"(revert to %d)",oldquality);
 	   searchdone=42;
 	   quality=oldquality;
