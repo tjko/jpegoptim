@@ -818,7 +818,7 @@ int main(int argc, char **argv)
 #else
 	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
 	      snprintf(tmpfilename,sizeof(tmpfilename),
-		       "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
+		       "%sjpegoptim-%d-%d.%ld.tmp", tmpdir, (int)getuid(), (int)getpid(),(long)time(NULL));
 	    tmpfd=0;
 	    if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
 #endif
