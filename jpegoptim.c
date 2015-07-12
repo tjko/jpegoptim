@@ -685,8 +685,12 @@ int main(int argc, char **argv)
      cinfo.image_height=dinfo.image_height;
      jpeg_set_defaults(&cinfo); 
      jpeg_set_quality(&cinfo,quality,TRUE);
-     if ( (dinfo.progressive_mode || all_progressive) && !all_normal )
+     if (all_normal) {
+       cinfo.scan_info = NULL; // Explicitly disables progressive if libjpeg had it on by default
+       cinfo.num_scans = 0;
+     } else if ( dinfo.progressive_mode || all_progressive ) {
        jpeg_simple_progression(&cinfo);
+     }
      cinfo.optimize_coding = TRUE;
 
      j=0;
@@ -705,8 +709,12 @@ int main(int argc, char **argv)
      /* lossless "optimization" ... */
 
      jpeg_copy_critical_parameters(&dinfo, &cinfo);
-     if ( (dinfo.progressive_mode || all_progressive) && !all_normal )
+     if (all_normal) {
+       cinfo.scan_info = NULL; // Explicitly disables progressive if libjpeg had it on by default
+       cinfo.num_scans = 0;
+     } else if ( dinfo.progressive_mode || all_progressive ) {
        jpeg_simple_progression(&cinfo);
+     }
      cinfo.optimize_coding = TRUE;
 
      /* write image */
