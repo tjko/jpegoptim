@@ -3947,6 +3947,17 @@ _ACEOF
 fi
 done
 
+for ac_func in labs
+do :
+  ac_fn_c_check_func "$LINENO" "labs" "ac_cv_func_labs"
+if test "x$ac_cv_func_labs" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LABS 1
+_ACEOF
+
+fi
+done
+
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for broken jmorecfg.h (METHODDEF)" >&5

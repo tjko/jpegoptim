@@ -19,6 +19,9 @@
 /* Define if you have mkstemps function. */
 #undef HAVE_MKSTEMPS
 
+/* Define if you have labs function. */
+#undef HAVE_LABS
+
 /* Define if you have the <getopt.h> header file.  */
 #undef HAVE_GETOPT_H
 

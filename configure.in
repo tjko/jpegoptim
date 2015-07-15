@@ -61,6 +61,7 @@ AC_CHECK_FUNCS(getopt_long, break, [GNUGETOPT="getopt.o getopt1.o"])
 AC_SUBST(GNUGETOPT)
 
 AC_CHECK_FUNCS(mkstemps)
+AC_CHECK_FUNCS(labs)
 
 dnl own tests
 

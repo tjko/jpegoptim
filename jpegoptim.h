@@ -31,6 +31,10 @@ extern "C" {
 #define METHODDEF(x) static x
 #endif
 
+#ifndef HAVE_LABS
+#define labs abs
+#endif
+
 #ifndef MAXPATHLEN
 #define MAXPATHLEN 1024
 #endif
