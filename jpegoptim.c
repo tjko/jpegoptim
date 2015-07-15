@@ -734,7 +734,7 @@ int main(int argc, char **argv)
 
      if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
        if (searchdone < 42 && lastsize > 0) {
-	 if (abs(osize-tsize) > abs(lastsize-tsize)) {
+	 if (labs(osize-tsize) > labs(lastsize-tsize)) {
 	   if (verbose_mode) fprintf(LOG_FH,"(revert to %d)",oldquality);
 	   searchdone=42;
 	   quality=oldquality;
@@ -818,7 +818,7 @@ int main(int argc, char **argv)
 #else
 	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
 	      snprintf(tmpfilename,sizeof(tmpfilename),
-		       "%sjpegoptim-%d-%d.%d.tmp", tmpdir, (int)getuid(), (int)getpid(),time(NULL));
+		       "%sjpegoptim-%d-%d.%ld.tmp", tmpdir, (int)getuid(), (int)getpid(),(long)time(NULL));
 	    tmpfd=0;
 	    if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
 #endif
