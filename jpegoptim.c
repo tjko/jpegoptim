@@ -801,19 +801,19 @@ int main(int argc, char **argv)
 	  outfname=NULL;
 	  set_filemode_binary(stdout);
 	  if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
-	    fatal("write failed to stdout");
+	    fatal("%s, write failed to stdout",(stdin_mode?"stdin":argv[i]));
 	} else {
 	  if (preserve_perms && !dest) {
 	    /* make backup of the original file */
 	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
 	    if (verbose_mode > 1 && !quiet_mode) 
-	      fprintf(LOG_FH,"creating backup of original image as: %s\n",tmpfilename);
+	      fprintf(LOG_FH,"%s, creating backup as: %s\n",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if (file_exists(tmpfilename))
-	      fatal("backup file already exists: %s",tmpfilename);
+	      fatal("%s, backup file already exists: %s",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if (copy_file(newname,tmpfilename))
-	      fatal("failed to create backup of original file");
+	      fatal("%s, failed to create backup: %s",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fopen(newname,"wb"))==NULL)
-	      fatal("error opening output file: %s", newname);
+	      fatal("%s, error opening output file: %s",(stdin_mode?"stdin":argv[i]),newname);
 	    outfname=newname;
 	  } else {
 #ifdef HAVE_MKSTEMPS
@@ -821,7 +821,7 @@ int main(int argc, char **argv)
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
 	    if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
-	      fatal("error creating temp file: mkstemps() failed");
+	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
 #else
 	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
