@@ -27,7 +27,9 @@ INSTALLATION
 
 
 HISTORY
-	v1.4.4beta - minor fixes
+	v1.4.4beta - more detailed error messages (thanks to Denis Fateyev),
+                 CMake support (thanks to Ghostkeeper),
+                 other minor fixes
 	v1.4.3 - fix bug that could cause jpegoptim crash when processing
 		 certain jpeg files
         v1.4.2 - add option -P, --preserve-perms,
