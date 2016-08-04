@@ -5,8 +5,8 @@
  * Thanks to Javier Gutiérrez Chamorro for Windows support.
  */
 
-#ifndef _WIN32_COMPAT_H
-#define _WIN32_COMPAT_H 1
+#ifndef WIN32_COMPAT_H
+#define WIN32_COMPAT_H 1
 
 #ifdef	__cplusplus
 extern "C" {
@@ -47,4 +47,4 @@ extern "C" {
 }
 #endif
 
-#endif /* _WIN32_COMPAT_H */
+#endif /* WIN32_COMPAT_H */
