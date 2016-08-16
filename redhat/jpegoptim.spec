@@ -1,6 +1,6 @@
 Summary: Utility for optimizing/compressing JPEG files.
 Name: jpegoptim
-Version: 1.4.3
+Version: 1.4.4
 Release: 1
 License: GPL
 Group: Applications/Multimedia

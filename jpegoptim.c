@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2015.
+ * Copyright (c) Timo Kokkonen, 1996-2016.
  * All Rights Reserved.
  *
  * requires libjpeg (Independent JPEG Group's JPEG software 
@@ -34,8 +34,8 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.4.4beta"
-#define COPYRIGHT  "Copyright (c) 1996-2015, Timo Kokkonen"
+#define VERSIO "1.4.4"
+#define COPYRIGHT  "Copyright (c) 1996-2016, Timo Kokkonen"
 
 
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
