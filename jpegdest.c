@@ -28,7 +28,7 @@ typedef struct {
   size_t *bufsize_ptr;
   size_t incsize;
 
-  unsigned char *buf;		
+  unsigned char *buf;
   size_t bufsize;
 
 } jpeg_memory_destination_mgr;
@@ -85,11 +85,11 @@ void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *buf
 {
   jpeg_memory_destination_ptr dest;
 
-  if (!cinfo || !bufptr || !bufsizeptr) 
+  if (!cinfo || !bufptr || !bufsizeptr)
     fatal("invalid call to jpeg_memory_dest()");
-  if (!*bufptr || *bufsizeptr == 0) 
+  if (!*bufptr || *bufsizeptr == 0)
     fatal("invalid buffer passed to jpeg_memory_dest()");
-  
+
 
   /* allocate destination manager object for compress object, if needed */
   if (!cinfo->dest) {

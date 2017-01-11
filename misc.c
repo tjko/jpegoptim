@@ -28,7 +28,7 @@ int delete_file(char *name)
 
   if (!name) return -1;
   if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
-  if ((retval=unlink(name)) && !quiet_mode) 
+  if ((retval=unlink(name)) && !quiet_mode)
     warn("error removing file: %s",name);
 
   return retval;

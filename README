@@ -9,14 +9,14 @@ REQUIREMENTS
 
 TESTED PLATFORMS
 	Linux
-	Solaris 
+	Solaris
 	Darwin/OS X j
 	Windows (setargv.obj "link option" may be needed for wildcards expansion to work)
 
 
 INSTALLATION
 	Installation should be very straightforward, just unpack the
-	tar file, make necessary changes to the Makefile,  and then 
+	tar file, make necessary changes to the Makefile,  and then
         compile the program. You may wanna do something like this:
 
 		zcat jpegoptim-1.4.4.tar.gz | tar xf -
@@ -41,7 +41,7 @@ HISTORY
                  other minor fixes
 	v1.4.0 - use memory (instead of temporary files) during optimization,
 		 support for reading input from stdin (and sending output to
-                 stdout), 
+                 stdout),
 		 report also libjpeg version when --version option used,
 		 new option --strip-none to preserve "all" markers,
 		 other minor fixes & cleanup
@@ -54,7 +54,7 @@ HISTORY
                  other minor fixes
         v1.3.0 - support for progressive jpegs added (fixes long standing
                  "bug" of progressive jpegs becoming non-progressive during
-                 optimization), 
+                 optimization),
                  new options --all-normal & --all-progressive for
                  converting jpegs to non-progressive & progressive,
                  new -S / --size option to set target size for output
@@ -67,7 +67,7 @@ HISTORY
 		 merged some patches from Debian jpegoptim package (1.2.3-2)
 	v1.2.3 - IPTC marker support by Dustin Ward,
 		 ICC profile support by Dwight Kelly,
-		 minor fixes 
+		 minor fixes
 	v1.2.2 - Now Exif and COM markers are not discarded
                  (all other markers are discarded as before).
 	         New options --strip-all, --strip-exif, and --strip-com

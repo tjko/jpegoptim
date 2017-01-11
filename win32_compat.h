@@ -39,7 +39,7 @@ extern "C" {
 #define HOST_TYPE "Win64"
 #else if WIN32
 #define HOST_TYPE "Win32"
-#endif 
+#endif
 #endif
 
 

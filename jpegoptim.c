@@ -3,7 +3,7 @@
  * Copyright (c) Timo Kokkonen, 1996-2016.
  * All Rights Reserved.
  *
- * requires libjpeg (Independent JPEG Group's JPEG software 
+ * requires libjpeg (Independent JPEG Group's JPEG software
  *                     release 6a or later...)
  *
  * $Id$
@@ -51,7 +51,7 @@
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
-  jmp_buf setjmp_buffer;   
+  jmp_buf setjmp_buffer;
   int     jump_set;
 };
 typedef struct my_error_mgr * my_error_ptr;
@@ -119,13 +119,13 @@ struct option long_options[] = {
 
 /*****************************************************************/
 
-METHODDEF(void) 
+METHODDEF(void)
 my_error_exit (j_common_ptr cinfo)
 {
   my_error_ptr myerr = (my_error_ptr)cinfo->err;
 
   (*cinfo->err->output_message) (cinfo);
-  if (myerr->jump_set) 
+  if (myerr->jump_set)
     longjmp(myerr->setjmp_buffer,1);
   else
     fatal("fatal error");
@@ -145,7 +145,7 @@ my_output_message (j_common_ptr cinfo)
 }
 
 
-void print_usage(void) 
+void print_usage(void)
 {
   fprintf(stderr,PROGRAMNAME " v" VERSIO "  " COPYRIGHT "\n");
 
@@ -192,11 +192,11 @@ void print_usage(void)
 	  "\n\n");
 }
 
-void print_version() 
+void print_version()
 {
   struct jpeg_error_mgr jcerr, *err;
 
-  
+
   printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
   printf(COPYRIGHT "\n");
 
@@ -211,7 +211,7 @@ void print_version()
 
 void own_signal_handler(int a)
 {
-  if (verbose_mode > 1) 
+  if (verbose_mode > 1)
     fprintf(stderr,PROGRAMNAME ": signal: %d\n",a);
   exit(1);
 }
@@ -235,22 +235,22 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
     /* check for markers to save... */
 
-    if (save_com && mrk->marker == JPEG_COM) 
+    if (save_com && mrk->marker == JPEG_COM)
       write_marker++;
-   
-    if (save_iptc && mrk->marker == IPTC_JPEG_MARKER) 
+
+    if (save_iptc && mrk->marker == IPTC_JPEG_MARKER)
       write_marker++;
-    
+
     if (save_exif && mrk->marker == EXIF_JPEG_MARKER &&
-	!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
+	!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
       write_marker++;
-    
+
     if (save_icc && mrk->marker == ICC_JPEG_MARKER &&
-	     !memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
+	     !memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
       write_marker++;
-   
+
     if (save_xmp && mrk->marker == XMP_JPEG_MARKER &&
-	     !memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+	     !memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
       write_marker++;
 
     if (strip_none) write_marker++;
@@ -264,7 +264,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 	 mrk->data[1] == 0x46 &&
 	 mrk->data[2] == 0x49 &&
 	 mrk->data[3] == 0x46 &&
-	 mrk->data[4] == 0x00 ) 
+	 mrk->data[4] == 0x00 )
       write_marker=0;
 
     /* skip Adobe (APP14) marker */
@@ -273,14 +273,14 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 	 mrk->data[1] == 0x64 &&
 	 mrk->data[2] == 0x6f &&
 	 mrk->data[3] == 0x62 &&
-	 mrk->data[4] == 0x65 ) 
+	 mrk->data[4] == 0x65 )
       write_marker=0;
 
-    
 
-    if (write_marker) 
+
+    if (write_marker)
       jpeg_write_marker(cinfo,mrk->marker,mrk->data,mrk->data_length);
-    
+
     mrk=mrk->next;
   }
 }
@@ -290,7 +290,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 /*****************************************************************/
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
   struct jpeg_decompress_struct dinfo;
   struct jpeg_compress_struct cinfo;
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
   int oldquality;
   double ratio;
   struct stat file_stat;
-  jpeg_saved_marker_ptr cmarker; 
+  jpeg_saved_marker_ptr cmarker;
   unsigned char *outbuffer = NULL;
   size_t outbuffersize;
   char *outfname = NULL;
@@ -346,12 +346,12 @@ int main(int argc, char **argv)
 			     "Try '" PROGRAMNAME " --help' for more information.\n");
     exit(1);
   }
- 
+
   /* parse command line parameters */
   while(1) {
     opt_index=0;
     if ((c=getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:b",long_options,&opt_index))
-	      == -1) 
+	      == -1)
       break;
 
     switch (c) {
@@ -364,7 +364,7 @@ int main(int argc, char **argv)
 	  if (quality < 0) quality=0;
 	  if (quality > 100) quality=100;
 	}
-	else 
+	else
 	  fatal("invalid argument for -m, --max");
       }
       break;
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
       }
       strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
 
-      if (verbose_mode) 
+      if (verbose_mode)
 	fprintf(stderr,"Destination directory: %s\n",dest_path);
       dest=1;
       break;
@@ -464,28 +464,28 @@ int main(int argc, char **argv)
   if (stdout_mode) { logs_to_stdout=0; }
 
   if (all_normal && all_progressive)
-    fatal("cannot specify both --all-normal and --all-progressive"); 
+    fatal("cannot specify both --all-normal and --all-progressive");
 
   if (verbose_mode) {
-    if (quality>=0 && target_size==0) 
+    if (quality>=0 && target_size==0)
       fprintf(stderr,"Image quality limit set to: %d\n",quality);
-    if (threshold>=0) 
+    if (threshold>=0)
       fprintf(stderr,"Compression threshold (%%) set to: %d\n",threshold);
-    if (all_normal) 
+    if (all_normal)
       fprintf(stderr,"All output files will be non-progressive\n");
-    if (all_progressive) 
+    if (all_progressive)
       fprintf(stderr,"All output files will be progressive\n");
-    if (target_size > 0) 
+    if (target_size > 0)
       fprintf(stderr,"Target size for output files set to: %u Kbytes.\n",
 	      target_size);
-    if (target_size < 0) 
+    if (target_size < 0)
       fprintf(stderr,"Target size for output files set to: %u%%\n",
 	      -target_size);
   }
 
 
   /* loop to process the input files */
-  i=1;  
+  i=1;
   do {
     if (stdin_mode) {
       infile=stdin;
@@ -507,19 +507,19 @@ int main(int argc, char **argv)
 	    fatal("splitname() failed for: %s",argv[i]);
 	  strncat(newname,tmpfilename,sizeof(newname)-strlen(newname)-1);
 	} else {
-	  if (!splitdir(argv[i],tmpdir,sizeof(tmpdir))) 
+	  if (!splitdir(argv[i],tmpdir,sizeof(tmpdir)))
 	    fatal("splitdir() failed for: %s",argv[i]);
 	  STRNCPY(newname,argv[i],sizeof(newname));
 	}
       }
-      
+
     retry_point:
-      
+
       if (!is_file(argv[i],&file_stat)) {
-	if (is_directory(argv[i])) 
+	if (is_directory(argv[i]))
 	  warn("skipping directory: %s",argv[i]);
 	else
-	  warn("skipping special file: %s",argv[i]); 
+	  warn("skipping special file: %s",argv[i]);
 	continue;
       }
       if ((infile=fopen(argv[i],"rb"))==NULL) {
@@ -533,7 +533,7 @@ int main(int argc, char **argv)
      jpeg_abort_decompress(&dinfo);
      fclose(infile);
      if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
-     if (!quiet_mode || csv) 
+     if (!quiet_mode || csv)
        fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
      decompress_err_count++;
      jderr.jump_set=0;
@@ -543,16 +543,16 @@ int main(int argc, char **argv)
    }
 
    if (!retry && (!quiet_mode || csv)) {
-     fprintf(LOG_FH,csv ? "%s," : "%s ",(stdin_mode?"stdin":argv[i])); fflush(LOG_FH); 
+     fprintf(LOG_FH,csv ? "%s," : "%s ",(stdin_mode?"stdin":argv[i])); fflush(LOG_FH);
    }
 
    /* prepare to decompress */
    global_error_counter=0;
    jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-   for (j=0;j<=15;j++) 
+   for (j=0;j<=15;j++)
      jpeg_save_markers(&dinfo, JPEG_APP0+j, 0xffff);
    jpeg_stdio_src(&dinfo, infile);
-   jpeg_read_header(&dinfo, TRUE); 
+   jpeg_read_header(&dinfo, TRUE);
 
    /* check for Exif/IPTC/ICC/XMP markers */
    marker_str[0]=0;
@@ -576,14 +576,14 @@ int main(int argc, char **argv)
        strncat(marker_str,"ICC ",sizeof(marker_str)-strlen(marker_str)-1);
 
      if (cmarker->marker == XMP_JPEG_MARKER &&
-	 !memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+	 !memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
        strncat(marker_str,"XMP ",sizeof(marker_str)-strlen(marker_str)-1);
 
      cmarker=cmarker->next;
    }
 
 
-   if (verbose_mode > 1) 
+   if (verbose_mode > 1)
      fprintf(LOG_FH,"%d markers found in input file (total size %d bytes)\n",
 	     marker_in_count,marker_in_size);
    if (!retry && (!quiet_mode || csv)) {
@@ -629,7 +629,7 @@ int main(int argc, char **argv)
      fflush(LOG_FH);
    }
 
-     
+
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
@@ -644,7 +644,7 @@ int main(int argc, char **argv)
 
    if (setjmp(jcerr.setjmp_buffer)) {
      /* error handler for compress failures */
-     
+
      jpeg_abort_compress(&cinfo);
      jpeg_abort_decompress(&dinfo);
      fclose(infile);
@@ -683,7 +683,7 @@ int main(int argc, char **argv)
      cinfo.input_components=dinfo.output_components;
      cinfo.image_width=dinfo.image_width;
      cinfo.image_height=dinfo.image_height;
-     jpeg_set_defaults(&cinfo); 
+     jpeg_set_defaults(&cinfo);
      jpeg_set_quality(&cinfo,quality,TRUE);
      if (all_normal) {
        cinfo.scan_info = NULL; // Explicitly disables progressive if libjpeg had it on by default
@@ -695,7 +695,7 @@ int main(int argc, char **argv)
 
      j=0;
      jpeg_start_compress(&cinfo,TRUE);
-     
+
      /* write markers */
      write_markers(&dinfo,&cinfo);
 
@@ -735,8 +735,8 @@ int main(int argc, char **argv)
      long isize = insize/1024;
      long tsize = target_size;
 
-     if (tsize < 0) { 
-       tsize=((-target_size)*insize/100)/1024; 
+     if (tsize < 0) {
+       tsize=((-target_size)*insize/100)/1024;
        if (tsize < 1) tsize=1;
      }
 
@@ -750,7 +750,7 @@ int main(int argc, char **argv)
 	 }
        }
        if (verbose_mode) fprintf(LOG_FH," ");
-       
+
      } else {
        int newquality;
        int dif = floor((abs(oldquality-quality)/2.0)+0.5);
@@ -772,7 +772,7 @@ int main(int argc, char **argv)
        searchcount++;
        goto binary_search_loop;
      }
-   } 
+   }
 
    if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
    jpeg_finish_decompress(&dinfo);
@@ -782,7 +782,7 @@ int main(int argc, char **argv)
    if (quality>=0 && outsize>=insize && !retry && !stdin_mode) {
      if (verbose_mode) fprintf(LOG_FH,"(retry w/lossless) ");
      retry=1;
-     goto retry_point; 
+     goto retry_point;
    }
 
    retry=0;
@@ -806,7 +806,7 @@ int main(int argc, char **argv)
 	  if (preserve_perms && !dest) {
 	    /* make backup of the original file */
 	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
-	    if (verbose_mode > 1 && !quiet_mode) 
+	    if (verbose_mode > 1 && !quiet_mode)
 	      fprintf(LOG_FH,"%s, creating backup as: %s\n",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if (file_exists(tmpfilename))
 	      fatal("%s, backup file already exists: %s",(stdin_mode?"stdin":argv[i]),tmpfilename);
@@ -817,24 +817,24 @@ int main(int argc, char **argv)
 	    outfname=newname;
 	  } else {
 #ifdef HAVE_MKSTEMPS
-	    /* rely on mkstemps() to create us temporary file safely... */  
+	    /* rely on mkstemps() to create us temporary file safely... */
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-	    if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
+	    if ((tmpfd = mkstemps(tmpfilename,4)) < 0)
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
-	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
+	    if ((outfile=fdopen(tmpfd,"wb"))==NULL)
 #else
-	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
+	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */
 	      snprintf(tmpfilename,sizeof(tmpfilename),
 		       "%sjpegoptim-%d-%d.%ld.tmp", tmpdir, (int)getuid(), (int)getpid(),(long)time(NULL));
 	    tmpfd=0;
-	    if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
+	    if ((outfile=fopen(tmpfilename,"wb"))==NULL)
 #endif
 	      fatal("error opening temporary file: %s",tmpfilename);
 	    outfname=tmpfilename;
 	  }
 
-	  if (verbose_mode > 1 && !quiet_mode) 
+	  if (verbose_mode > 1 && !quiet_mode)
 	    fprintf(LOG_FH,"writing %lu bytes to file: %s\n",
 		    (long unsigned int)outbuffersize, outfname);
 	  if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
@@ -843,13 +843,13 @@ int main(int argc, char **argv)
 	}
 
 	if (outfname) {
-	  
+
 	  if (preserve_mode) {
 	    /* preserve file modification time */
 	    struct utimbuf time_save;
 	    time_save.actime=file_stat.st_atime;
 	    time_save.modtime=file_stat.st_mtime;
-	    if (utime(outfname,&time_save) != 0) 
+	    if (utime(outfname,&time_save) != 0)
 	      warn("failed to reset output file time/date");
 	  }
 
@@ -861,8 +861,8 @@ int main(int argc, char **argv)
 	    /* make temp file to be the original file... */
 
 	    /* preserve file mode */
-	    if (chmod(outfname,(file_stat.st_mode & 0777)) != 0) 
-	      warn("failed to set output file mode"); 
+	    if (chmod(outfname,(file_stat.st_mode & 0777)) != 0)
+	      warn("failed to set output file mode");
 
 	    /* preserve file group (and owner if run by root) */
 	    if (chown(outfname,
@@ -870,7 +870,7 @@ int main(int argc, char **argv)
 		      file_stat.st_gid) != 0)
 	      warn("failed to reset output file group/owner");
 
-	    if (verbose_mode > 1 && !quiet_mode) 
+	    if (verbose_mode > 1 && !quiet_mode)
 	      fprintf(LOG_FH,"renaming: %s to %s\n",outfname,newname);
 	    if (rename_file(outfname,newname)) fatal("cannot rename temp file");
 	  }
@@ -878,7 +878,7 @@ int main(int argc, char **argv)
    } else {
      if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "skipped\n" : "skipped.\n");
    }
-   
+
 
   } while (++i<argc && !stdin_mode);
 
