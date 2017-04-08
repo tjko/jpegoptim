@@ -242,15 +242,18 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
       write_marker++;
     
     if (save_exif && mrk->marker == EXIF_JPEG_MARKER &&
+	mrk->data_length >= EXIF_IDENT_STRING_SIZE &&
 	!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE)) 
       write_marker++;
     
     if (save_icc && mrk->marker == ICC_JPEG_MARKER &&
-	     !memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
+	mrk->data_length >= ICC_IDENT_STRING_SIZE &&
+	!memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE)) 
       write_marker++;
    
     if (save_xmp && mrk->marker == XMP_JPEG_MARKER &&
-	     !memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
+	mrk->data_length >= XMP_IDENT_STRING_SIZE &&
+	!memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
       write_marker++;
 
     if (strip_none) write_marker++;
@@ -565,6 +568,7 @@ int main(int argc, char **argv)
      marker_in_size+=cmarker->data_length;
 
      if (cmarker->marker == EXIF_JPEG_MARKER &&
+	 cmarker->data_length >= EXIF_IDENT_STRING_SIZE &&
 	 !memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
        strncat(marker_str,"Exif ",sizeof(marker_str)-strlen(marker_str)-1);
 
@@ -572,10 +576,12 @@ int main(int argc, char **argv)
        strncat(marker_str,"IPTC ",sizeof(marker_str)-strlen(marker_str)-1);
 
      if (cmarker->marker == ICC_JPEG_MARKER &&
+	 cmarker->data_length >= ICC_IDENT_STRING_SIZE &&
 	 !memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
        strncat(marker_str,"ICC ",sizeof(marker_str)-strlen(marker_str)-1);
 
      if (cmarker->marker == XMP_JPEG_MARKER &&
+	 cmarker->data_length >= XMP_IDENT_STRING_SIZE &&
 	 !memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE)) 
        strncat(marker_str,"XMP ",sizeof(marker_str)-strlen(marker_str)-1);
 
