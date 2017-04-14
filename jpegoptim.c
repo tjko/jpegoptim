@@ -372,9 +372,10 @@ int main(int argc, char **argv)
       }
       break;
     case 'd':
-      if (realpath(optarg,dest_path)==NULL || !is_directory(dest_path)) {
-	fatal("invalid argument for option -d, --dest");
-      }
+      if (realpath(optarg,dest_path)==NULL)
+	fatal("invalid destination directory: %s", optarg);
+      if (!is_directory(dest_path))
+	fatal("destination not a directory: %s", dest_path);
       strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
 
       if (verbose_mode) 
@@ -488,7 +489,7 @@ int main(int argc, char **argv)
 
 
   /* loop to process the input files */
-  i=1;  
+  i=(optind > 0 ? optind : 1);
   do {
     if (stdin_mode) {
       infile=stdin;
