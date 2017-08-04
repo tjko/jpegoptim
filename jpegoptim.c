@@ -97,6 +97,7 @@ struct option long_options[] = {
   {"dest",1,0,'d'},
   {"force",0,0,'f'},
   {"version",0,0,'V'},
+  {"overwrite",0,0,'o'},
   {"preserve",0,0,'p'},
   {"preserve-perms",0,0,'P'},
   {"strip-all",0,0,'s'},
