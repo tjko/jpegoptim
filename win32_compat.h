@@ -31,13 +31,19 @@ extern "C" {
 #define getuid(x) 0
 #define geteuid() 0
 #define chown(outfname,st_uid,st_gid) 0
+
+#ifndef S_ISREG
 #define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
+#endif
+
+#ifndef S_ISDIR
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#endif
 
 #ifndef HOST_TYPE
 #if _WIN64
 #define HOST_TYPE "Win64"
-#else if WIN32
+#elif WIN32
 #define HOST_TYPE "Win32"
 #endif 
 #endif
