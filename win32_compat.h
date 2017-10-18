@@ -20,7 +20,7 @@ extern "C" {
 #include <sys/utime.h>
 
 #define snprintf _snprintf
-#define lstat _stat
+#define lstat stat
 
 #define realpath(N,R) _fullpath((R),(N),MAXPATHLEN)
 #define ftruncate(fildes,length) open(fildes, O_TRUNC|O_WRONLY)
