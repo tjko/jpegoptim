@@ -25,6 +25,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <jpeglib.h>
+#include <stdbool.h>
 
 #ifdef BROKEN_METHODDEF
 #undef METHODDEF
@@ -72,6 +73,9 @@ char *splitdir(const char *pathname, char *buf, int buflen);
 char *splitname(const char *pathname, char *buf, int buflen);
 void fatal(const char *format, ...);
 void warn(const char *format, ...);
+bool hasStdIn();
+unsigned char * createBuffer(long size);
+long getFileSize(FILE *fhandlein);
 
 
 /* jpegdest.c */
