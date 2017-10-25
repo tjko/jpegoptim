@@ -17,7 +17,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
-
+#include <stdbool.h>
 
 #include "jpegoptim.h"
 
@@ -28,7 +28,7 @@ int delete_file(char *name)
 
   if (!name) return -1;
   if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
-  if ((retval=unlink(name)) && !quiet_mode) 
+  if ((retval=unlink(name)) && !quiet_mode)
     warn("error removing file: %s",name);
 
   return retval;
@@ -200,5 +200,29 @@ void warn(const char *format, ...)
   fflush(stderr);
 }
 
+bool hasStdIn() {
+	char c;
+	c = getchar();
+	putchar(c);
+	return (c != EOF);
+}
+
+unsigned char * createBuffer(long size)
+{
+  unsigned char *buffer;
+	buffer=malloc(size);
+	if (!buffer) {
+		fprintf(stderr, "not enough memory\n");
+		exit(3);
+	}
+	return buffer;
+}
+
+long getFileSize(FILE *fp)
+{
+	long insize = 0;
+	if((insize=file_size(fp)) < 0) { return 0; }
+	return insize;
+}
 
 /* eof */
