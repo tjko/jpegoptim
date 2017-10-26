@@ -22,7 +22,7 @@
 #include "jpegoptim.h"
 
 
-int delete_file(char *name)
+int delete_file(const char *name)
 {
   int retval;
 

@@ -6,7 +6,7 @@
  * requires libjpeg (Independent JPEG Group's JPEG software 
  *                     release 6a or later...)
  *
- * $Id$
+ * $Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -56,7 +56,7 @@ struct my_error_mgr {
 };
 typedef struct my_error_mgr * my_error_ptr;
 
-const char *rcsid = "$Id$";
+const char *rcsid = "$Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $";
 
 
 int verbose_mode = 0;
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
   char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
   char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
   volatile int i;
-  int c,j, tmpfd, searchcount, searchdone;
+  int c,j, searchcount, searchdone;
   int opt_index = 0;
   long insize = 0, outsize = 0, lastsize = 0;
   int oldquality;
@@ -828,14 +828,13 @@ int main(int argc, char **argv)
 	    /* rely on mkstemps() to create us temporary file safely... */  
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-	    if ((tmpfd = mkstemps(tmpfilename,4)) < 0) 
+	    if ((int tmpfd = mkstemps(tmpfilename,4)) < 0) 
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
 #else
 	      /* if platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */  
 	      snprintf(tmpfilename,sizeof(tmpfilename),
 		       "%sjpegoptim-%d-%d.%ld.tmp", tmpdir, (int)getuid(), (int)getpid(),(long)time(NULL));
-	    tmpfd=0;
 	    if ((outfile=fopen(tmpfilename,"wb"))==NULL) 
 #endif
 	      fatal("error opening temporary file: %s",tmpfilename);
