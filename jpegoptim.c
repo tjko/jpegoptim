@@ -298,6 +298,17 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
   }
 }
 
+long read_max_file_input_size(char * source, long fallback) {
+  long tmpvar = 0;
+
+  if (sscanf(source, "%ld", & tmpvar) == 1) {
+      if (tmpvar < INTERNAL_MIN_SIZE_JPEG)
+        return fallback;
+  } else
+      fatal("invalid argument for -B, --read-bytes");
+  return tmpvar;
+}
+
 
 /*****************************************************************/
 int main(int argc, char * * argv) {
@@ -330,7 +341,14 @@ int main(int argc, char * * argv) {
     char * inbuf = NULL;
     size_t readinbytes;
     unsigned int max_file_input_size_bytes = 33554432;
-
+    // OpenFaaS edit
+    char * env_size_override = getenv("Http_ContentLength");
+    if(env_size_override) {
+      max_file_input_size_bytes = read_max_file_input_size(
+        env_size_override,
+        max_file_input_size_bytes
+      );
+    }
     if (rcsid)
     ; /* so compiler won't complain about "unused" rcsid string */
 
@@ -445,15 +463,10 @@ int main(int argc, char * * argv) {
             }
             break;
         case 'B':
-            {
-                long tmpvar;
-
-                if (sscanf(optarg, "%ld", & tmpvar) == 1) {
-                    max_file_input_size_bytes = tmpvar;
-                    if (max_file_input_size_bytes < 0) max_file_input_size_bytes = 0;
-                } else
-                    fatal("invalid argument for -B, --read-bytes");
-            }
+            max_file_input_size_bytes = read_max_file_input_size(
+              optarg,
+              max_file_input_size_bytes
+            );
             break;
         case 'S':
             {
