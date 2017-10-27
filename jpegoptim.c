@@ -40,6 +40,8 @@
 
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
 
+#define INTERNAL_MIN_SIZE_JPEG 107
+
 #define FREE_LINE_BUF(buf,lines)  {				\
     int j;							\
     for (j=0;j<lines;j++) free(buf[j]);				\
@@ -109,6 +111,7 @@ struct option long_options[] = {
   {"strip-xmp",0,&save_xmp,0},
   {"threshold",1,0,'T'},
   {"csv",0,0,'b'},
+  {"read-bytes",1,0,'B'},
   {"all-normal",0,&all_normal,1},
   {"all-progressive",0,&all_progressive,1},
   {"size",1,0,'S'},
@@ -166,6 +169,12 @@ void print_usage(void)
 	  "                    Try to optimize file to given size (disables lossless\n"
 	  "                    optimization mode). Target size is specified either in\n"
 	  "                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
+	  "  -B<size>, --read-bytes=<size>\n"
+	  "                    This program has a default max of 32MB input to read.\n"
+	  "                    If you attempt to pass in a file larger than this, \n"
+	  "                    you will encounter issues. Setting this flag allows\n"
+	  "                    users to overcome these limits, normalise behaviour\n"
+	  "                    without re-compiling (depends on available memory)\n"
 	  "  -T<threshold>, --threshold=<threshold>\n"
 	  "                    keep old file if the gain is below a threshold (%%)\n"
 	  "  -b, --csv         print progress info in CSV format\n"
@@ -320,6 +329,7 @@ int main(int argc, char * * argv) {
 
     char * inbuf = NULL;
     size_t readinbytes;
+    unsigned int max_file_input_size_bytes = 33554432;
 
     if (rcsid)
     ; /* so compiler won't complain about "unused" rcsid string */
@@ -352,7 +362,7 @@ int main(int argc, char * * argv) {
     /* parse command line parameters */
     while (1) {
         opt_index = 0;
-        if ((c = getopt_long(argc, argv, "d:hm:nstqvfVpPoT:S:b", long_options, & opt_index)) == -1)
+        if ((c = getopt_long(argc, argv, "d:hm:nsB:tqvfVpPoT:S:b", long_options, & opt_index)) == -1)
             break;
 
         switch (c) {
@@ -434,6 +444,17 @@ int main(int argc, char * * argv) {
                 } else fatal("invalid argument for -T, --threshold");
             }
             break;
+        case 'B':
+            {
+                long tmpvar;
+
+                if (sscanf(optarg, "%ld", & tmpvar) == 1) {
+                    max_file_input_size_bytes = tmpvar;
+                    if (max_file_input_size_bytes < 0) max_file_input_size_bytes = 0;
+                } else
+                    fatal("invalid argument for -B, --read-bytes");
+            }
+            break;
         case 'S':
             {
                 unsigned int tmpvar;
@@ -460,6 +481,10 @@ int main(int argc, char * * argv) {
 
     if (stdin_mode) { stdout_mode = 1; }
     if (stdout_mode) { logs_to_stdout=0; quiet_mode=1; verbose_mode=0; }
+    if (max_file_input_size_bytes < INTERNAL_MIN_SIZE_JPEG) {
+      fatal("--read-bytes must be positive and larger than %d", INTERNAL_MIN_SIZE_JPEG);
+      return 2;
+    }
 
     if (all_normal && all_progressive)
         fatal("cannot specify both --all-normal and --all-progressive");
@@ -479,39 +504,6 @@ int main(int argc, char * * argv) {
         if (target_size < 0)
             fprintf(stderr, "Target size for output files set to: %u%%\n", -target_size);
     }
-    /*
-
-
-
-    for(i=0;i<argc;i++) {
-      fprintf(stdout, "argument %d='%s'\n", i, argv[i]);
-    }
-
-    if (isatty(fileno(stdin))) {
-      set_filemode_binary(stdin);
-      insize = getFileSize(stdin);
-      if (insize <= 0) {
-          fatal("no input to stdin\n");
-      }
-    } else {
-      inbuf = createBuffer(insize);
-      while (1) {
-          char c = inbuf[insize];
-          int ret = scanf("%c\n", &c);
-          if (ret == EOF) {
-              break;
-          }
-          insize++;
-      }
-    }
-    fprintf(stdout, "stdin size: %lu\n", insize);
-
-    fseek(stdin,0,SEEK_END);
-    fatal("that's it for now");
-    return 0;
-
-
-    */
 
     /* loop to process the input files */
     i = (optind > 0 ? optind : 1);
@@ -520,14 +512,34 @@ int main(int argc, char * * argv) {
 
         freopen(NULL, "rb", stdin);
         freopen(NULL, "wb", stdout);
-        // set buffer for max 32MB jpeg
-        inbuf = createBuffer(33554432);
-        insize = read(0, inbuf, 33554432);
+        inbuf = createBuffer(max_file_input_size_bytes);
+        insize = read(0, inbuf, max_file_input_size_bytes);
+        if(insize < 1) {
+          if(inbuf) free(inbuf);
+          fatal("Failed to read from input");
+        }
         /*
-        fprintf(stdout, "stdin size: %lu\n", insize);
-        if(inbuf){ free(inbuf); }
-        return 0;
-        */
+         * Diligence
+         */
+        if(insize == max_file_input_size_bytes) {
+          char tmpbuf[INTERNAL_MIN_SIZE_JPEG];
+          long test = read(0, tmpbuf, INTERNAL_MIN_SIZE_JPEG);
+          int repeat = 0;
+          for(int i=0;i<INTERNAL_MIN_SIZE_JPEG;i++) {
+            /*
+             * non-repeating chars may indicate larger input than
+             * bytes allocated to buffer
+             * if encountering EOF then it doesn't matter
+             */
+            if((tmpbuf[i] != inbuf[i]) && (tmpbuf[i] != EOF)) {
+              repeat++;
+            }
+          }
+          if(repeat > 0) {
+            if(inbuf) free(inbuf);
+            fatal("Read Buffer full, file may be larger than buffer.");
+          }
+        }
     }
     do {
         if (!stdin_mode) {
@@ -697,11 +709,9 @@ int main(int argc, char * * argv) {
 
         if (setjmp(jcerr.setjmp_buffer)) {
             /* error handler for compress failures */
-
             jpeg_abort_compress( & cinfo);
             jpeg_abort_decompress( & dinfo);
-            if (!stdin_mode)
-                fclose(infile);
+            if (!stdin_mode) fclose(infile);
             if (!quiet_mode) fprintf(LOG_FH, " [Compress ERROR]\n");
             if (buf) FREE_LINE_BUF(buf, dinfo.output_height);
             compress_err_count++;
@@ -718,8 +728,8 @@ int main(int argc, char * * argv) {
 
         binary_search_loop:
 
-            /* allocate memory buffer that should be large enough to store the output JPEG... */
-            if (outbuffer) free(outbuffer);
+        /* allocate memory buffer that should be large enough to store the output JPEG... */
+        if (outbuffer) free(outbuffer);
         outbuffersize = insize + 32768;
         outbuffer = malloc(outbuffersize);
         if (!outbuffer) fatal("not enough memory");
@@ -758,7 +768,6 @@ int main(int argc, char * * argv) {
 
         } else {
             /* lossless "optimization" ... */
-
             jpeg_copy_critical_parameters( & dinfo, & cinfo);
             if (all_normal) {
                 cinfo.scan_info = NULL; // Explicitly disables progressive if libjpeg had it on by default
@@ -781,7 +790,6 @@ int main(int argc, char * * argv) {
 
         if (target_size != 0 && !retry) {
             /* perform (binary) search to try to reach target file size... */
-
             long osize = outsize / 1024;
             long isize = insize / 1024;
             long tsize = target_size;
@@ -863,7 +871,7 @@ int main(int argc, char * * argv) {
             if (stdout_mode) {
                 outfname = NULL;
                 set_filemode_binary(stdout);
-                if (fwrite(outbuffer, outbuffersize, 1, stdout) != 1) {
+                if (fwrite(outbuffer, outbuffersize, 1, stdout) > INTERNAL_MIN_SIZE_JPEG) {
                     if(inbuf) { free(inbuf); }
                     fatal("%s, write failed to stdout", (stdin_mode ? "stdin" : argv[i]));
                 }
@@ -941,16 +949,14 @@ int main(int argc, char * * argv) {
             }
         } else {
           if (!quiet_mode || csv) fprintf(LOG_FH, csv ? "skipped\n" : "skipped.\n");
-          //fprintf(stdout, "Output buffer size: %lu\nInput buffer size:%lu\n",outbuffersize,insize);
-          //fprintf(stdout, "%s\n", jderr.pub.output_message);
-          if (stdout_mode && !retry) {
+          if (stdout_mode) {
               outfname = NULL;
               set_filemode_binary(stdout);
-              /*if (fwrite(inbuf, 1, insize, stdout) != insize) {
+              if (fwrite(inbuf, 1, insize, stdout) < INTERNAL_MIN_SIZE_JPEG) {
                   fprintf(stderr, "error writing to stdout\n");
                   if(inbuf) { free(inbuf); }
                   exit(3);
-              }*/
+              }
           }
         }
 
