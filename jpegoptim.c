@@ -308,7 +308,7 @@ int main(int argc, char * * argv) {
     double ratio;
     struct stat file_stat;
     jpeg_saved_marker_ptr cmarker;
-    unsigned char * outbuffer = NULL;
+    char * outbuffer = NULL;
     size_t outbuffersize;
     char * outfname = NULL;
     FILE * infile = NULL, * outfile = NULL;
@@ -318,7 +318,7 @@ int main(int argc, char * * argv) {
     long average_count = 0;
     double average_rate = 0.0, total_save = 0.0;
 
-    unsigned char * inbuf = NULL;
+    char * inbuf = NULL;
     size_t readinbytes;
 
     if (rcsid)
@@ -479,23 +479,55 @@ int main(int argc, char * * argv) {
         if (target_size < 0)
             fprintf(stderr, "Target size for output files set to: %u%%\n", -target_size);
     }
+    /*
+
+
+
+    for(i=0;i<argc;i++) {
+      fprintf(stdout, "argument %d='%s'\n", i, argv[i]);
+    }
+
+    if (isatty(fileno(stdin))) {
+      set_filemode_binary(stdin);
+      insize = getFileSize(stdin);
+      if (insize <= 0) {
+          fatal("no input to stdin\n");
+      }
+    } else {
+      inbuf = createBuffer(insize);
+      while (1) {
+          char c = inbuf[insize];
+          int ret = scanf("%c\n", &c);
+          if (ret == EOF) {
+              break;
+          }
+          insize++;
+      }
+    }
+    fprintf(stdout, "stdin size: %lu\n", insize);
+
+    fseek(stdin,0,SEEK_END);
+    fatal("that's it for now");
+    return 0;
+
+
+    */
 
     /* loop to process the input files */
     i = (optind > 0 ? optind : 1);
     if (stdin_mode) {
-        // check stdin
-        insize = getFileSize(stdin);
-        if (insize <= 0) {
-            fprintf(stderr, "no input to stdin\n");
-            exit(2);
-        }
-        // read stdin to buffer
-        inbuf = createBuffer(insize);
-        if ((readinbytes = fread(inbuf, sizeof(char), insize, stdin)) <= 0) {
-            fprintf(stderr, "error reading from stdin\n");
-            free(inbuf);
-            exit(3);
-        }
+
+
+        freopen(NULL, "rb", stdin);
+        freopen(NULL, "wb", stdout);
+        // set buffer for max 32MB jpeg
+        inbuf = createBuffer(33554432);
+        insize = read(0, inbuf, 33554432);
+        /*
+        fprintf(stdout, "stdin size: %lu\n", insize);
+        if(inbuf){ free(inbuf); }
+        return 0;
+        */
     }
     do {
         if (!stdin_mode) {
@@ -832,7 +864,7 @@ int main(int argc, char * * argv) {
                 outfname = NULL;
                 set_filemode_binary(stdout);
                 if (fwrite(outbuffer, outbuffersize, 1, stdout) != 1) {
-                    free(inbuf);
+                    if(inbuf) { free(inbuf); }
                     fatal("%s, write failed to stdout", (stdin_mode ? "stdin" : argv[i]));
                 }
             } else {
@@ -909,14 +941,16 @@ int main(int argc, char * * argv) {
             }
         } else {
           if (!quiet_mode || csv) fprintf(LOG_FH, csv ? "skipped\n" : "skipped.\n");
-          if (stdout_mode) {
+          //fprintf(stdout, "Output buffer size: %lu\nInput buffer size:%lu\n",outbuffersize,insize);
+          //fprintf(stdout, "%s\n", jderr.pub.output_message);
+          if (stdout_mode && !retry) {
               outfname = NULL;
               set_filemode_binary(stdout);
-              if (fwrite(inbuf, 1, readinbytes, stdout) != insize) {
+              /*if (fwrite(inbuf, 1, insize, stdout) != insize) {
                   fprintf(stderr, "error writing to stdout\n");
-                  free(inbuf);
+                  if(inbuf) { free(inbuf); }
                   exit(3);
-              }
+              }*/
           }
         }
 

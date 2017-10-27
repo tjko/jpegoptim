@@ -24,11 +24,11 @@
 typedef struct {
   struct jpeg_destination_mgr pub; /* public fields */
 
-  unsigned char **buf_ptr;
+  char **buf_ptr;
   size_t *bufsize_ptr;
   size_t incsize;
 
-  unsigned char *buf;		
+  char *buf;
   size_t bufsize;
 
 } jpeg_memory_destination_mgr;
@@ -50,7 +50,7 @@ void jpeg_memory_init_destination (j_compress_ptr cinfo)
 boolean jpeg_memory_empty_output_buffer (j_compress_ptr cinfo)
 {
   jpeg_memory_destination_ptr dest = (jpeg_memory_destination_ptr) cinfo->dest;
-  unsigned char *newbuf;
+  char *newbuf;
 
   /* abort if incsize is 0 (no expansion of buffer allowed) */
   if (dest->incsize == 0) ERREXIT1(cinfo, JERR_OUT_OF_MEMORY, 42);
@@ -81,15 +81,15 @@ void jpeg_memory_term_destination (j_compress_ptr cinfo)
 
 
 
-void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *bufsizeptr, size_t incsize)
+void jpeg_memory_dest (j_compress_ptr cinfo, char **bufptr, size_t *bufsizeptr, size_t incsize)
 {
   jpeg_memory_destination_ptr dest;
 
-  if (!cinfo || !bufptr || !bufsizeptr) 
+  if (!cinfo || !bufptr || !bufsizeptr)
     fatal("invalid call to jpeg_memory_dest()");
-  if (!*bufptr || *bufsizeptr == 0) 
+  if (!*bufptr || *bufsizeptr == 0)
     fatal("invalid buffer passed to jpeg_memory_dest()");
-  
+
 
   /* allocate destination manager object for compress object, if needed */
   if (!cinfo->dest) {
@@ -111,4 +111,3 @@ void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *buf
   dest->pub.empty_output_buffer = jpeg_memory_empty_output_buffer;
   dest->pub.term_destination = jpeg_memory_term_destination;
 }
-

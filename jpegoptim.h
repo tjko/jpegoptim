@@ -74,12 +74,12 @@ char *splitname(const char *pathname, char *buf, int buflen);
 void fatal(const char *format, ...);
 void warn(const char *format, ...);
 bool hasStdIn();
-unsigned char * createBuffer(long size);
+char * createBuffer(long size);
 long getFileSize(FILE *fhandlein);
 
 
 /* jpegdest.c */
-void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *bufsizeptr, size_t incsize);
+void jpeg_memory_dest (j_compress_ptr cinfo, char **bufptr, size_t *bufsizeptr, size_t incsize);
 
 
 
