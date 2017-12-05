@@ -6,7 +6,7 @@
  * requires libjpeg (Independent JPEG Group's JPEG software 
  *                     release 6a or later...)
  *
- * $Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $
+ * $Id$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -56,7 +56,7 @@ struct my_error_mgr {
 };
 typedef struct my_error_mgr * my_error_ptr;
 
-const char *rcsid = "$Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $";
+const char *rcsid = "$Id$";
 
 
 int verbose_mode = 0;
@@ -896,6 +896,8 @@ int main(int argc, char **argv)
 	    average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
+
+  free (outbuffer);
 
   return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
 }
