@@ -6,7 +6,7 @@
  * requires libjpeg (Independent JPEG Group's JPEG software 
  *                     release 6a or later...)
  *
- * $Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $
+ * $Id$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -56,7 +56,7 @@ struct my_error_mgr {
 };
 typedef struct my_error_mgr * my_error_ptr;
 
-const char *rcsid = "$Id: b5d97f2a4d2b8196ca662c8dd0bedffb8d3fbe71 $";
+const char *rcsid = "$Id$";
 
 
 int verbose_mode = 0;
@@ -828,7 +828,8 @@ int main(int argc, char **argv)
 	    /* rely on mkstemps() to create us temporary file safely... */  
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-	    if ((int tmpfd = mkstemps(tmpfilename,4)) < 0) 
+            int tmpfd = mkstemps(tmpfilename,4);
+	    if (tmpfd < 0) 
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
 #else
