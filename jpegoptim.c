@@ -828,8 +828,8 @@ int main(int argc, char **argv)
 	    /* rely on mkstemps() to create us temporary file safely... */  
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-            int tmpfd = 0;
-            if (tmpfd = mkstemps(tmpfilename,4) < 0)
+      int tmpfd = mkstemps(tmpfilename,4);
+	    if (tmpfd < 0) 
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
 #else
