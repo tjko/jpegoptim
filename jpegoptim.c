@@ -34,8 +34,8 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.4.4"
-#define COPYRIGHT  "Copyright (c) 1996-2016, Timo Kokkonen"
+#define VERSIO "1.4.5"
+#define COPYRIGHT  "Copyright (C) 1996-2018, Timo Kokkonen"
 
 
 #define LOG_FH (logs_to_stdout ? stdout : stderr)
@@ -496,7 +496,7 @@ int main(int argc, char **argv)
       infile=stdin;
       set_filemode_binary(infile);
     } else {
-      if (!argv[i][0]) continue;
+      if (i >= argc || !argv[i][0]) continue;
       if (argv[i][0]=='-') continue;
       if (strlen(argv[i]) >= MAXPATHLEN) {
 	warn("skipping too long filename: %s",argv[i]);
@@ -828,7 +828,7 @@ int main(int argc, char **argv)
 	    /* rely on mkstemps() to create us temporary file safely... */  
 	    snprintf(tmpfilename,sizeof(tmpfilename),
 		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
-      int tmpfd = mkstemps(tmpfilename,4);
+	    int tmpfd = mkstemps(tmpfilename,4);
 	    if (tmpfd < 0) 
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if ((outfile=fdopen(tmpfd,"wb"))==NULL) 
@@ -896,7 +896,6 @@ int main(int argc, char **argv)
 	    average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
-
   free (outbuffer);
 
   return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
