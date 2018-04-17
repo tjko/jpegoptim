@@ -896,7 +896,6 @@ int main(int argc, char **argv)
 	    average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
-  free (outbuffer);
 
   return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
 }
