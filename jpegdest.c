@@ -62,6 +62,7 @@ boolean jpeg_memory_empty_output_buffer (j_compress_ptr cinfo)
   dest->pub.next_output_byte = newbuf + dest->bufsize;
   dest->pub.free_in_buffer = dest->incsize;
 
+  *dest->buf_ptr = newbuf;
   dest->buf = newbuf;
   dest->bufsize += dest->incsize;
   dest->incsize *= 2;
