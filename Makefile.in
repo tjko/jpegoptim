@@ -3,7 +3,7 @@
 # 
 # Makefile for jpegoptim
 #
-Version = 1.4.5
+Version = 1.4.6beta
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
@@ -36,7 +36,7 @@ CC        = @CC@
 XCPPFLAGS = @CPPFLAGS@
 CFLAGS    = @CFLAGS@ $(XCPPFLAGS) $(DEFS)
 #CFLAGS	 += -Wall -Wformat -Werror=format-security
-#CFLAGS	 += -fstack-protector --param=ssp-buffer-size=4 -D_FORTIFY_SOURCE=2 -fsanitize=address
+#CFLAGS	 += -fstack-protector --param=ssp-buffer-size=4 -D_FORTIFY_SOURCE=2 -fsanitize=address,undefined
 LDFLAGS   = @LDFLAGS@
 LIBS      = @LIBS@
 STRIP     = strip
