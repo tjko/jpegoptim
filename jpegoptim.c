@@ -34,7 +34,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.4.6beta"
+#define VERSIO "1.4.6"
 #define COPYRIGHT  "Copyright (C) 1996-2018, Timo Kokkonen"
 
 
@@ -199,7 +199,10 @@ void print_version()
 
   
   printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
-  printf(COPYRIGHT "\n");
+  printf(COPYRIGHT "\n\n");
+  printf("This program comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
+	 "and you are welcome to redistirbute it under certain conditions.\n"
+	 "See the GNU General Public License for more details.\n\n");
 
   if (!(err=jpeg_std_error(&jcerr)))
     fatal("jpeg_std_error() failed");

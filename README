@@ -1,5 +1,5 @@
 
-Jpegoptim v1.4.6beta - Copyright (C)  Timo Kokkonen, 1996-2018. All Rights Reserved.
+Jpegoptim v1.4.6 - Copyright (C)  Timo Kokkonen, 1996-2018. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -28,8 +28,7 @@ INSTALLATION
 
 
 HISTORY
-	v1.4.6beta
-	       - fix double free introduced in previous release
+	v1.4.6 - fix double free introduced in previous release
 	v1.4.5 - fix --overwrite option,
                  better error reporting for -d option,
                  fix memcmp() potentially reading past end of buffer,
