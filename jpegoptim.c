@@ -484,10 +484,10 @@ int main(int argc, char **argv)
     if (all_progressive) 
       fprintf(stderr,"All output files will be progressive\n");
     if (target_size > 0) 
-      fprintf(stderr,"Target size for output files set to: %u Kbytes.\n",
+      fprintf(stderr,"Target size for output files set to: %d Kbytes.\n",
 	      target_size);
     if (target_size < 0) 
-      fprintf(stderr,"Target size for output files set to: %u%%\n",
+      fprintf(stderr,"Target size for output files set to: %d%%\n",
 	      -target_size);
   }
 
