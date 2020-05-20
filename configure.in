@@ -83,6 +83,26 @@ if test $jpeginfo_cv_broken_methoddef = yes; then
 fi
 AC_MSG_RESULT($jpeginfo_cv_broken_methoddef)
 
+AC_MSG_CHECKING([Arithmetic Coding support in JPEG library])
+AC_CACHE_VAL(jpegoptim_cv_arith_code_support,
+[AC_TRY_RUN([
+#include <stdio.h>
+#include <jpeglib.h>
+int main(void)
+{
+	struct jpeg_compress_struct cinfo;
+	cinfo.arith_code=TRUE;
+	return 0;
+}
+],
+jpegoptim_cv_arith_code_support=yes,
+jpegoptim_cv_arith_code_support=no,
+jpegoptim_cv_arith_code_support=no)])
+if test $jpegoptim_cv_arith_code_support = yes; then
+  AC_DEFINE(HAVE_ARITH_CODE)
+fi
+AC_MSG_RESULT($jpegoptim_cv_arith_code_support)
+
 
 AC_OUTPUT(Makefile)
 

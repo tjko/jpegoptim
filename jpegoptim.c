@@ -85,7 +85,10 @@ int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
 int logs_to_stdout = 1;
-
+#ifdef HAVE_ARITH_CODE
+int arith_mode = -1;
+#endif
+char last_error[JMSG_LENGTH_MAX+1];
 
 struct option long_options[] = {
   {"verbose",0,0,'v'},
@@ -114,6 +117,10 @@ struct option long_options[] = {
   {"size",1,0,'S'},
   {"stdout",0,&stdout_mode,1},
   {"stdin",0,&stdin_mode,1},
+#ifdef HAVE_ARITH_CODE
+  {"all-arith",0,&arith_mode,1},
+  {"all-huffman",0,&arith_mode,0},
+#endif
   {0,0,0,0}
 };
 
@@ -137,12 +144,14 @@ my_output_message (j_common_ptr cinfo)
 {
   char buffer[JMSG_LENGTH_MAX+1];
 
+  (*cinfo->err->format_message)((j_common_ptr)cinfo,buffer);
+  buffer[sizeof(buffer)-1]=0;
+
   if (verbose_mode) {
-    (*cinfo->err->format_message)((j_common_ptr)cinfo,buffer);
-    buffer[sizeof(buffer)-1]=0;
     fprintf(LOG_FH," (%s) ",buffer);
   }
   global_error_counter++;
+  strncpy(last_error,buffer,sizeof(last_error));
 }
 
 
@@ -188,6 +197,10 @@ void print_usage(void)
 	  "\n"
 	  "  --all-normal      force all output files to be non-progressive\n"
 	  "  --all-progressive force all output files to be progressive\n"
+#ifdef HAVE_ARITH_CODE
+	  "  --all-arith       force all output files to use arithmetic coding\n"
+	  "  --all-huffman     force all output files to use Huffman coding\n"
+#endif
 	  "  --stdout          send output to standard output (instead of a file)\n"
 	  "  --stdin           read input from standard input (instead of a file)\n"
 	  "\n\n");
@@ -659,7 +672,9 @@ int main(int argc, char **argv)
      jpeg_abort_compress(&cinfo);
      jpeg_abort_decompress(&dinfo);
      fclose(infile);
-     if (!quiet_mode) fprintf(LOG_FH," [Compress ERROR]\n");
+     if (!quiet_mode) {
+       fprintf(LOG_FH," [Compress ERROR: %s]\n",last_error);
+     }
      if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
      compress_err_count++;
      jcerr.jump_set=0;
@@ -703,6 +718,10 @@ int main(int argc, char **argv)
        jpeg_simple_progression(&cinfo);
      }
      cinfo.optimize_coding = TRUE;
+#ifdef HAVE_ARITH_CODE
+     if (arith_mode >= 0)
+       cinfo.arith_code = arith_mode;
+#endif
 
      j=0;
      jpeg_start_compress(&cinfo,TRUE);
@@ -727,6 +746,10 @@ int main(int argc, char **argv)
        jpeg_simple_progression(&cinfo);
      }
      cinfo.optimize_coding = TRUE;
+#ifdef HAVE_ARITH_CODE
+     if (arith_mode >= 0)
+       cinfo.arith_code = arith_mode;
+#endif
 
      /* write image */
      jpeg_write_coefficients(&cinfo, coef_arrays);
@@ -817,6 +840,7 @@ int main(int argc, char **argv)
 	  if (preserve_perms && !dest) {
 	    /* make backup of the original file */
 	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
+
 	    if (verbose_mode > 1 && !quiet_mode) 
 	      fprintf(LOG_FH,"%s, creating backup as: %s\n",(stdin_mode?"stdin":argv[i]),tmpfilename);
 	    if (file_exists(tmpfilename))

@@ -37,6 +37,8 @@
 /* Define if you have the jpeg library (-ljpeg).  */
 #undef HAVE_LIBJPEG
 
+/* Define if jpeg library support Arithmetic coding */
+#undef HAVE_ARITH_CODE
 
 
 /* Define if you have broken jmorecfg.h (SGI's usually have this problem) */
