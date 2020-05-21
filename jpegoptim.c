@@ -839,7 +839,9 @@ int main(int argc, char **argv)
 	} else {
 	  if (preserve_perms && !dest) {
 	    /* make backup of the original file */
-	    snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
+	    int newlen = snprintf(tmpfilename,sizeof(tmpfilename),"%s.jpegoptim.bak",newname);
+	    if (newlen >= sizeof(tmpfilename))
+	      warn("temp filename too long: %s", tmpfilename);
 
 	    if (verbose_mode > 1 && !quiet_mode) 
 	      fprintf(LOG_FH,"%s, creating backup as: %s\n",(stdin_mode?"stdin":argv[i]),tmpfilename);
@@ -853,8 +855,10 @@ int main(int argc, char **argv)
 	  } else {
 #ifdef HAVE_MKSTEMPS
 	    /* rely on mkstemps() to create us temporary file safely... */  
-	    snprintf(tmpfilename,sizeof(tmpfilename),
-		     "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
+	    int newlen = snprintf(tmpfilename,sizeof(tmpfilename),
+				  "%sjpegoptim-%d-%d.XXXXXX.tmp", tmpdir, (int)getuid(), (int)getpid());
+	    if (newlen >= sizeof(tmpfilename))
+	      warn("temp filename too long: %s", tmpfilename);
 	    int tmpfd = mkstemps(tmpfilename,4);
 	    if (tmpfd < 0) 
 	      fatal("%s, error creating temp file %s: mkstemps() failed",(stdin_mode?"stdin":argv[i]),tmpfilename);
