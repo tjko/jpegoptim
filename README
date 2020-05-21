@@ -1,5 +1,5 @@
 
-Jpegoptim v1.4.6 - Copyright (C)  Timo Kokkonen, 1996-2018. All Rights Reserved.
+Jpegoptim v1.4.7beta - Copyright (C)  Timo Kokkonen, 1996-2020. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -19,8 +19,8 @@ INSTALLATION
 	tar file, make necessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		zcat jpegoptim-1.4.6.tar.gz | tar xf -
-		cd jpegoptim-1.4.6
+		tar xzvf jpegoptim-1.4.7.tar.gz
+		cd jpegoptim-1.4.7
 		./configure
 		make
 		make strip
@@ -28,6 +28,9 @@ INSTALLATION
 
 
 HISTORY
+        v1.4.7 - Experimental support for arithmetic coding 
+                 (new options --all-arith and --all-huffman),
+                 other minor fixes
 	v1.4.6 - fix double free introduced in previous release
 	v1.4.5 - fix --overwrite option,
                  better error reporting for -d option,
@@ -97,5 +100,5 @@ LATEST VERSION
 
 
 Timo <tjko@iki.fi>
-17-Apr-2018  $Id$
+20-May-2020  $Id$
 
