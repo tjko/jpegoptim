@@ -22,6 +22,15 @@
 /* Define if you have labs function. */
 #undef HAVE_LABS
 
+/* Define if you have the fileno function. */
+#undef HAVE_FILENO
+
+/* Define if you have the utimensat function. */
+#undef HAVE_UTIMENSAT
+
+/* Define to 1 if `st_mtim' is a member of `struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIM
+
 /* Define if you have the <getopt.h> header file.  */
 #undef HAVE_GETOPT_H
 
