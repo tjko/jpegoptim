@@ -18,6 +18,7 @@
 #include <unistd.h>
 #endif
 #include <dirent.h>
+#include <fcntl.h>
 #if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
 #else
@@ -885,11 +886,21 @@ int main(int argc, char **argv)
 	  
 	  if (preserve_mode) {
 	    /* preserve file modification time */
+#if defined(HAVE_FILENO) && defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
+	    struct timespec time_save[2];
+	    time_save[0].tv_sec = 0;
+	    time_save[0].tv_nsec = UTIME_OMIT;	/* omit atime */
+	    time_save[1] = file_stat.st_mtim;
+	    if (utimensat(AT_FDCWD,outfname,time_save,0) != 0) {
+	      warn("failed to reset output file time/date");
+	    }
+#else
 	    struct utimbuf time_save;
 	    time_save.actime=file_stat.st_atime;
 	    time_save.modtime=file_stat.st_mtime;
 	    if (utime(outfname,&time_save) != 0) 
 	      warn("failed to reset output file time/date");
+#endif
 	  }
 
 	  if (preserve_perms && !dest) {

@@ -62,6 +62,10 @@ AC_SUBST(GNUGETOPT)
 
 AC_CHECK_FUNCS(mkstemps)
 AC_CHECK_FUNCS(labs)
+AC_CHECK_FUNCS(fileno)
+AC_CHECK_FUNCS(utimensat)
+
+AC_CHECK_MEMBERS([struct stat.st_mtim])
 
 dnl own tests
 
