@@ -15,6 +15,7 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
+CPPFLAGS="$CPPFLAGS -I. -I${srcdir}"
 
 AC_ARG_WITH(libjpeg, [  --with-libjpeg=DIR	  libjpeg is installed in ],
 	[if test $withval != yes; then
