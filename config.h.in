@@ -43,6 +43,12 @@
 /* Define if you have the <libgen.h> header file.  */
 #undef HAVE_LIBGEN_H
 
+/* Define if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
 /* Define if you have the jpeg library (-ljpeg).  */
 #undef HAVE_LIBJPEG
 

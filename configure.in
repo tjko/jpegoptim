@@ -42,7 +42,7 @@ AC_CHECK_LIB(m, floor)
 dnl Checks for header files.
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h getopt.h string.h libgen.h math.h)
+AC_CHECK_HEADERS(unistd.h getopt.h string.h libgen.h math.h fcntl.h)
 AC_CHECK_HEADERS(jpeglib.h,,[
 echo "Cannot find jpeglib.h  You need libjpeg v6 (or later)."
 exit 1

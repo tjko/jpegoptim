@@ -18,7 +18,12 @@
 #include <unistd.h>
 #endif
 #include <dirent.h>
+#if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#if HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
 #else
@@ -886,7 +891,7 @@ int main(int argc, char **argv)
 	  
 	  if (preserve_mode) {
 	    /* preserve file modification time */
-#if defined(HAVE_FILENO) && defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
+#if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
 	    struct timespec time_save[2];
 	    time_save[0].tv_sec = 0;
 	    time_save[0].tv_nsec = UTIME_OMIT;	/* omit atime */
