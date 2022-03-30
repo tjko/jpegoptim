@@ -1,5 +1,5 @@
 
-Jpegoptim v1.4.7beta - Copyright (C)  Timo Kokkonen, 1996-2020. All Rights Reserved.
+Jpegoptim v1.4.7beta - Copyright (C)  Timo Kokkonen, 1996-2022. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -28,8 +28,10 @@ INSTALLATION
 
 
 HISTORY
-        v1.4.7 - Experimental support for arithmetic coding 
-                 (new options --all-arith and --all-huffman),
+        v1.4.7 - experimental support for arithmetic coding
+                 (enable with configure option --with-arith),
+		 add option --nofix,
+		 support for nanosecond timestamps (thanks to GerbilSoft),
                  other minor fixes
 	v1.4.6 - fix double free introduced in previous release
 	v1.4.5 - fix --overwrite option,
@@ -100,5 +102,5 @@ LATEST VERSION
 
 
 Timo <tjko@iki.fi>
-20-May-2020  $Id$
+30-Mar-2022  $Id$
 
