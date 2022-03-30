@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "17 Apr 2018" 
+.TH JPEGOPTIM 1 "29 Mar 2022" 
 .UC 4 
 .SH NAME 
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -111,6 +111,15 @@ Force all output files to be progressive. Can be used to convert
 all normal (non-progressive) JPEGs input files to progressive when used with --force option.
 
 .TP 0.6i
+.B --nofix
+Skip processing of any input files that have any errors/warnings during decompression.
+By default jpegoptim will attempt to optimize any file that it is able to decompress,
+even if decompression generates warnings. This will 'fix' some (corrupt) JPEG images
+automatically.
+If this behaviour is not desired, this option can be used to make jpegoptim to skip
+any input files that contain any errors.
+
+.TP 0.6i
 .B -s, --strip-all
 Strip all markers from output file. (NOTE! by default
 only Comment & Exif/IPTC/PhotoShop/ICC/XMP markers are kept, everything else is discarded).
@@ -170,7 +179,7 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996-2018  Timo Kokkonen
+Copyright (C) 1996-2022  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
