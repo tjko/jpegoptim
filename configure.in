@@ -27,7 +27,15 @@ AC_ARG_WITH(libjpeg, [  --with-libjpeg=DIR	  libjpeg is installed in ],
 		LDFLAGS="-L${jpeginfo_cv_libjpeg} $LDFLAGS"
 		CPPFLAGS="$CPPFLAGS -I${jpeginfo_cv_libjpeg}"	
 	fi])
-	
+
+arith_code=0
+AC_ARG_WITH(arith, [  --with-arith		  Enable arithmetic coding support ],
+	[
+	if test $withval == yes; then
+	   arith_code=1
+	fi
+	])
+
 
 dnl Checks for libraries.
 
@@ -102,10 +110,15 @@ int main(void)
 jpegoptim_cv_arith_code_support=yes,
 jpegoptim_cv_arith_code_support=no,
 jpegoptim_cv_arith_code_support=no)])
-if test $jpegoptim_cv_arith_code_support = yes; then
+if test $arith_code == 1 -a $jpegoptim_cv_arith_code_support = yes; then
+  arith_code_status="Enabled"
   AC_DEFINE(HAVE_ARITH_CODE)
+else
+  arith_code_status="Disabled"
 fi
 AC_MSG_RESULT($jpegoptim_cv_arith_code_support)
+
+echo "Arithmetic Coding: $arith_code_status"
 
 
 AC_OUTPUT(Makefile)

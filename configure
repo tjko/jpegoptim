@@ -687,6 +687,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_libjpeg
+with_arith
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1319,6 +1320,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-libjpeg=DIR	  libjpeg is installed in
+  --with-arith		  Enable arithmetic coding support
 
 Some influential environment variables:
   CC          C compiler command
@@ -3390,6 +3392,18 @@ if test "${with_libjpeg+set}" = set; then :
 fi
 
 
+arith_code=0
+
+# Check whether --with-arith was given.
+if test "${with_arith+set}" = set; then :
+  withval=$with_arith;
+	if test $withval == yes; then
+	   arith_code=1
+	fi
+
+fi
+
+
 
 
 
@@ -4131,12 +4145,17 @@ fi
 
 fi
 
-if test $jpegoptim_cv_arith_code_support = yes; then
+if test $arith_code == 1 -a $jpegoptim_cv_arith_code_support = yes; then
+  arith_code_status="Enabled"
   $as_echo "#define HAVE_ARITH_CODE 1" >>confdefs.h
 
+else
+  arith_code_status="Disabled"
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $jpegoptim_cv_arith_code_support" >&5
 $as_echo "$jpegoptim_cv_arith_code_support" >&6; }
+
+echo "Arithmetic Coding: $arith_code_status"
 
 
 ac_config_files="$ac_config_files Makefile"
