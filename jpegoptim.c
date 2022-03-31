@@ -327,6 +327,7 @@ int main(int argc, char **argv)
   int c,j, searchcount, searchdone;
   int opt_index = 0;
   long insize = 0, outsize = 0, lastsize = 0;
+  long inpos;
   int oldquality;
   double ratio;
   struct stat file_stat;
@@ -554,6 +555,7 @@ int main(int argc, char **argv)
 
    if (setjmp(jderr.setjmp_buffer)) {
      /* error handler for decompress */
+   abort_decompress:
      jpeg_abort_decompress(&dinfo);
      fclose(infile);
      if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
@@ -650,29 +652,29 @@ int main(int argc, char **argv)
      coef_arrays = jpeg_read_coefficients(&dinfo);
    }
 
+   inpos=ftell(infile);
+   if (inpos > 0 && inpos < insize) {
+     if (!quiet_mode)
+       fprintf(LOG_FH, " (Extraneous data found after end of JPEG image) ");
+     if (nofix_mode)
+       global_error_counter++;
+   }
+
    if (!retry && !quiet_mode) {
-     if (global_error_counter==0) fprintf(LOG_FH," [OK] ");
-     else fprintf(LOG_FH," [WARNING] ");
+     fprintf(LOG_FH,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
      fflush(LOG_FH);
    }
 
    if (nofix_mode && global_error_counter != 0) {
      /* skip files containing any errors (warnings) */
-     if (!quiet_mode || csv)
-       fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
-     jpeg_abort_decompress(&dinfo);
-     fclose(infile);
-     if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
-       continue;
+     goto abort_decompress;
    }
 
    if (dest && !noaction) {
      if (file_exists(newname) && !overwrite_mode) {
-       warn("target file already exists: %s\n",newname);
-       jpeg_abort_decompress(&dinfo);
-       fclose(infile);
-       if (buf) FREE_LINE_BUF(buf,dinfo.output_height);
-       continue;
+       if (!quiet_mode)
+         fprintf(LOG_FH, " (target file already exists) ");
+       goto abort_decompress;
      }
    }
 
@@ -694,12 +696,10 @@ int main(int argc, char **argv)
      jcerr.jump_set=1;
    }
 
-
    lastsize = 0;
    searchcount = 0;
    searchdone = 0;
    oldquality = 200;
-
 
 
   binary_search_loop:
