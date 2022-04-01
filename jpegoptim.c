@@ -365,12 +365,6 @@ int main(int argc, char **argv)
   jcerr.jump_set = 0;
 
 
-  if (argc<2) {
-    if (!quiet_mode) fprintf(stderr,PROGRAMNAME ": file arguments missing\n"
-			     "Try '" PROGRAMNAME " --help' for more information.\n");
-    exit(1);
-  }
-
   /* parse command line parameters */
   while(1) {
     opt_index=0;
@@ -427,7 +421,7 @@ int main(int argc, char **argv)
       quiet_mode=1;
       break;
     case '?':
-      break;
+      exit(1);
     case 'V':
       print_version();
       exit(0);
@@ -473,7 +467,6 @@ int main(int argc, char **argv)
 	else fatal("invalid argument for -S, --size");
       }
       break;
-
     }
   }
 
@@ -508,9 +501,14 @@ int main(int argc, char **argv)
 	      -target_size);
   }
 
+  i=(optind > 0 ? optind : 1);
+  if (argc <= i) {
+    if (!quiet_mode) fprintf(stderr,PROGRAMNAME ": file argument(s) missing\n"
+			     "Try '" PROGRAMNAME " --help' for more information.\n");
+    exit(1);
+  }
 
   /* loop to process the input files */
-  i=(optind > 0 ? optind : 1);
   do {
     if (stdin_mode) {
       infile=stdin;
