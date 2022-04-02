@@ -515,7 +515,6 @@ int main(int argc, char **argv)
       set_filemode_binary(infile);
     } else {
       if (i >= argc || !argv[i][0]) continue;
-      if (argv[i][0]=='-') continue;
       if (strlen(argv[i]) >= MAXPATHLEN) {
 	warn("skipping too long filename: %s",argv[i]);
 	continue;
@@ -538,11 +537,16 @@ int main(int argc, char **argv)
 
     retry_point:
 
-      if (!is_file(argv[i],&file_stat)) {
-	if (is_directory(argv[i]))
-	  warn("skipping directory: %s",argv[i]);
-	else
-	  warn("skipping special file: %s",argv[i]);
+      if (file_exists(argv[i])) {
+        if (!is_file(argv[i],&file_stat)) {
+	  if (is_directory(argv[i]))
+	    warn("skipping directory: %s",argv[i]);
+	  else
+	    warn("skipping special file: %s",argv[i]);
+	  continue;
+        }
+      } else {
+        warn("file not found: %s",argv[i]);
 	continue;
       }
       if ((infile=fopen(argv[i],"rb"))==NULL) {
