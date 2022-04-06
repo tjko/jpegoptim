@@ -714,6 +714,10 @@ int main(int argc, char **argv)
    searchcount = 0;
    searchdone = 0;
    oldquality = 200;
+   if (target_size != 0) {
+     /* always start with quality 100 if -S option specified... */
+     quality = 100;
+   }
 
 
   binary_search_loop:
