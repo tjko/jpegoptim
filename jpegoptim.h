@@ -75,7 +75,13 @@ void warn(const char *format, ...);
 
 
 /* jpegdest.c */
-void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *bufsizeptr, size_t incsize);
+void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr,
+		size_t *bufsizeptr, size_t incsize);
+
+/* jpegsrc.c */
+void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
+		unsigned char **bufptr,	size_t *bufsizeptr, size_t *bufusedptr, size_t incsize);
+
 
 
 

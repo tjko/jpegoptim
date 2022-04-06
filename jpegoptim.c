@@ -333,7 +333,10 @@ int main(int argc, char **argv)
   struct stat file_stat;
   jpeg_saved_marker_ptr cmarker;
   unsigned char *outbuffer = NULL;
-  size_t outbuffersize;
+  size_t outbuffersize = 0;
+  unsigned char *inbuffer = NULL;
+  size_t inbuffersize = 0;
+  size_t inbufferused = 0;
   char *outfname = NULL;
   FILE *infile = NULL, *outfile = NULL;
   int marker_in_count, marker_in_size;
@@ -478,7 +481,7 @@ int main(int argc, char **argv)
     i++;
   }
 
-  if (stdin_mode) { stdout_mode=1; force=1; }
+  if (stdin_mode) { stdout_mode=1; }
   if (stdout_mode) { logs_to_stdout=0; }
 
   if (all_normal && all_progressive)
@@ -575,11 +578,17 @@ int main(int argc, char **argv)
    }
 
    /* prepare to decompress */
+   if (stdin_mode) {
+     if (inbuffer) free(inbuffer);
+     inbuffersize=65536;
+     inbuffer=malloc(inbuffersize);
+     if (!inbuffer) fatal("not enough memory");
+   }
    global_error_counter=0;
    jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
    for (j=0;j<=15;j++)
      jpeg_save_markers(&dinfo, JPEG_APP0+j, 0xffff);
-   jpeg_stdio_src(&dinfo, infile);
+   jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
    jpeg_read_header(&dinfo, TRUE);
 
    /* check for Exif/IPTC/ICC/XMP markers */
@@ -666,6 +675,9 @@ int main(int argc, char **argv)
      fprintf(LOG_FH,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
      fflush(LOG_FH);
    }
+
+   if (stdin_mode)
+     insize = inbufferused;
 
    if (nofix_mode && global_error_counter != 0) {
      /* skip files containing any errors (warnings) */
@@ -898,6 +910,8 @@ int main(int argc, char **argv)
 
 	  if (preserve_mode) {
 	    /* preserve file modification time */
+	    if (verbose_mode > 1 && !quiet_mode)
+	      fprintf(LOG_FH,"set file modification time same as in original: %s\n", outfname);
 #if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
 	    struct timespec time_save[2];
 	    time_save[0].tv_sec = 0;
@@ -917,6 +931,8 @@ int main(int argc, char **argv)
 
 	  if (preserve_perms && !dest) {
 	    /* original file was already replaced, remove backup... */
+	    if (verbose_mode > 1 && !quiet_mode)
+	      fprintf(LOG_FH,"removing backup file: %s\n", tmpfilename);
 	    if (delete_file(tmpfilename))
 	      warn("failed to remove backup file: %s",tmpfilename);
 	  } else {
@@ -939,6 +955,11 @@ int main(int argc, char **argv)
 	}
    } else {
      if (!quiet_mode || csv) fprintf(LOG_FH,csv ? "skipped\n" : "skipped.\n");
+     if (stdout_mode) {
+	  set_filemode_binary(stdout);
+	  if (fwrite(inbuffer,insize,1,stdout) != 1)
+	    fatal("%s, write failed to stdout",(stdin_mode?"stdin":argv[i]));
+     }
    }
 
 
@@ -950,7 +971,10 @@ int main(int argc, char **argv)
 	    average_count, average_rate/average_count, total_save);
   jpeg_destroy_decompress(&dinfo);
   jpeg_destroy_compress(&cinfo);
-  free(outbuffer);
+  if (outbuffer)
+    free(outbuffer);
+  if (inbuffer)
+    free(inbuffer);
 
   return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
 }
