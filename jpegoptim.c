@@ -84,6 +84,8 @@ int save_iptc = 1;
 int save_com = 1;
 int save_icc = 1;
 int save_xmp = 1;
+int save_adobe = 0;
+int save_jfxx = 0;
 int strip_none = 0;
 int threshold = -1;
 int csv = 0;
@@ -117,6 +119,15 @@ struct option long_options[] = {
 	{"strip-iptc",0,&save_iptc,0},
 	{"strip-icc",0,&save_icc,0},
 	{"strip-xmp",0,&save_xmp,0},
+	{"strip-jfxx",0,&save_jfxx,0},
+	{"strip-adobe",0,&save_adobe,0},
+	{"keep-com",0,&save_com,1},
+	{"keep-exif",0,&save_exif,1},
+	{"keep-iptc",0,&save_iptc,1},
+	{"keep-icc",0,&save_icc,1},
+	{"keep-xmp",0,&save_xmp,1},
+	{"keep-jfxx",0,&save_jfxx,1},
+	{"keep-adobe",0,&save_adobe,1},
 	{"threshold",1,0,'T'},
 	{"csv",0,0,'b'},
 	{"all-normal",0,&all_normal,1},
@@ -195,13 +206,22 @@ void print_usage(void)
 		"  -v, --verbose     enable verbose mode (positively chatty)\n"
 		"  -V, --version     print program version\n\n"
 		"  -s, --strip-all   strip all markers from output file\n"
-		"  --nofix           skip processing of input files if they contain any errors\n"
 		"  --strip-none      do not strip any markers\n"
+		"  --strip-adobe     strip Adobe (APP14) markers from output file\n"
 		"  --strip-com       strip Comment markers from output file\n"
 		"  --strip-exif      strip Exif markers from output file\n"
 		"  --strip-iptc      strip IPTC/Photoshop (APP13) markers from output file\n"
 		"  --strip-icc       strip ICC profile markers from output file\n"
+		"  --strip-jfxx      strip JFXX (JFIF Extension) markers from output file\n"
 		"  --strip-xmp       strip XMP markers markers from output file\n"
+		"\n"
+		"  --keep-adobe      preserve any Adobe (APP14) markers\n"
+		"  --keep-com        preserve any Comment markers\n"
+		"  --keep-exif       preserve any Exif markers\n"
+		"  --keep-iptc       preserve any IPTC/Photoshop (APP13) markers\n"
+		"  --keep-icc        preserve any ICC profile markers\n"
+		"  --keep-jfxx       preserve any JFXX (JFIF Extension) markers\n"
+		"  --keep-xmp        preserve any XMP markers markers\n"
 		"\n"
 		"  --all-normal      force all output files to be non-progressive\n"
 		"  --all-progressive force all output files to be progressive\n"
@@ -211,6 +231,7 @@ void print_usage(void)
 #endif
 		"  --stdout          send output to standard output (instead of a file)\n"
 		"  --stdin           read input from standard input (instead of a file)\n"
+		"  --nofix           skip processing of input files if they contain any errors\n"
 		"\n\n");
 }
 
@@ -266,41 +287,46 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 		if (save_exif && mrk->marker == EXIF_JPEG_MARKER &&
 			mrk->data_length >= EXIF_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
+			!memcmp(mrk->data, EXIF_IDENT_STRING, EXIF_IDENT_STRING_SIZE))
 			write_marker++;
 
 		if (save_icc && mrk->marker == ICC_JPEG_MARKER &&
 			mrk->data_length >= ICC_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
+			!memcmp(mrk->data, ICC_IDENT_STRING, ICC_IDENT_STRING_SIZE))
 			write_marker++;
 
 		if (save_xmp && mrk->marker == XMP_JPEG_MARKER &&
 			mrk->data_length >= XMP_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
+			!memcmp(mrk->data, XMP_IDENT_STRING, XMP_IDENT_STRING_SIZE))
 			write_marker++;
 
-		if (strip_none) write_marker++;
+		if (save_jfxx && mrk->marker == JFXX_JPEG_MARKER &&
+			mrk->data_length >= JFXX_IDENT_STRING_SIZE &&
+			!memcmp(mrk->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE))
+			write_marker++;
+
+		if (save_adobe && cinfo->write_Adobe_marker == FALSE &&
+			mrk->marker == ADOBE_JPEG_MARKER &&
+			mrk->data_length >= ADOBE_IDENT_STRING_SIZE &&
+			!memcmp(mrk->data, ADOBE_IDENT_STRING, ADOBE_IDENT_STRING_SIZE)) {
+			write_marker++;
+		}
+
+		if (strip_none)
+			write_marker++;
 
 
 		/* libjpeg emits some markers automatically so skip these to avoid duplicates... */
 
 		/* skip JFIF (APP0) marker */
-		if ( mrk->marker == JPEG_APP0 && mrk->data_length >= 14 &&
-			mrk->data[0] == 0x4a &&
-			mrk->data[1] == 0x46 &&
-			mrk->data[2] == 0x49 &&
-			mrk->data[3] == 0x46 &&
-			mrk->data[4] == 0x00 )
+		if ( mrk->marker == JFIF_JPEG_MARKER &&
+			mrk->data_length >= JFIF_IDENT_STRING_SIZE &&
+			!memcmp(mrk->data, JFIF_IDENT_STRING, JFIF_IDENT_STRING_SIZE)) {
+			if (verbose_mode > 2)
+				fprintf(LOG_FH, " (skip JFIF v%u.%02u marker) ",
+					mrk->data[5], mrk->data[6]);
 			write_marker=0;
-
-		/* skip Adobe (APP14) marker */
-		if ( mrk->marker == JPEG_APP0+14 && mrk->data_length >= 12 &&
-			mrk->data[0] == 0x41 &&
-			mrk->data[1] == 0x64 &&
-			mrk->data[2] == 0x6f &&
-			mrk->data[3] == 0x62 &&
-			mrk->data[4] == 0x65 )
-			write_marker=0;
+		}
 
 
 		if (write_marker)
@@ -443,6 +469,8 @@ int main(int argc, char **argv)
 			save_com=0;
 			save_icc=0;
 			save_xmp=0;
+			save_adobe=0;
+			save_jfxx=0;
 			break;
 		case 'T':
 		{
@@ -626,6 +654,11 @@ int main(int argc, char **argv)
 				!memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
 				strncat(marker_str,"XMP ",sizeof(marker_str)-strlen(marker_str)-1);
 
+			if (cmarker->marker == JFXX_JPEG_MARKER &&
+				cmarker->data_length >= JFXX_IDENT_STRING_SIZE &&
+				!memcmp(cmarker->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE))
+				strncat(marker_str,"JFXX ",sizeof(marker_str)-strlen(marker_str)-1);
+
 			cmarker=cmarker->next;
 		}
 
@@ -740,6 +773,7 @@ int main(int argc, char **argv)
 		/* setup custom "destination manager" for libjpeg to write to our buffer */
 		jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
 
+
 		if (quality >= 0 && !retry) {
 			/* lossy "optimization" ... */
 
@@ -761,6 +795,10 @@ int main(int argc, char **argv)
 			if (arith_mode >= 0)
 				cinfo.arith_code = arith_mode;
 #endif
+			if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
+				/* If outputting Adobe marker, dont write JFIF marker... */
+				cinfo.write_JFIF_header = FALSE;
+			}
 
 			j=0;
 			jpeg_start_compress(&cinfo,TRUE);
@@ -790,6 +828,10 @@ int main(int argc, char **argv)
 			if (arith_mode >= 0)
 				cinfo.arith_code = arith_mode;
 #endif
+			if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
+				/* If outputting Adobe marker, dont write JFIF marker... */
+				cinfo.write_JFIF_header = FALSE;
+			}
 
 			/* write image */
 			jpeg_write_coefficients(&cinfo, coef_arrays);
