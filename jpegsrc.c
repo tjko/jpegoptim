@@ -47,6 +47,7 @@ void custom_init_source (j_decompress_ptr dinfo)
 {
 	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 
+	src->bufused = 0;
 	if (src->bufused_ptr)
 		*src->bufused_ptr = 0;
 	src->start_of_file = TRUE;
@@ -60,7 +61,6 @@ boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
 	unsigned char *newbuf;
 
 	bytes_read = fread(src->stdio_buffer, 1, STDIO_BUFFER_SIZE, src->infile);
-
 	if (bytes_read <= 0) {
 		if (src->start_of_file)
 			ERREXIT(dinfo, JERR_INPUT_EMPTY);
@@ -72,11 +72,11 @@ boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
 	} else if (src->buf_ptr && src->buf) {
 		if (bytes_read > (src->bufsize - src->bufused)) {
 			/* Need to allocate more memory for the buffer. */
-			newbuf = realloc(src->buf,src->bufsize + src->incsize);
-			if (!newbuf) ERREXIT1(dinfo, JERR_OUT_OF_MEMORY, 42);
-			*src->buf_ptr = newbuf;
-			src->buf = newbuf;
 			src->bufsize += src->incsize;
+			newbuf = realloc(src->buf, src->bufsize);
+			if (!newbuf) ERREXIT1(dinfo, JERR_OUT_OF_MEMORY, 42);
+			src->buf = newbuf;
+			*src->buf_ptr = newbuf;
 			src->incsize *= 2;
 		}
 		memcpy(&src->buf[src->bufused], src->stdio_buffer, bytes_read);
@@ -151,5 +151,7 @@ void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
 	src->bufused_ptr = bufusedptr;
 	src->bufsize = (bufsizeptr ? *bufsizeptr : 0);
 	src->incsize = incsize;
-	src->bufused = 0;
 }
+
+
+/* eof :-) */
