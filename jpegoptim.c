@@ -241,7 +241,11 @@ void print_version()
 	struct jpeg_error_mgr jcerr, *err;
 
 
+#ifdef  __DATE__
+	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSIO,HOST_TYPE,__DATE__);
+#else
 	printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
+#endif
 	printf(COPYRIGHT "\n\n");
 	printf("This program comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
 		"and you are welcome to redistirbute it under certain conditions.\n"
@@ -663,9 +667,11 @@ int main(int argc, char **argv)
 		}
 
 
-		if (verbose_mode > 1)
+		if (verbose_mode > 1) {
 			fprintf(LOG_FH,"%d markers found in input file (total size %d bytes)\n",
 				marker_in_count,marker_in_size);
+			fprintf(LOG_FH,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+		}
 		if (!retry && (!quiet_mode || csv)) {
 			fprintf(LOG_FH,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 				(int)dinfo.image_height,(int)dinfo.num_components*8,
@@ -793,7 +799,7 @@ int main(int argc, char **argv)
 			cinfo.optimize_coding = TRUE;
 #ifdef HAVE_ARITH_CODE
 			if (arith_mode >= 0)
-				cinfo.arith_code = arith_mode;
+				cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
 			if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
 				/* If outputting Adobe marker, dont write JFIF marker... */
@@ -826,7 +832,7 @@ int main(int argc, char **argv)
 			cinfo.optimize_coding = TRUE;
 #ifdef HAVE_ARITH_CODE
 			if (arith_mode >= 0)
-				cinfo.arith_code = arith_mode;
+				cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
 			if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
 				/* If outputting Adobe marker, dont write JFIF marker... */
