@@ -28,12 +28,14 @@ INSTALLATION
 
 
 HISTORY
-        v1.4.7 - experimental support for arithmetic coding
-                 (enable with configure option --with-arith),
+        v1.4.7 - experimental support for arithmetic coding (enable with
+	         configure option --with-arith),
 		 add option --nofix,
+		 add suupport for JFIF Extension (JFXX) markers,
 		 support for nanosecond timestamps (thanks to GerbilSoft),
 		 optimization now works same with stdin as with standard files,
-		 fixed --size (-S) option not working correctly when processing
+		 fixed --size (-S) option not working correctly when processing,
+		 new --keep-* options to use with --strip-all (see man page),
                  multiple files,
                  other minor fixes
 	v1.4.6 - fix double free introduced in previous release
