@@ -40,7 +40,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.4.7beta"
+#define VERSIO "1.4.7"
 #define COPYRIGHT  "Copyright (C) 1996-2022, Timo Kokkonen"
 
 
