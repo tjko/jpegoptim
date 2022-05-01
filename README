@@ -34,9 +34,9 @@ HISTORY
 		 add suupport for JFIF Extension (JFXX) markers,
 		 support for nanosecond timestamps (thanks to GerbilSoft),
 		 optimization now works same with stdin as with standard files,
-		 fixed --size (-S) option not working correctly when processing,
-		 new --keep-* options to use with --strip-all (see man page),
+		 fixed --size (-S) option not working correctly when processing
                  multiple files,
+		 new --keep-* options to use with --strip-all (see man page),
                  other minor fixes
 	v1.4.6 - fix double free introduced in previous release
 	v1.4.5 - fix --overwrite option,
