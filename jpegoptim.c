@@ -540,7 +540,7 @@ int main(int argc, char **argv)
 	}
 
 	i=(optind > 0 ? optind : 1);
-	if (argc <= i) {
+	if (argc <= i && !stdin_mode) {
 		if (!quiet_mode) fprintf(stderr,PROGRAMNAME ": file argument(s) missing\n"
 					"Try '" PROGRAMNAME " --help' for more information.\n");
 		exit(1);
