@@ -44,7 +44,6 @@
 #define COPYRIGHT  "Copyright (C) 1996-2022, Timo Kokkonen"
 
 
-#define LOG_FH (logs_to_stdout ? stdout : stderr)
 
 #define FREE_LINE_BUF(buf,lines)  {			\
 		int j;					\
@@ -62,18 +61,24 @@ struct my_error_mgr {
 };
 typedef struct my_error_mgr * my_error_ptr;
 
+#ifdef HAVE_FORK
 #define MAX_WORKERS 256
 
 struct worker {
 	pid_t pid;
 	int   read_pipe;
 };
+struct worker *workers;
+int worker_count = 0;
+#endif
 
 const char *rcsid = "$Id$";
 
 
 int verbose_mode = 0;
 int quiet_mode = 0;
+int compress_err_count = 0;
+int decompress_err_count = 0;
 int global_error_counter = 0;
 int preserve_mode = 0;
 int preserve_perms = 0;
@@ -99,12 +104,16 @@ int csv = 0;
 int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
-int logs_to_stdout = 1;
 #ifdef HAVE_ARITH_CODE
 int arith_mode = -1;
 #endif
+int max_workers = 1;
 int nofix_mode = 0;
 char last_error[JMSG_LENGTH_MAX+1];
+
+long average_count = 0;
+double average_rate = 0.0;
+double total_save = 0.0;
 
 struct option long_options[] = {
 	{"verbose",0,0,'v'},
@@ -146,10 +155,14 @@ struct option long_options[] = {
 	{"all-arith",0,&arith_mode,1},
 	{"all-huffman",0,&arith_mode,0},
 #endif
+#ifdef HAVE_FORK
+	{"workers",1,&max_workers,'w'},
+#endif
 	{"nofix",0,&nofix_mode,1},
 	{0,0,0,0}
 };
 
+FILE* jpeg_log_fh;
 
 /*****************************************************************/
 
@@ -173,7 +186,7 @@ METHODDEF(void) my_output_message (j_common_ptr cinfo)
 	buffer[sizeof(buffer)-1]=0;
 
 	if (verbose_mode)
-		fprintf(LOG_FH," (%s) ",buffer);
+		fprintf(jpeg_log_fh," (%s) ",buffer);
 
 	global_error_counter++;
 	strncpy(last_error,buffer,sizeof(last_error));
@@ -239,6 +252,10 @@ void print_usage(void)
 		"  --stdout          send output to standard output (instead of a file)\n"
 		"  --stdin           read input from standard input (instead of a file)\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
+#ifdef HAVE_FORK
+		"  -w<max>, --workers=<max>\n"
+		"                    set mximum number of parellel threads (default is 1)\n"
+#endif
 		"\n\n");
 }
 
@@ -334,7 +351,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 			mrk->data_length >= JFIF_IDENT_STRING_SIZE &&
 			!memcmp(mrk->data, JFIF_IDENT_STRING, JFIF_IDENT_STRING_SIZE)) {
 			if (verbose_mode > 2)
-				fprintf(LOG_FH, " (skip JFIF v%u.%02u marker) ",
+				fprintf(jpeg_log_fh, " (skip JFIF v%u.%02u marker) ",
 					mrk->data[5], mrk->data[6]);
 			write_marker=0;
 		}
@@ -348,7 +365,8 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 }
 
 
-int optimize(const char *filename, const char *newname, const char *tmpdir)
+int optimize(FILE *log_fh, const char *filename, const char *newname,
+	const char *tmpdir, double *rate, double *saved)
 {
 	FILE *infile = NULL, *outfile = NULL;
 	const char *outfname = NULL;
@@ -376,6 +394,7 @@ int optimize(const char *filename, const char *newname, const char *tmpdir)
 	int oldquality, searchcount, searchdone;
 	double ratio;
 
+	jpeg_log_fh = log_fh;
 
 	/* initialize decompression object */
 	dinfo.err = jpeg_std_error(&jderr.pub);
@@ -391,6 +410,10 @@ int optimize(const char *filename, const char *newname, const char *tmpdir)
 	jcerr.pub.output_message=my_output_message;
 	jcerr.jump_set = 0;
 
+	if (rate)
+		*rate = 0.0;
+	if (saved)
+		*saved = 0.0;
 
 retry_point:
 	if (filename) {
@@ -413,16 +436,16 @@ retry_point:
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		if (!quiet_mode || csv)
-			fprintf(LOG_FH,csv ? ",,,,,error\n" : " [ERROR]\n");
+			fprintf(log_fh,csv ? ",,,,,error\n" : " [ERROR]\n");
 		jderr.jump_set=0;
-		return 2;
+		return 1;
 	} else {
 		jderr.jump_set=1;
 	}
 
 	if (!retry && (!quiet_mode || csv)) {
-		fprintf(LOG_FH,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
-		fflush(LOG_FH);
+		fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
+		fflush(log_fh);
 	}
 
 	/* prepare to decompress */
@@ -480,21 +503,21 @@ retry_point:
 
 
 	if (verbose_mode > 1) {
-		fprintf(LOG_FH,"%d markers found in input file (total size %d bytes)\n",
+		fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
 			marker_in_count,marker_in_size);
-		fprintf(LOG_FH,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+		fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
 	}
 	if (!retry && (!quiet_mode || csv)) {
-		fprintf(LOG_FH,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
+		fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 			(int)dinfo.image_height,(int)dinfo.num_components*8,
 			(dinfo.progressive_mode?'P':'N'));
 
 		if (!csv) {
-			fprintf(LOG_FH,"%s",marker_str);
-			if (dinfo.saw_Adobe_marker) fprintf(LOG_FH,"Adobe ");
-			if (dinfo.saw_JFIF_marker) fprintf(LOG_FH,"JFIF ");
+			fprintf(log_fh,"%s",marker_str);
+			if (dinfo.saw_Adobe_marker) fprintf(log_fh,"Adobe ");
+			if (dinfo.saw_JFIF_marker) fprintf(log_fh,"JFIF ");
 		}
-		fflush(LOG_FH);
+		fflush(log_fh);
 	}
 
 	if ((insize=file_size(infile)) < 0)
@@ -525,14 +548,14 @@ retry_point:
 	inpos=ftell(infile);
 	if (inpos > 0 && inpos < insize) {
 		if (!quiet_mode)
-			fprintf(LOG_FH, " (Extraneous data found after end of JPEG image) ");
+			fprintf(log_fh, " (Extraneous data found after end of JPEG image) ");
 		if (nofix_mode)
 			global_error_counter++;
 	}
 
 	if (!retry && !quiet_mode) {
-		fprintf(LOG_FH,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
-		fflush(LOG_FH);
+		fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
+		fflush(log_fh);
 	}
 
 	if (stdin_mode)
@@ -546,7 +569,7 @@ retry_point:
 	if (dest && !noaction) {
 		if (file_exists(newname) && !overwrite_mode) {
 			if (!quiet_mode)
-				fprintf(LOG_FH, " (target file already exists) ");
+				fprintf(log_fh, " (target file already exists) ");
 			goto abort_decompress;
 		}
 	}
@@ -558,7 +581,7 @@ retry_point:
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
 		if (!quiet_mode)
-			fprintf(LOG_FH," [Compress ERROR: %s]\n",last_error);
+			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
 		if (inbuffer)
 			free(inbuffer);
 		if (outbuffer)
@@ -566,7 +589,7 @@ retry_point:
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		jcerr.jump_set=0;
-		return 3;
+		return 2;
 	} else {
 		jcerr.jump_set=1;
 	}
@@ -681,14 +704,14 @@ binary_search_loop:
 		if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
 			if (searchdone < 42 && lastsize > 0) {
 				if (labs(osize-tsize) > labs(lastsize-tsize)) {
-					if (verbose_mode) fprintf(LOG_FH,"(revert to %d)",oldquality);
+					if (verbose_mode) fprintf(log_fh,"(revert to %d)",oldquality);
 					searchdone=42;
 					quality=oldquality;
 					goto binary_search_loop;
 				}
 			}
 			if (verbose_mode)
-				fprintf(LOG_FH," ");
+				fprintf(log_fh," ");
 
 		} else {
 			int newquality;
@@ -706,7 +729,7 @@ binary_search_loop:
 			quality=newquality;
 
 			if (verbose_mode)
-				fprintf(LOG_FH,"(try %d)",quality);
+				fprintf(log_fh,"(try %d)",quality);
 
 			lastsize=osize;
 			searchcount++;
@@ -730,7 +753,7 @@ binary_search_loop:
 
 	if (quality >= 0 && outsize >= insize && !retry && !stdin_mode) {
 		if (verbose_mode)
-			fprintf(LOG_FH,"(retry w/lossless) ");
+			fprintf(log_fh,"(retry w/lossless) ");
 		retry=1;
 		goto retry_point;
 	}
@@ -738,14 +761,17 @@ binary_search_loop:
 	retry=0;
 	ratio=(insize-outsize)*100.0/insize;
 	if (!quiet_mode || csv)
-		fprintf(LOG_FH,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
-	//average_count++;
-	//average_rate+=(ratio<0 ? 0.0 : ratio);
+		fprintf(log_fh,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+	if (rate) {
+		*rate = (ratio < 0 ? 0.0 : ratio);
+	}
 
 	if ((outsize < insize && ratio >= threshold) || force) {
-		//total_save+=(insize-outsize)/1024.0;
+		if (saved) {
+			*saved = (insize - outsize) / 1024.0;
+		}
 		if (!quiet_mode || csv)
-			fprintf(LOG_FH,csv ? "optimized\n" : "optimized.\n");
+			fprintf(log_fh,csv ? "optimized\n" : "optimized.\n");
 		if (noaction)
 			return 0;
 
@@ -763,7 +789,7 @@ binary_search_loop:
 					warn("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1 && !quiet_mode)
-					fprintf(LOG_FH,"%s, creating backup as: %s\n",
+					fprintf(log_fh,"%s, creating backup as: %s\n",
 						(stdin_mode ? "stdin" : filename), tmpfilename);
 				if (file_exists(tmpfilename))
 					fatal("%s, backup file already exists: %s",
@@ -801,7 +827,7 @@ binary_search_loop:
 			}
 
 			if (verbose_mode > 1 && !quiet_mode)
-				fprintf(LOG_FH,"writing %lu bytes to file: %s\n",
+				fprintf(log_fh,"writing %lu bytes to file: %s\n",
 					(long unsigned int)outbuffersize, outfname);
 			if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
 				fatal("write failed to file: %s", outfname);
@@ -812,7 +838,7 @@ binary_search_loop:
 			if (preserve_mode) {
 				/* preserve file modification time */
 				if (verbose_mode > 1 && !quiet_mode)
-					fprintf(LOG_FH,"set file modification time same as in original: %s\n",
+					fprintf(log_fh,"set file modification time same as in original: %s\n",
 						outfname);
 #if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
 				struct timespec time_save[2];
@@ -833,7 +859,7 @@ binary_search_loop:
 			if (preserve_perms && !dest) {
 				/* original file was already replaced, remove backup... */
 				if (verbose_mode > 1 && !quiet_mode)
-					fprintf(LOG_FH,"removing backup file: %s\n", tmpfilename);
+					fprintf(log_fh,"removing backup file: %s\n", tmpfilename);
 				if (delete_file(tmpfilename))
 					warn("failed to remove backup file: %s", tmpfilename);
 			} else {
@@ -850,14 +876,14 @@ binary_search_loop:
 					warn("failed to reset output file group/owner");
 
 				if (verbose_mode > 1 && !quiet_mode)
-					fprintf(LOG_FH,"renaming: %s to %s\n", outfname, newname);
+					fprintf(log_fh,"renaming: %s to %s\n", outfname, newname);
 				if (rename_file(outfname, newname))
 					fatal("cannot rename temp file");
 			}
 		}
 	} else {
 		if (!quiet_mode || csv)
-			fprintf(LOG_FH,csv ? "skipped\n" : "skipped.\n");
+			fprintf(log_fh,csv ? "skipped\n" : "skipped.\n");
 		if (stdout_mode) {
 			set_filemode_binary(stdout);
 			if (fwrite(inbuffer,insize,1,stdout) != 1)
@@ -870,25 +896,107 @@ binary_search_loop:
 	return 0;
 }
 
+
+#ifdef HAVE_FORK
+int wait_for_worker()
+{
+	FILE *p;
+	struct worker *w;
+	char buf[1024];
+	int wstatus;
+	pid_t pid;
+	int j, e;
+	int state = 0;
+	double val;
+	double rate = 0.0;
+	double saved = 0.0;
+
+
+	if ((pid = wait(&wstatus)) < 0)
+		return pid;
+
+	w = NULL;
+	for (j = 0; j < MAX_WORKERS; j++) {
+		if (workers[j].pid == pid) {
+			w = &workers[j];
+			break;
+		}
+	}
+	if (!w)
+		fatal("Unknow worker[%d] process found\n", pid);
+
+	if (WIFEXITED(wstatus)) {
+		e = WEXITSTATUS(wstatus);
+		if (verbose_mode)
+			fprintf(stderr, "worker[%d] [slot=%d] exited: %d\n",
+				pid, j, e);
+		if (e == 0) {
+			//average_count++;
+			//average_rate += rate;
+			//total_save += saved;
+		} else if (e == 1) {
+			decompress_err_count++;
+		} else if (e == 2) {
+			compress_err_count++;
+		}
+	} else {
+		fatal("worker[%d] killed", pid);
+	}
+
+	p = fdopen(w->read_pipe, "r");
+	if (!p) fatal("fdopen failed()");
+	while (fgets(buf, sizeof(buf), p)) {
+		if (verbose_mode > 2)
+			printf("PIPE: %s", buf);
+		if (state == 0 && buf[0] == '\n') {
+			state=1;
+			continue;
+		}
+		if (state == 1 && !strncmp(buf, "STAT", 4)) {
+			state=2;
+			continue;
+		}
+		if (state >= 2) {
+			if (sscanf(buf, "%lf", &val) == 1) {
+				if (state == 2) {
+					rate = val;
+				}
+				else if (state == 3) {
+					saved = val;
+					average_count++;
+					average_rate += rate;
+					total_save += saved;
+				}
+			}
+			state++;
+			continue;
+		}
+		if (state == 0)
+			printf("%s", buf);
+	}
+	close(w->read_pipe);
+	w->pid = -1;
+	w->read_pipe = -1;
+	worker_count --;
+
+	return pid;
+}
+#endif
+
 /*****************************************************************/
 int main(int argc, char **argv)
 {
-	struct worker *workers;
 	struct stat file_stat;
 	char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
 	char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
 	volatile int i;
-	int c;
+	int j, c, res;
 	int opt_index = 0;
-
-	int compress_err_count = 0;
-	int decompress_err_count = 0;
-	long average_count = 0;
-	double average_rate = 0.0, total_save = 0.0;
-	int res;
-
-	if (rcsid)
-		; /* so compiler won't complain about "unused" rcsid string */
+	double rate, saved;
+#ifdef HAVE_FORK
+	struct worker *w;
+	int pipe_fd[2];
+	pid_t pid;
 
 	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
 		fatal("not enough memory");
@@ -896,6 +1004,11 @@ int main(int argc, char **argv)
 		workers[i].pid = -1;
 		workers[i].read_pipe = -1;
 	}
+#endif
+
+	if (rcsid)
+		; /* so compiler won't complain about "unused" rcsid string */
+
 
 	umask(077);
 	signal(SIGINT,own_signal_handler);
@@ -906,7 +1019,7 @@ int main(int argc, char **argv)
 	/* parse command line parameters */
 	while(1) {
 		opt_index=0;
-		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:b",
+		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:bw:",
 						long_options, &opt_index)) == -1)
 			break;
 
@@ -1008,6 +1121,18 @@ int main(int argc, char **argv)
 			else fatal("invalid argument for -S, --size");
 		}
 		break;
+#ifdef HAVE_FORK
+		case 'w':
+		{
+			int tmpvar;
+			if (sscanf(optarg, "%d", &tmpvar) == 1) {
+				if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
+					max_workers = tmpvar;
+			}
+			else fatal("invalid argument for -w, --workers");
+		}
+		break;
+#endif
 		}
 	}
 
@@ -1022,8 +1147,6 @@ int main(int argc, char **argv)
 
 	if (stdin_mode)
 		stdout_mode=1;
-	if (stdout_mode)
-		logs_to_stdout=0;
 
 	if (all_normal && all_progressive)
 		fatal("cannot specify both --all-normal and --all-progressive");
@@ -1043,73 +1166,140 @@ int main(int argc, char **argv)
 		if (target_size < 0)
 			fprintf(stderr,"Target size for output files set to: %d%%\n",
 				-target_size);
+#ifdef HAVE_FORK
+		if (max_workers > 0)
+			fprintf(stderr,"Using maximum of %d parallel threads\n", max_workers);
+#endif
 	}
 
+
+	if (stdin_mode) {
+		res = optimize(stderr, NULL, NULL, NULL, NULL, NULL);
+		return (res == 0 ? 0 : 1);
+	}
+
+
 	i=(optind > 0 ? optind : 1);
-	if (argc <= i && !stdin_mode) {
-		if (!quiet_mode) fprintf(stderr,PROGRAMNAME ": file argument(s) missing\n"
+	if (argc <= i) {
+		if (!quiet_mode) fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
 					"Try '" PROGRAMNAME " --help' for more information.\n");
 		exit(1);
 	}
 
+
 	/* loop to process the input files */
 	do {
-		if (stdin_mode) {
-			res = optimize(NULL, NULL, NULL);
-		} else {
-			if (verbose_mode > 1)
-				printf("processing file: %s\n", argv[i]);
-			if (i >= argc || !argv[i][0])
-				continue;
-			if (strlen(argv[i]) >= MAXPATHLEN) {
-				warn("skipping too long filename: %s",argv[i]);
-				continue;
-			}
+		if (verbose_mode > 1)
+			printf("processing file: %s\n", argv[i]);
+		if (i >= argc || !argv[i][0])
+			continue;
+		if (strlen(argv[i]) >= MAXPATHLEN) {
+			warn("skipping too long filename: %s",argv[i]);
+			continue;
+		}
 
-			if (!noaction) {
-				/* generate tmp dir & new filename */
-				if (dest) {
-					STRNCPY(tmpdir,dest_path,sizeof(tmpdir));
-					STRNCPY(newname,dest_path,sizeof(newname));
-					if (!splitname(argv[i],tmpfilename,sizeof(tmpfilename)))
-						fatal("splitname() failed for: %s",argv[i]);
-					strncat(newname,tmpfilename,sizeof(newname)-strlen(newname)-1);
-				} else {
-					if (!splitdir(argv[i],tmpdir,sizeof(tmpdir)))
-						fatal("splitdir() failed for: %s",argv[i]);
-					STRNCPY(newname,argv[i],sizeof(newname));
-				}
-			}
-
-
-			if (file_exists(argv[i])) {
-				if (!is_file(argv[i],&file_stat)) {
-					if (is_directory(argv[i]))
-						warn("skipping directory: %s",argv[i]);
-					else
-						warn("skipping special file: %s",argv[i]);
-					continue;
-				}
+		if (!noaction) {
+			/* generate tmp dir & new filename */
+			if (dest) {
+				STRNCPY(tmpdir,dest_path,sizeof(tmpdir));
+				STRNCPY(newname,dest_path,sizeof(newname));
+				if (!splitname(argv[i],tmpfilename,sizeof(tmpfilename)))
+					fatal("splitname() failed for: %s",argv[i]);
+				strncat(newname,tmpfilename,sizeof(newname)-strlen(newname)-1);
 			} else {
-				warn("file not found: %s",argv[i]);
+				if (!splitdir(argv[i],tmpdir,sizeof(tmpdir)))
+					fatal("splitdir() failed for: %s",argv[i]);
+				STRNCPY(newname,argv[i],sizeof(newname));
+			}
+		}
+
+		if (file_exists(argv[i])) {
+			if (!is_file(argv[i],&file_stat)) {
+				if (is_directory(argv[i]))
+					warn("skipping directory: %s",argv[i]);
+				else
+					warn("skipping special file: %s",argv[i]);
 				continue;
 			}
-
-			res = optimize((stdin_mode ? NULL : argv[i]), newname, tmpdir);
+		} else {
+			warn("file not found: %s",argv[i]);
+			continue;
 		}
 
-		if (res == 2) {
-			decompress_err_count++;
-		} else if (res == 3) {
-			compress_err_count++;
+#ifdef HAVE_FORK
+		if (max_workers > 1) {
+			if (worker_count >= max_workers) {
+				// wait for a worker to exit...
+				wait_for_worker();
+			}
+			if (pipe(pipe_fd) < 0)
+				fatal("failed to open pipe");
+			pid = fork();
+			if (pid < 0)
+				fatal("fork() failed");
+			if (pid == 0) {
+				/* child process starts here... */
+				close(pipe_fd[0]);
+				FILE *p;
+
+				if (!(p = fdopen(pipe_fd[1],"w")))
+					fatal("worker: fdopen failed");
+
+				res = optimize(p, argv[i], newname, tmpdir, &rate, &saved);
+				if (res == 0)
+					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
+				exit(res);
+			} else {
+				/* parent continues here... */
+				close(pipe_fd[1]);
+
+				w = NULL;
+				for (j = 0; j < MAX_WORKERS; j++) {
+					if (workers[j].pid < 0) {
+						w = &workers[j];
+						break;
+					}
+				}
+				if (!w)
+					fatal("no space to start a new worker (%d)", worker_count);
+				w->pid = pid;
+				w->read_pipe = pipe_fd[0];
+				worker_count++;
+				if (verbose_mode > 0)
+					fprintf(stderr, "worker[%d] [slot=%d] started\n", pid, j);;
+			}
+
+		} else
+#endif
+		{
+			res = optimize(stdout, argv[i], newname, tmpdir, &rate, &saved);
+			if (res == 0) {
+				average_count++;
+				average_rate += rate;
+				total_save += saved;
+			} else if (res == 1) {
+				decompress_err_count++;
+			} else if (res == 2) {
+				compress_err_count++;
+			}
 		}
-		fprintf(stderr, "res = %d\n", res);
 
-	} while (++i<argc && !stdin_mode);
+	} while (++i < argc);
 
+#ifdef HAVE_FORK
+	if (max_workers > 1) {
+		if (verbose_mode) {
+			fprintf(stderr,"Waiting for %d workers to finish...\n", worker_count);
+		}
+		while ((pid = wait_for_worker()) > 0) {
+			if (verbose_mode > 2)
+				fprintf(stderr, "worker[%d] done\n", pid);
+		}
+	}
+#endif
 
 	if (totals_mode && !quiet_mode)
-		fprintf(LOG_FH,"Average ""compression"" (%ld files): %0.2f%% (%0.0fk)\n",
+		printf("Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
 			average_count, average_rate/average_count, total_save);
 
 
