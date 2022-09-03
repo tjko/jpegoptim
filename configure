@@ -4074,6 +4074,17 @@ _ACEOF
 fi
 done
 
+for ac_func in wait
+do :
+  ac_fn_c_check_func "$LINENO" "wait" "ac_cv_func_wait"
+if test "x$ac_cv_func_wait" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_WAIT 1
+_ACEOF
+
+fi
+done
+
 
 ac_fn_c_check_member "$LINENO" "struct stat" "st_mtim" "ac_cv_member_struct_stat_st_mtim" "$ac_includes_default"
 if test "x$ac_cv_member_struct_stat_st_mtim" = xyes; then :
