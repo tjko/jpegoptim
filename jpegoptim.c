@@ -24,6 +24,12 @@
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 #if HAVE_GETOPT_H && HAVE_GETOPT_LONG
 #include <getopt.h>
 #else
@@ -366,7 +372,8 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 int optimize(FILE *log_fh, const char *filename, const char *newname,
-	const char *tmpdir, double *rate, double *saved)
+	const char *tmpdir, struct stat *file_stat,
+	double *rate, double *saved)
 {
 	FILE *infile = NULL, *outfile = NULL;
 	const char *outfname = NULL;
@@ -376,7 +383,6 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	struct my_error_mgr jcerr,jderr;
 	JSAMPARRAY buf = NULL;
 
-	struct stat file_stat;
 	jpeg_saved_marker_ptr cmarker;
 	unsigned char *outbuffer = NULL;
 	size_t outbuffersize = 0;
@@ -838,13 +844,13 @@ binary_search_loop:
 				struct timespec time_save[2];
 				time_save[0].tv_sec = 0;
 				time_save[0].tv_nsec = UTIME_OMIT;	/* omit atime */
-				time_save[1] = file_stat.st_mtim;
+				time_save[1] = file_stat->st_mtim;
 				if (utimensat(AT_FDCWD,outfname,time_save,0) != 0)
 					warn("failed to reset output file time/date");
 #else
 				struct utimbuf time_save;
-				time_save.actime=file_stat.st_atime;
-				time_save.modtime=file_stat.st_mtime;
+				time_save.actime=file_stat->st_atime;
+				time_save.modtime=file_stat->st_mtime;
 				if (utime(outfname,&time_save) != 0)
 					warn("failed to reset output file time/date");
 #endif
@@ -860,13 +866,13 @@ binary_search_loop:
 				/* make temp file to be the original file... */
 
 				/* preserve file mode */
-				if (chmod(outfname,(file_stat.st_mode & 0777)) != 0)
+				if (chmod(outfname,(file_stat->st_mode & 0777)) != 0)
 					warn("failed to set output file mode");
 
 				/* preserve file group (and owner if run by root) */
 				if (chown(outfname,
-						(geteuid()==0 ? file_stat.st_uid : -1),
-						file_stat.st_gid) != 0)
+						(geteuid()==0 ? file_stat->st_uid : -1),
+						file_stat->st_gid) != 0)
 					warn("failed to reset output file group/owner");
 
 				if (verbose_mode > 1 && !quiet_mode)
@@ -989,13 +995,14 @@ int main(int argc, char **argv)
 	char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
 	char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
 	volatile int i;
-	int j, c, res;
+	int c, res;
 	int opt_index = 0;
 	double rate, saved;
 #ifdef HAVE_FORK
 	struct worker *w;
 	int pipe_fd[2];
 	pid_t pid;
+	int j;
 
 	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
 		fatal("not enough memory");
@@ -1173,7 +1180,7 @@ int main(int argc, char **argv)
 
 
 	if (stdin_mode) {
-		res = optimize(stderr, NULL, NULL, NULL, NULL, NULL);
+		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL);
 		return (res == 0 ? 0 : 1);
 	}
 
@@ -1244,7 +1251,7 @@ int main(int argc, char **argv)
 				if (!(p = fdopen(pipe_fd[1],"w")))
 					fatal("worker: fdopen failed");
 
-				res = optimize(p, argv[i], newname, tmpdir, &rate, &saved);
+				res = optimize(p, argv[i], newname, tmpdir, &file_stat, &rate, &saved);
 				if (res == 0)
 					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
 				exit(res);
@@ -1271,7 +1278,7 @@ int main(int argc, char **argv)
 		} else
 #endif
 		{
-			res = optimize(stdout, argv[i], newname, tmpdir, &rate, &saved);
+			res = optimize(stdout, argv[i], newname, tmpdir, &file_stat, &rate, &saved);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;
