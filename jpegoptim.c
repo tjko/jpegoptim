@@ -433,6 +433,8 @@ retry_point:
 		fclose(infile);
 		if (inbuffer)
 			free(inbuffer);
+		if (outbuffer)
+			free(outbuffer);
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		if (!quiet_mode || csv)
@@ -739,14 +741,6 @@ binary_search_loop:
 
 	if (buf)
 		FREE_LINE_BUF(buf,dinfo.output_height);
-	if (inbuffer) {
-		free(inbuffer);
-		inbuffer = NULL;
-	}
-	if (outbuffer) {
-		free(outbuffer);
-		outbuffer = NULL;
-	}
 	jpeg_finish_decompress(&dinfo);
 	fclose(infile);
 
@@ -892,6 +886,11 @@ binary_search_loop:
 		}
 	}
 
+
+	if (inbuffer)
+		free(inbuffer);
+	if (outbuffer)
+		free(outbuffer);
 
 	return 0;
 }
