@@ -73,6 +73,7 @@ AC_CHECK_FUNCS(labs)
 AC_CHECK_FUNCS(fileno)
 AC_CHECK_FUNCS(utimensat)
 AC_CHECK_FUNCS(fork)
+AC_CHECK_FUNCS(wait)
 
 AC_CHECK_MEMBERS([struct stat.st_mtim])
 

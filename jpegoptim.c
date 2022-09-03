@@ -6,7 +6,22 @@
  * requires libjpeg (Independent JPEG Group's JPEG software
  *                     release 6a or later...)
  *
- * $Id$
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * This file is part of JPEGoptim.
+ *
+ * JPEGoptim is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JPEGoptim is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with FanPico. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -49,6 +64,10 @@
 #define VERSIO "1.5.0beta"
 #define COPYRIGHT  "Copyright (C) 1996-2022, Timo Kokkonen"
 
+#if HAVE_WAIT && HAVE_FORK
+#define PARALLEL_PROCESSING
+#define MAX_WORKERS 256
+#endif
 
 
 #define FREE_LINE_BUF(buf,lines)  {			\
@@ -68,8 +87,6 @@ struct my_error_mgr {
 typedef struct my_error_mgr * my_error_ptr;
 
 #ifdef HAVE_FORK
-#define MAX_WORKERS 256
-
 struct worker {
 	pid_t pid;
 	int   read_pipe;
@@ -78,14 +95,9 @@ struct worker *workers;
 int worker_count = 0;
 #endif
 
-const char *rcsid = "$Id$";
-
 
 int verbose_mode = 0;
 int quiet_mode = 0;
-int compress_err_count = 0;
-int decompress_err_count = 0;
-int global_error_counter = 0;
 int preserve_mode = 0;
 int preserve_perms = 0;
 int overwrite_mode = 0;
@@ -115,8 +127,12 @@ int arith_mode = -1;
 #endif
 int max_workers = 1;
 int nofix_mode = 0;
-char last_error[JMSG_LENGTH_MAX+1];
 
+int compress_err_count = 0;
+int decompress_err_count = 0;
+int global_error_counter = 0;
+char last_error[JMSG_LENGTH_MAX+1];
+FILE* jpeg_log_fh;
 long average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
@@ -161,14 +177,13 @@ struct option long_options[] = {
 	{"all-arith",0,&arith_mode,1},
 	{"all-huffman",0,&arith_mode,0},
 #endif
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 	{"workers",1,&max_workers,'w'},
 #endif
 	{"nofix",0,&nofix_mode,1},
 	{0,0,0,0}
 };
 
-FILE* jpeg_log_fh;
 
 /*****************************************************************/
 
@@ -221,6 +236,10 @@ void print_usage(void)
 		"                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
 		"  -T<threshold>, --threshold=<threshold>\n"
 		"                    keep old file if the gain is below a threshold (%%)\n"
+#ifdef PARALLEL_PROCESSING
+		"  -w<max>, --workers=<max>\n"
+		"                    set mximum number of parellel threads (default is 1)\n"
+#endif
 		"  -b, --csv         print progress info in CSV format\n"
 		"  -o, --overwrite   overwrite target file even if it exists (meaningful\n"
 		"                    only when used with -d, --dest option)\n"
@@ -258,10 +277,6 @@ void print_usage(void)
 		"  --stdout          send output to standard output (instead of a file)\n"
 		"  --stdin           read input from standard input (instead of a file)\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
-#ifdef HAVE_FORK
-		"  -w<max>, --workers=<max>\n"
-		"                    set mximum number of parellel threads (default is 1)\n"
-#endif
 		"\n\n");
 }
 
@@ -294,7 +309,7 @@ void own_signal_handler(int a)
 {
 	if (verbose_mode > 1)
 		fprintf(stderr,PROGRAMNAME ": signal: %d\n",a);
-	exit(1);
+	exit(2);
 }
 
 
@@ -902,7 +917,7 @@ binary_search_loop:
 }
 
 
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 int wait_for_worker()
 {
 	FILE *p;
@@ -998,12 +1013,13 @@ int main(int argc, char **argv)
 	int c, res;
 	int opt_index = 0;
 	double rate, saved;
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 	struct worker *w;
 	int pipe_fd[2];
 	pid_t pid;
 	int j;
 
+	/* allocate table to keep track of child processes... */
 	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
 		fatal("not enough memory");
 	for (i = 0; i < MAX_WORKERS; i++) {
@@ -1011,10 +1027,6 @@ int main(int argc, char **argv)
 		workers[i].read_pipe = -1;
 	}
 #endif
-
-	if (rcsid)
-		; /* so compiler won't complain about "unused" rcsid string */
-
 
 	umask(077);
 	signal(SIGINT,own_signal_handler);
@@ -1127,7 +1139,7 @@ int main(int argc, char **argv)
 			else fatal("invalid argument for -S, --size");
 		}
 		break;
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 		case 'w':
 		{
 			int tmpvar;
@@ -1172,7 +1184,7 @@ int main(int argc, char **argv)
 		if (target_size < 0)
 			fprintf(stderr,"Target size for output files set to: %d%%\n",
 				-target_size);
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 		if (max_workers > 0)
 			fprintf(stderr,"Using maximum of %d parallel threads\n", max_workers);
 #endif
@@ -1232,7 +1244,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 		if (max_workers > 1) {
 			if (worker_count >= max_workers) {
 				// wait for a worker to exit...
@@ -1292,7 +1304,7 @@ int main(int argc, char **argv)
 
 	} while (++i < argc);
 
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 	if (max_workers > 1) {
 		if (verbose_mode) {
 			fprintf(stderr,"Waiting for %d workers to finish...\n", worker_count);
