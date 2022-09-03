@@ -305,6 +305,147 @@ void print_version()
 }
 
 
+void parse_arguments(int argc, char **argv, char *dest_path)
+{
+	int opt_index;
+	int i, c;
+
+	while(1) {
+		opt_index=0;
+		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:bw:",
+						long_options, &opt_index)) == -1)
+			break;
+
+		switch (c) {
+		case 'm':
+		{
+			int tmpvar;
+
+			if (sscanf(optarg,"%d",&tmpvar) == 1) {
+				quality=tmpvar;
+				if (quality < 0) quality=0;
+				if (quality > 100) quality=100;
+			}
+			else
+				fatal("invalid argument for -m, --max");
+		}
+		break;
+		case 'd':
+			if (realpath(optarg,dest_path)==NULL)
+				fatal("invalid destination directory: %s", optarg);
+			if (!is_directory(dest_path))
+				fatal("destination not a directory: %s", dest_path);
+			strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
+
+			if (verbose_mode)
+				fprintf(stderr,"Destination directory: %s\n",dest_path);
+			dest=1;
+			break;
+		case 'v':
+			verbose_mode++;
+			break;
+		case 'h':
+			print_usage();
+			exit(0);
+			break;
+		case 'q':
+			quiet_mode=1;
+			break;
+		case 't':
+			totals_mode=1;
+			break;
+		case 'n':
+			noaction=1;
+			break;
+		case 'f':
+			force=1;
+			break;
+		case 'b':
+			csv=1;
+			quiet_mode=1;
+			break;
+		case '?':
+			exit(1);
+		case 'V':
+			print_version();
+			exit(0);
+			break;
+		case 'o':
+			overwrite_mode=1;
+			break;
+		case 'p':
+			preserve_mode=1;
+			break;
+		case 'P':
+			preserve_perms=1;
+			break;
+		case 's':
+			save_exif=0;
+			save_iptc=0;
+			save_com=0;
+			save_icc=0;
+			save_xmp=0;
+			save_adobe=0;
+			save_jfxx=0;
+			break;
+		case 'T':
+		{
+			int tmpvar;
+			if (sscanf(optarg,"%d",&tmpvar) == 1) {
+				threshold=tmpvar;
+				if (threshold < 0) threshold=0;
+				if (threshold > 100) threshold=100;
+			}
+			else fatal("invalid argument for -T, --threshold");
+		}
+		break;
+		case 'S':
+		{
+			unsigned int tmpvar;
+			if (sscanf(optarg,"%u",&tmpvar) == 1) {
+				if (tmpvar > 0 && tmpvar < 100 &&
+					optarg[strlen(optarg)-1] == '%' ) {
+					target_size=-tmpvar;
+				} else {
+					target_size=tmpvar;
+				}
+				quality=100;
+			}
+			else fatal("invalid argument for -S, --size");
+		}
+		break;
+#ifdef PARALLEL_PROCESSING
+		case 'w':
+		{
+			int tmpvar;
+			if (sscanf(optarg, "%d", &tmpvar) == 1) {
+				if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
+					max_workers = tmpvar;
+			}
+			else fatal("invalid argument for -w, --workers");
+		}
+		break;
+#endif
+		}
+	}
+
+
+	/* check for '-' option indicating input is from stdin... */
+	i=1;
+	while (argv[i]) {
+		if (argv[i][0]=='-' && argv[i][1]==0)
+			stdin_mode=1;
+		i++;
+	}
+
+	if (stdin_mode)
+		stdout_mode=1;
+
+	if (all_normal && all_progressive)
+		fatal("cannot specify both --all-normal and --all-progressive");
+}
+
+
 void own_signal_handler(int a)
 {
 	if (verbose_mode > 1)
@@ -1003,15 +1144,16 @@ int wait_for_worker()
 }
 #endif
 
-/*****************************************************************/
+
+/****************************************************************************/
 int main(int argc, char **argv)
 {
 	struct stat file_stat;
 	char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
 	char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
+	const char *filename;
 	volatile int i;
-	int c, res;
-	int opt_index = 0;
+	int res;
 	double rate, saved;
 #ifdef PARALLEL_PROCESSING
 	struct worker *w;
@@ -1032,148 +1174,15 @@ int main(int argc, char **argv)
 	signal(SIGINT,own_signal_handler);
 	signal(SIGTERM,own_signal_handler);
 
-
-
 	/* parse command line parameters */
-	while(1) {
-		opt_index=0;
-		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:bw:",
-						long_options, &opt_index)) == -1)
-			break;
+	parse_arguments(argc, argv, dest_path);
 
-		switch (c) {
-		case 'm':
-		{
-			int tmpvar;
-
-			if (sscanf(optarg,"%d",&tmpvar) == 1) {
-				quality=tmpvar;
-				if (quality < 0) quality=0;
-				if (quality > 100) quality=100;
-			}
-			else
-				fatal("invalid argument for -m, --max");
-		}
-		break;
-		case 'd':
-			if (realpath(optarg,dest_path)==NULL)
-				fatal("invalid destination directory: %s", optarg);
-			if (!is_directory(dest_path))
-				fatal("destination not a directory: %s", dest_path);
-			strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
-
-			if (verbose_mode)
-				fprintf(stderr,"Destination directory: %s\n",dest_path);
-			dest=1;
-			break;
-		case 'v':
-			verbose_mode++;
-			break;
-		case 'h':
-			print_usage();
-			exit(0);
-			break;
-		case 'q':
-			quiet_mode=1;
-			break;
-		case 't':
-			totals_mode=1;
-			break;
-		case 'n':
-			noaction=1;
-			break;
-		case 'f':
-			force=1;
-			break;
-		case 'b':
-			csv=1;
-			quiet_mode=1;
-			break;
-		case '?':
-			exit(1);
-		case 'V':
-			print_version();
-			exit(0);
-			break;
-		case 'o':
-			overwrite_mode=1;
-			break;
-		case 'p':
-			preserve_mode=1;
-			break;
-		case 'P':
-			preserve_perms=1;
-			break;
-		case 's':
-			save_exif=0;
-			save_iptc=0;
-			save_com=0;
-			save_icc=0;
-			save_xmp=0;
-			save_adobe=0;
-			save_jfxx=0;
-			break;
-		case 'T':
-		{
-			int tmpvar;
-			if (sscanf(optarg,"%d",&tmpvar) == 1) {
-				threshold=tmpvar;
-				if (threshold < 0) threshold=0;
-				if (threshold > 100) threshold=100;
-			}
-			else fatal("invalid argument for -T, --threshold");
-		}
-		break;
-		case 'S':
-		{
-			unsigned int tmpvar;
-			if (sscanf(optarg,"%u",&tmpvar) == 1) {
-				if (tmpvar > 0 && tmpvar < 100 &&
-					optarg[strlen(optarg)-1] == '%' ) {
-					target_size=-tmpvar;
-				} else {
-					target_size=tmpvar;
-				}
-				quality=100;
-			}
-			else fatal("invalid argument for -S, --size");
-		}
-		break;
-#ifdef PARALLEL_PROCESSING
-		case 'w':
-		{
-			int tmpvar;
-			if (sscanf(optarg, "%d", &tmpvar) == 1) {
-				if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
-					max_workers = tmpvar;
-			}
-			else fatal("invalid argument for -w, --workers");
-		}
-		break;
-#endif
-		}
-	}
-
-
-	/* check for '-' option indicating input is from stdin... */
-	i=1;
-	while (argv[i]) {
-		if (argv[i][0]=='-' && argv[i][1]==0)
-			stdin_mode=1;
-		i++;
-	}
-
-	if (stdin_mode)
-		stdout_mode=1;
-
-	if (all_normal && all_progressive)
-		fatal("cannot specify both --all-normal and --all-progressive");
 
 	if (verbose_mode) {
 		if (quality>=0 && target_size==0)
-			fprintf(stderr,"Image quality limit set to: %d\n",quality);
+			fprintf(stderr,"Image quality limit set to: %d\n", quality);
 		if (threshold>=0)
-			fprintf(stderr,"Compression threshold (%%) set to: %d\n",threshold);
+			fprintf(stderr,"Compression threshold (%%) set to: %d\n", threshold);
 		if (all_normal)
 			fprintf(stderr,"All output files will be non-progressive\n");
 		if (all_progressive)
@@ -1192,60 +1201,65 @@ int main(int argc, char **argv)
 
 
 	if (stdin_mode) {
+		/* process just one file, if source is stdin... */
 		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL);
 		return (res == 0 ? 0 : 1);
 	}
 
-
 	i=(optind > 0 ? optind : 1);
 	if (argc <= i) {
-		if (!quiet_mode) fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
-					"Try '" PROGRAMNAME " --help' for more information.\n");
+		if (!quiet_mode)
+			fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
+				"Try '" PROGRAMNAME " --help' for more information.\n");
 		exit(1);
 	}
 
 
 	/* loop to process the input files */
 	do {
-		if (verbose_mode > 1)
-			printf("processing file: %s\n", argv[i]);
-		if (i >= argc || !argv[i][0])
+		filename = argv[i];
+
+		if (i >= argc || filename[0] == 0)
 			continue;
-		if (strlen(argv[i]) >= MAXPATHLEN) {
-			warn("skipping too long filename: %s",argv[i]);
+		if (verbose_mode > 1)
+			printf("processing file: %s\n", filename);
+		if (strlen(filename) >= MAXPATHLEN) {
+			warn("skipping too long filename: %s", filename);
 			continue;
 		}
 
 		if (!noaction) {
 			/* generate tmp dir & new filename */
 			if (dest) {
-				STRNCPY(tmpdir,dest_path,sizeof(tmpdir));
-				STRNCPY(newname,dest_path,sizeof(newname));
-				if (!splitname(argv[i],tmpfilename,sizeof(tmpfilename)))
-					fatal("splitname() failed for: %s",argv[i]);
-				strncat(newname,tmpfilename,sizeof(newname)-strlen(newname)-1);
+				STRNCPY(tmpdir, dest_path, sizeof(tmpdir));
+				STRNCPY(newname, dest_path, sizeof(newname));
+				if (!splitname(filename, tmpfilename, sizeof(tmpfilename)))
+					fatal("splitname() failed for: %s", filename);
+				strncat(newname, tmpfilename, sizeof(newname)-strlen(newname)-1);
 			} else {
-				if (!splitdir(argv[i],tmpdir,sizeof(tmpdir)))
-					fatal("splitdir() failed for: %s",argv[i]);
-				STRNCPY(newname,argv[i],sizeof(newname));
+				if (!splitdir(filename, tmpdir, sizeof(tmpdir)))
+					fatal("splitdir() failed for: %s", filename);
+				STRNCPY(newname, filename, sizeof(newname));
 			}
 		}
 
-		if (file_exists(argv[i])) {
-			if (!is_file(argv[i],&file_stat)) {
-				if (is_directory(argv[i]))
-					warn("skipping directory: %s",argv[i]);
+		if (file_exists(filename)) {
+			if (!is_file(filename, &file_stat)) {
+				if (is_directory(filename))
+					warn("skipping directory: %s", filename);
 				else
-					warn("skipping special file: %s",argv[i]);
+					warn("skipping special file: %s", filename);
 				continue;
 			}
 		} else {
-			warn("file not found: %s",argv[i]);
+			warn("file not found: %s", filename);
 			continue;
 		}
 
 #ifdef PARALLEL_PROCESSING
 		if (max_workers > 1) {
+			/* Multi process mode, run up to max_workers processes simultaneously... */
+
 			if (worker_count >= max_workers) {
 				// wait for a worker to exit...
 				wait_for_worker();
@@ -1263,7 +1277,7 @@ int main(int argc, char **argv)
 				if (!(p = fdopen(pipe_fd[1],"w")))
 					fatal("worker: fdopen failed");
 
-				res = optimize(p, argv[i], newname, tmpdir, &file_stat, &rate, &saved);
+				res = optimize(p, filename, newname, tmpdir, &file_stat, &rate, &saved);
 				if (res == 0)
 					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
 				exit(res);
@@ -1290,7 +1304,9 @@ int main(int argc, char **argv)
 		} else
 #endif
 		{
-			res = optimize(stdout, argv[i], newname, tmpdir, &file_stat, &rate, &saved);
+			/* Single process mode, process one file at a time... */
+
+			res = optimize(stdout, filename, newname, tmpdir, &file_stat, &rate, &saved);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;
@@ -1304,7 +1320,9 @@ int main(int argc, char **argv)
 
 	} while (++i < argc);
 
+
 #ifdef PARALLEL_PROCESSING
+	/* Wait for any child processes to exit... */
 	if (max_workers > 1) {
 		if (verbose_mode) {
 			fprintf(stderr,"Waiting for %d workers to finish...\n", worker_count);
