@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with FanPico. If not, see <https://www.gnu.org/licenses/>.
+ * along with JPEGoptim. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef JPEGOPTIM_H
