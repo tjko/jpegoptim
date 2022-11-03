@@ -1,0 +1,38 @@
+name: compile
+on: [push, workflow_dispatch]
+
+jobs:
+  job:
+    name: ${{ matrix.os }}-${{ github.workflow }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: windows-latest
+            triplet: x64-windows
+          - os: ubuntu-latest
+            triplet: x64-linux
+          - os: macos-latest
+            triplet: x64-osx
+    steps:
+      - uses: actions/checkout@v3
+      # Install CMake
+      - uses: lukka/get-cmake@latest
+      # Install NASM
+      - uses: ilammy/setup-nasm@v1.4.0
+      # Launch the MSVC Tools Command Prompt (Windows)
+      - uses: ilammy/msvc-dev-cmd@v1
+      # Initialize the CMake directory and build
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_NO_SUBFOLDERS=1
+          cmake --build build --config Release
+      # Upload the compiled binary
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.triplet }}
+          path: |
+            build/jpegoptim
+            build/jpegoptim.exe
