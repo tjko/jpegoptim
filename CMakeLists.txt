@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 
-# set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
-
 project(jpegoptim C)
 
 
@@ -75,6 +73,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 file(GLOB SOURCE_FILES *.c)
 source_group("Source Files" FILES ${SOURCE_FILES})
 
+
 # Target
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
@@ -85,6 +84,7 @@ if(MSVC)
         VS_GLOBAL_KEYWORD "Win32Proj"
     )
 endif()
+
 
 # Output directory
 
@@ -101,6 +101,7 @@ if(MSVC)
     )
 endif()
 
+
 # Interprocedural optimization (LTCG)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -112,6 +113,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         -fuse-linker-plugin
     )
 endif()
+
 
 # MSVC runtime library
 
@@ -167,7 +169,7 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:
             /Od;             # Disable optimization
-            /RTC1            # Enables stack frame run-time error checking and reporting when a variable is used without having been initialized.
+            /RTC1            # Enable stack frame run-time error checking and reporting when a variable is used without having been initialized.
         >
         $<$<CONFIG:Release>:
             /MP;             # Build with multiple processes
@@ -180,27 +182,28 @@ if(MSVC)
         /TC;                 # Compile all source files as C source code regardles of extension
         /wd4996;             # Suppress deprecation warnings
         ${DEFAULT_CXX_EXCEPTION_HANDLING};
-        /GS;                 # Enables security checks against buffer overruns
+        /GS;                 # Enable security checks against buffer overruns
         /Y-                  # Disable precompiled headers
     )
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:
-            /INCREMENTAL     # Enables incremental linking (faster builds, larger filesize)
+            /INCREMENTAL     # Enable incremental linking (faster builds, larger filesize)
         >
         $<$<CONFIG:Release>:
             /OPT:REF;        # Don't link unused functions
             /OPT:ICF;        # Remove duplicate function definitions
-            /INCREMENTAL:NO  # Disables incremental linking
+            /INCREMENTAL:NO  # Disable incremental linking
         >
-        /MANIFEST;           # Generates a manifest file
-        /DEBUG:FULL;         # Generates debugging symbols (in a separate PDB file)
+        /MANIFEST;           # Generate a manifest file
+        /DEBUG:FULL;         # Generate debugging symbols (in a separate PDB file)
         /MACHINE:${CMAKE_VS_PLATFORM_NAME};
         /SUBSYSTEM:CONSOLE;  # Not a driver or GUI program
         /NXCOMPAT;           # Support Windows Data Execution Prevention
         /DYNAMICBASE         # Use address space layout randomization
     )
 
-    # Link with setargv
+    # Link with setargv for command line wildcard support
+    # See https://learn.microsoft.com/en-us/cpp/c-language/expanding-wildcard-arguments
 
     target_link_options(${PROJECT_NAME} PRIVATE
         setargv.obj
@@ -294,7 +297,7 @@ ExternalProject_Add(mozjpeg_lib
 ExternalProject_Get_Property(mozjpeg_lib install_dir)
 add_library(mozjpeg STATIC IMPORTED)
 if(MSVC)
-set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/jpeg-static.lib)
+    set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/jpeg-static.lib)
 else()
     target_link_libraries(mozjpeg INTERFACE m)
     set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/libjpeg.a)
