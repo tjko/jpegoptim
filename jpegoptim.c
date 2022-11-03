@@ -69,6 +69,7 @@
 #define MAX_WORKERS 256
 #endif
 
+#define LOG_FH (stdout_mode ? stderr : stdout)
 
 #define FREE_LINE_BUF(buf,lines)  {			\
 		int j;					\
@@ -1108,7 +1109,7 @@ int wait_for_worker()
 	if (!p) fatal("fdopen failed()");
 	while (fgets(buf, sizeof(buf), p)) {
 		if (verbose_mode > 2)
-			printf("PIPE: %s", buf);
+			fprintf(LOG_FH, "PIPE: %s\n", buf);
 		if (state == 0 && buf[0] == '\n') {
 			state=1;
 			continue;
@@ -1133,7 +1134,7 @@ int wait_for_worker()
 			continue;
 		}
 		if (state == 0)
-			printf("%s", buf);
+			fprintf(LOG_FH, "%s\n", buf);
 	}
 	close(w->read_pipe);
 	w->pid = -1;
@@ -1222,7 +1223,7 @@ int main(int argc, char **argv)
 		if (i >= argc || filename[0] == 0)
 			continue;
 		if (verbose_mode > 1)
-			printf("processing file: %s\n", filename);
+			fprintf(LOG_FH, "processing file: %s\n\n", filename);
 		if (strlen(filename) >= MAXPATHLEN) {
 			warn("skipping too long filename: %s", filename);
 			continue;
@@ -1306,7 +1307,7 @@ int main(int argc, char **argv)
 		{
 			/* Single process mode, process one file at a time... */
 
-			res = optimize(stdout, filename, newname, tmpdir, &file_stat, &rate, &saved);
+			res = optimize(LOG_FH, filename, newname, tmpdir, &file_stat, &rate, &saved);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;
@@ -1335,7 +1336,7 @@ int main(int argc, char **argv)
 #endif
 
 	if (totals_mode && !quiet_mode)
-		printf("Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
+		fprintf(LOG_FH, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
 			average_count, average_rate/average_count, total_save);
 
 
