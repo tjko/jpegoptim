@@ -69,7 +69,6 @@
 #define MAX_WORKERS 256
 #endif
 
-#define LOG_FH (stdout_mode ? stderr : stdout)
 
 #define FREE_LINE_BUF(buf,lines)  {			\
 		int j;					\
@@ -1060,7 +1059,7 @@ binary_search_loop:
 
 
 #ifdef PARALLEL_PROCESSING
-int wait_for_worker()
+int wait_for_worker(FILE *log_fh)
 {
 	FILE *p;
 	struct worker *w;
@@ -1090,7 +1089,7 @@ int wait_for_worker()
 	if (WIFEXITED(wstatus)) {
 		e = WEXITSTATUS(wstatus);
 		if (verbose_mode)
-			fprintf(stderr, "worker[%d] [slot=%d] exited: %d\n",
+			fprintf(log_fh, "worker[%d] [slot=%d] exited: %d\n",
 				pid, j, e);
 		if (e == 0) {
 			//average_count++;
@@ -1109,7 +1108,7 @@ int wait_for_worker()
 	if (!p) fatal("fdopen failed()");
 	while (fgets(buf, sizeof(buf), p)) {
 		if (verbose_mode > 2)
-			fprintf(LOG_FH, "PIPE: %s\n", buf);
+			fprintf(log_fh, "PIPE: %s\n", buf);
 		if (state == 0 && buf[0] == '\n') {
 			state=1;
 			continue;
@@ -1134,7 +1133,7 @@ int wait_for_worker()
 			continue;
 		}
 		if (state == 0)
-			fprintf(LOG_FH, "%s\n", buf);
+			fprintf(log_fh, "%s\n", buf);
 	}
 	close(w->read_pipe);
 	w->pid = -1;
@@ -1156,6 +1155,7 @@ int main(int argc, char **argv)
 	volatile int i;
 	int res;
 	double rate, saved;
+	FILE *log_fh;
 #ifdef PARALLEL_PROCESSING
 	struct worker *w;
 	int pipe_fd[2];
@@ -1177,26 +1177,26 @@ int main(int argc, char **argv)
 
 	/* parse command line parameters */
 	parse_arguments(argc, argv, dest_path);
-
+	log_fh = (stdout_mode ? stderr : stdout);
 
 	if (verbose_mode) {
 		if (quality>=0 && target_size==0)
-			fprintf(stderr,"Image quality limit set to: %d\n", quality);
+			fprintf(log_fh, "Image quality limit set to: %d\n", quality);
 		if (threshold>=0)
-			fprintf(stderr,"Compression threshold (%%) set to: %d\n", threshold);
+			fprintf(log_fh, "Compression threshold (%%) set to: %d\n", threshold);
 		if (all_normal)
-			fprintf(stderr,"All output files will be non-progressive\n");
+			fprintf(log_fh, "All output files will be non-progressive\n");
 		if (all_progressive)
-			fprintf(stderr,"All output files will be progressive\n");
+			fprintf(log_fh, "All output files will be progressive\n");
 		if (target_size > 0)
-			fprintf(stderr,"Target size for output files set to: %d Kbytes.\n",
+			fprintf(log_fh, "Target size for output files set to: %d Kbytes.\n",
 				target_size);
 		if (target_size < 0)
-			fprintf(stderr,"Target size for output files set to: %d%%\n",
+			fprintf(log_fh, "Target size for output files set to: %d%%\n",
 				-target_size);
 #ifdef PARALLEL_PROCESSING
 		if (max_workers > 0)
-			fprintf(stderr,"Using maximum of %d parallel threads\n", max_workers);
+			fprintf(log_fh, "Using maximum of %d parallel threads\n", max_workers);
 #endif
 	}
 
@@ -1223,7 +1223,7 @@ int main(int argc, char **argv)
 		if (i >= argc || filename[0] == 0)
 			continue;
 		if (verbose_mode > 1)
-			fprintf(LOG_FH, "processing file: %s\n\n", filename);
+			fprintf(log_fh, "processing file: %s\n", filename);
 		if (strlen(filename) >= MAXPATHLEN) {
 			warn("skipping too long filename: %s", filename);
 			continue;
@@ -1263,7 +1263,7 @@ int main(int argc, char **argv)
 
 			if (worker_count >= max_workers) {
 				// wait for a worker to exit...
-				wait_for_worker();
+				wait_for_worker(log_fh);
 			}
 			if (pipe(pipe_fd) < 0)
 				fatal("failed to open pipe");
@@ -1299,7 +1299,7 @@ int main(int argc, char **argv)
 				w->read_pipe = pipe_fd[0];
 				worker_count++;
 				if (verbose_mode > 0)
-					fprintf(stderr, "worker[%d] [slot=%d] started\n", pid, j);;
+					fprintf(log_fh, "worker[%d] [slot=%d] started\n", pid, j);;
 			}
 
 		} else
@@ -1307,7 +1307,7 @@ int main(int argc, char **argv)
 		{
 			/* Single process mode, process one file at a time... */
 
-			res = optimize(LOG_FH, filename, newname, tmpdir, &file_stat, &rate, &saved);
+			res = optimize(log_fh, filename, newname, tmpdir, &file_stat, &rate, &saved);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;
@@ -1326,17 +1326,17 @@ int main(int argc, char **argv)
 	/* Wait for any child processes to exit... */
 	if (max_workers > 1) {
 		if (verbose_mode) {
-			fprintf(stderr,"Waiting for %d workers to finish...\n", worker_count);
+			fprintf(log_fh, "Waiting for %d workers to finish...\n", worker_count);
 		}
-		while ((pid = wait_for_worker()) > 0) {
+		while ((pid = wait_for_worker(log_fh)) > 0) {
 			if (verbose_mode > 2)
-				fprintf(stderr, "worker[%d] done\n", pid);
+				fprintf(log_fh, "worker[%d] done\n", pid);
 		}
 	}
 #endif
 
 	if (totals_mode && !quiet_mode)
-		fprintf(LOG_FH, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
+		fprintf(log_fh, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
 			average_count, average_rate/average_count, total_save);
 
 
