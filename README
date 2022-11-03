@@ -1,5 +1,5 @@
 
-Jpegoptim v1.5.0 - Copyright (C)  Timo Kokkonen, 1996-2022. All Rights Reserved.
+Jpegoptim v1.5.1beta - Copyright (C)  Timo Kokkonen, 1996-2022. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -19,8 +19,8 @@ INSTALLATION
 	tar file, make necessary changes to the Makefile,  and then 
         compile the program. You may wanna do something like this:
 
-		tar xzvf jpegoptim-1.5.0.tar.gz
-		cd jpegoptim-1.5.0
+		tar xzvf jpegoptim-1.5.1.tar.gz
+		cd jpegoptim-1.5.1
 		./configure
 		make
 		make strip
@@ -28,6 +28,8 @@ INSTALLATION
 
 
 HISTORY
+        v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta0,
+	         some minor fixes
         v1.5.0 - add --workers=<max> option to enable parallel processing
 	         fix --stding option,
                  other minor fixes
@@ -118,5 +120,5 @@ Special thanks for following Github Sponsors that have supported jpegoptim:
  
 
 Timo <tjko@iki.fi>
-14-Sep-2022
+02-Nov-2022
 
