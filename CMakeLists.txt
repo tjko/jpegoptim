@@ -2,8 +2,18 @@ cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 
 project(jpegoptim C)
 
+# LIBJPEG_INCLUDE_DIR and LIBJPEG_LIBRARY must both be specified if a custom libjpeg implementation is desired.
+option(WITH_ARITH "Enable arithmetic coding (if supported by the libjpeg implementation)" 1)
+option(USE_MOZJPEG "Download, build, and link with MozJPEG rather than the system libjpeg" 1)
+set(LIBJPEG_INCLUDE_DIR "" CACHE PATH "Custom libjpeg header directory")
+set(LIBJPEG_LIBRARY "" CACHE FILEPATH "Custom libjpeg library binary")
 
-# Set target arch type if empty. CMake's Visual Studio generator provides it, but others may not.
+# If LIBJPEG_INCLUDE_DIR and LIBJPEG_LIBRARY are set, USE_MOZJPEG is disabled.
+if(LIBJPEG_INCLUDE_DIR AND LIBJPEG_LIBRARY)
+    set(USE_MOZJPEG 0)
+endif()
+
+# Set target architecture if empty. CMake's Visual Studio generator provides it, but others may not.
 
 if(MSVC)
     if(NOT CMAKE_VS_PLATFORM_NAME)
@@ -108,7 +118,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
 )
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${PROJECT_NAME} PUBLIC
         -fuse-linker-plugin
     )
@@ -214,6 +224,7 @@ endif()
 # Header and function checks
 
 include(CheckIncludeFile)
+check_include_file(config.h HAVE_CONFIG_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
 check_include_file(getopt.h HAVE_GETOPT_H)
 check_include_file(string.h HAVE_STRING_H)
@@ -235,7 +246,16 @@ check_symbol_exists(wait "sys/wait.h" HAVE_WAIT)
 check_symbol_exists(getopt "unistd.h" HAVE_GETOPT)
 check_symbol_exists(getopt_long "getopt.h" HAVE_GETOPT_LONG)
 
+include(CheckStructHasMember)
+
+if(HAVE_SYS_STAT_H)
+    check_struct_has_member(
+            "struct stat" st_mtim "sys/stat.h" HAVE_STRUCT_STAT_ST_MTIM LANGUAGE C
+    )
+endif()
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<BOOL:${HAVE_CONFIG_H}>:HAVE_CONFIG_H>
     $<$<BOOL:${HAVE_UNISTD_H}>:HAVE_UNISTD_H>
     $<$<BOOL:${HAVE_GETOPT_H}>:HAVE_GETOPT_H>
     $<$<BOOL:${HAVE_STRING_H}>:HAVE_STRING_H>
@@ -254,6 +274,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_WAIT}>:HAVE_WAIT>
     $<$<BOOL:${HAVE_GETOPT}>:HAVE_GETOPT>
     $<$<BOOL:${HAVE_GETOPT_LONG}>:HAVE_GETOPT_LONG>
+    $<$<BOOL:${HAVE_STRUCT_STAT_ST_MTIM}>:HAVE_STRUCT_STAT_ST_MTIM>
 )
 
 
@@ -271,42 +292,132 @@ endif()
 
 # Dependencies
 
-# Link with mozjpeg.
-# Version tree: https://github.com/mozilla/mozjpeg/tree/fd569212597dcc249752bd38ea58a4e2072da24f
+if(USE_MOZJPEG)
+    # Link with mozjpeg.
+    # Version tree: https://github.com/mozilla/mozjpeg/tree/fd569212597dcc249752bd38ea58a4e2072da24f
 
-include(ExternalProject)
+    include(ExternalProject)
 
-if(NOT DEFINED WITH_ARITH)
-    set(WITH_ARITH 1)
-endif()
+    if(WITH_ARITH)
+        set(ARITH_FLAGS -DWITH_ARITH_DEC=1 -DWITH_ARITH_ENC=1)
+        set(JPEGLIB_SUPPORTS_ARITH_CODE 1)
+    endif()
 
-if(WITH_ARITH)
-    set(ARITH_FLAGS STRING -DWITH_ARITH_DEC=1 -DWITH_ARITH_ENC=1)
-endif()
-
-ExternalProject_Add(mozjpeg_lib
-  GIT_REPOSITORY https://github.com/mozilla/mozjpeg.git
-  GIT_TAG fd569212597dcc249752bd38ea58a4e2072da24f
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mozjpeg -DPNG_SUPPORTED=0 -DWITH_TURBOJPEG=0 -DENABLE_SHARED=0 ${ARITH_FLAGS}
-)
+    ExternalProject_Add(mozjpeg_lib
+         GIT_REPOSITORY https://github.com/mozilla/mozjpeg.git
+         GIT_TAG fd569212597dcc249752bd38ea58a4e2072da24f
+         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
+         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mozjpeg -DPNG_SUPPORTED=0 -DWITH_TURBOJPEG=0 -DENABLE_SHARED=0 ${ARITH_FLAGS}
+    )
 
 
-# Building and linking mozjpeg as a library, as explained here https://mirkokiefer.com/cmake-by-example-f95eb47d45b1
+    # Building and linking mozjpeg as a library, as explained here https://mirkokiefer.com/cmake-by-example-f95eb47d45b1
 
-ExternalProject_Get_Property(mozjpeg_lib install_dir)
-add_library(mozjpeg STATIC IMPORTED)
-if(MSVC)
-    set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/jpeg-static.lib)
+    ExternalProject_Get_Property(mozjpeg_lib install_dir)
+    add_library(mozjpeg STATIC IMPORTED)
+    if(MSVC)
+        set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/jpeg-static.lib)
+    else()
+        target_link_libraries(mozjpeg INTERFACE m)
+        set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/libjpeg.a)
+    endif()
+    add_dependencies(mozjpeg mozjpeg_lib)
+    target_include_directories(${PROJECT_NAME} BEFORE PRIVATE ${install_dir}/include)
+    target_link_libraries(${PROJECT_NAME} mozjpeg)
+    add_dependencies(${PROJECT_NAME} mozjpeg)
+
+    # Note: check_include_file, check_symbol_exists, check_struct_has_member, and check_c_source_compiles
+    # cannot be used on ExternalProject dependencies because they are not compiled until build time, while check_*
+    # functions run during the initial CMake configuration step.
+
 else()
-    target_link_libraries(mozjpeg INTERFACE m)
-    set_property(TARGET mozjpeg PROPERTY IMPORTED_LOCATION ${install_dir}/lib/libjpeg.a)
-endif()
-add_dependencies(mozjpeg mozjpeg_lib)
-target_include_directories(${PROJECT_NAME} PRIVATE ${install_dir}/include)
-target_link_libraries(${PROJECT_NAME} mozjpeg)
-add_dependencies(${PROJECT_NAME} mozjpeg)
+    if(LIBJPEG_INCLUDE_DIR AND LIBJPEG_LIBRARY)
+        # Link with custom libjpeg
+        add_library(libjpeg STATIC IMPORTED)
+        if(NOT MSVC)
+            target_link_libraries(libjpeg INTERFACE m)
+        endif()
+        set_target_properties(libjpeg PROPERTIES IMPORTED_LOCATION ${LIBJPEG_LIBRARY})
+        target_include_directories(${PROJECT_NAME} BEFORE PRIVATE ${LIBJPEG_INCLUDE_DIR})
+        target_link_libraries(${PROJECT_NAME} libjpeg)
+        add_dependencies(${PROJECT_NAME} libjpeg)
+    else()
+        # Link with system libjpeg
+        include(FindJPEG)
+        if(NOT JPEG_FOUND)
+            message(FATAL_ERROR "Could not automatically locate libjpeg. Either specify -DUSE_MOZJPEG=1 to download and build with MozJPEG, or -DLIBJPEG_INCLUDE_DIR=... and -DLIBJPEG_LIBRARY=... to the appropriate paths to build with a custom libjpeg implementation.")
+        endif()
+        message(STATUS "Include dirs: ${JPEG_INCLUDE_DIRS}")
+        target_include_directories(${PROJECT_NAME} PRIVATE ${JPEG_INCLUDE_DIRS})
+        target_link_libraries(${PROJECT_NAME} JPEG::JPEG)
+    endif()
 
-if(WITH_ARITH)
+    # Use all include directories and linked libraries as the main project for feature tests
+    get_target_property(CMAKE_REQUIRED_LIBRARIES ${PROJECT_NAME} LINK_LIBRARIES)
+    get_target_property(CMAKE_REQUIRED_INCLUDES ${PROJECT_NAME} INCLUDE_DIRECTORIES)
+
+    # check_include_file, check_symbol_exists, and check_struct_has_member cannot be used with libjpeg.h
+    # because libjpeg.h requires stdio.h to be included before it to not throw an unrelated compilation error.
+
+    include(CheckCSourceCompiles)
+    check_c_source_compiles(
+            "
+            #include <stdio.h>
+            #include <jpeglib.h>
+            int main(void)
+            {
+              return sizeof (&jpeg_read_header);
+            }
+            "
+            HAVE_APPROPRIATE_LIBJPEG_VERSION
+    )
+
+    if(NOT HAVE_APPROPRIATE_LIBJPEG_VERSION)
+        message(FATAL_ERROR "Invalid version: libjpeg version 6 or later is required.")
+    endif()
+
+    check_c_source_compiles(
+            "
+            #include <stdio.h>
+            #include <jpeglib.h>
+            METHODDEF(void) foo(void) {};
+            int main(void)
+            {
+              return 0;
+            }
+            "
+            WORKING_METHODDEF
+    )
+
+    if(NOT WORKING_METHODDEF)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE -DBROKEN_METHODDEF)
+    endif()
+
+    if(WITH_ARITH)
+        # Check for arithmetic coding support
+
+        check_c_source_compiles(
+                "
+                #include <stdio.h>
+                #include <jpeglib.h>
+                int main(void)
+                {
+                    return sizeof (((struct jpeg_compress_struct *)0)->arith_code);
+                }
+                "
+                JPEGLIB_SUPPORTS_ARITH_CODE
+        )
+    endif()
+endif()
+
+
+if(WITH_ARITH AND JPEGLIB_SUPPORTS_ARITH_CODE)
+    set(ARITH_ENABLED 1)
     target_compile_definitions(${PROJECT_NAME} PRIVATE -DHAVE_ARITH_CODE)
+endif()
+
+if(ARITH_ENABLED)
+    message(STATUS "Arithmetic Coding: Enabled")
+else()
+    message(STATUS "Arithmetic Coding: Disabled")
 endif()
