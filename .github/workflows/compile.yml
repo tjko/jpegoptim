@@ -18,21 +18,30 @@ jobs:
             triplet: x64-osx
     steps:
       - uses: actions/checkout@v3
+
       # Install CMake
       - uses: lukka/get-cmake@v3.24.2  # CMake 3.24.2, Ninja 1.11.1
       # Install NASM
       - uses: ilammy/setup-nasm@v1
       # Launch the MSVC Tools Command Prompt (Windows)
       - uses: ilammy/msvc-dev-cmd@v1
+
       # Initialize the CMake directory and build
       - name: Build
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_NO_SUBFOLDERS=1
           cmake --build build --config Release
+
+      # Gather documentation and executables to a common directory
+      # Ignore copying errors from only one of build/jpegoptim or build/jpegoptim.exe existing
+      - name: Prepare files
+        run: |
+          mkdir build/dist
+          cp build/jpegoptim build/jpegoptim.exe COPYRIGHT LICENSE README build/dist/ 2>/dev/null || true
+        shell: bash
+
       # Upload the compiled binary
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.triplet }}
-          path: |
-            build/jpegoptim
-            build/jpegoptim.exe
+          path: build/dist
