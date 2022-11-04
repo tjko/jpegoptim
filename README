@@ -28,15 +28,15 @@ INSTALLATION
 
 
 HISTORY
-        v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta0,
+        v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta,
 	         some minor fixes
         v1.5.0 - add --workers=<max> option to enable parallel processing
-	         fix --stding option,
+	         fix --stdin option,
                  other minor fixes
         v1.4.7 - experimental support for arithmetic coding (enable with
 	         configure option --with-arith),
 		 add option --nofix,
-		 add suupport for JFIF Extension (JFXX) markers,
+		 add support for JFIF Extension (JFXX) markers,
 		 support for nanosecond timestamps (thanks to GerbilSoft),
 		 optimization now works same with stdin as with standard files,
 		 fixed --size (-S) option not working correctly when processing
@@ -56,7 +56,7 @@ HISTORY
         v1.4.2 - add option -P, --preserve-perms,
                  some minor fixes
         v1.4.1 - fix --stdin option (assume -f when reading from stdin),
-		 workaround to bug in libjpeg-turboi (v1.3.1) triggered
+		 workaround to bug in libjpeg-turbo (v1.3.1) triggered
 		 when option -V or --version was used,
                  other minor fixes
 	v1.4.0 - use memory (instead of temporary files) during optimization,
@@ -111,13 +111,18 @@ LATEST VERSION
 		https://github.com/tjko/jpegoptim
 
 
+ACKNOWLEDGEMENT
+
+	This software is based in part on the work of the Independent JPEG Group.
+
+
 SPONSORS 
 
 Special thanks for following Github Sponsors that have supported jpegoptim:
 
  - midir99
  
- 
+
 
 Timo <tjko@iki.fi>
 02-Nov-2022
