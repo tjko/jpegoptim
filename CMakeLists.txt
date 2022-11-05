@@ -4,9 +4,12 @@ project(jpegoptim C)
 
 # LIBJPEG_INCLUDE_DIR and LIBJPEG_LIBRARY must both be specified if a custom libjpeg implementation is desired.
 option(WITH_ARITH "Enable arithmetic coding (if supported by the libjpeg implementation)" 1)
-option(USE_MOZJPEG "Download, build, and link with MozJPEG rather than the system libjpeg" 1)
+option(USE_MOZJPEG "Download, build, and link with MozJPEG rather than the system libjpeg. Build with NASM installed for SIMD support." 1)
 set(LIBJPEG_INCLUDE_DIR "" CACHE PATH "Custom libjpeg header directory")
 set(LIBJPEG_LIBRARY "" CACHE FILEPATH "Custom libjpeg library binary")
+if(MSVC)
+    option(BUILD_NO_SUBFOLDERS "Flatten the compiled program's output path")
+endif()
 
 # If LIBJPEG_INCLUDE_DIR and LIBJPEG_LIBRARY are set, USE_MOZJPEG is disabled.
 if(LIBJPEG_INCLUDE_DIR AND LIBJPEG_LIBRARY)
@@ -100,7 +103,6 @@ endif()
 
 if(MSVC)
     if(BUILD_NO_SUBFOLDERS)
-        # Allows flattening the output path
         set(BINARY_OUTPUT_PATH ".")
     else()
         set(BINARY_OUTPUT_PATH "$<CONFIG>/${CMAKE_VS_PLATFORM_NAME}")
@@ -329,6 +331,9 @@ if(USE_MOZJPEG)
     # Note: check_include_file, check_symbol_exists, check_struct_has_member, and check_c_source_compiles
     # cannot be used on ExternalProject dependencies because they are not compiled until build time, while check_*
     # functions run during the initial CMake configuration step.
+    # Since the version is hardcoded above, feature checks may be set as constants as a workaround.
+
+    set(HAVE_JINT_DC_SCAN_OPT_MODE 1)
 
 else()
     if(LIBJPEG_INCLUDE_DIR AND LIBJPEG_LIBRARY)
@@ -408,7 +413,28 @@ else()
                 JPEGLIB_SUPPORTS_ARITH_CODE
         )
     endif()
+
+    # Check for MozJPEG's JINT_DC_SCAN_OPT_MODE extension
+
+    check_c_source_compiles(
+            "
+            #include <stdio.h>
+            #include <jpeglib.h>
+            int main(void)
+            {
+                struct jpeg_compress_struct cinfo;
+                if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
+                    jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
+                return 0;
+            }
+            "
+            HAVE_JINT_DC_SCAN_OPT_MODE
+    )
 endif()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<BOOL:${HAVE_JINT_DC_SCAN_OPT_MODE}>:HAVE_JINT_DC_SCAN_OPT_MODE>
+)
 
 
 if(WITH_ARITH AND JPEGLIB_SUPPORTS_ARITH_CODE)

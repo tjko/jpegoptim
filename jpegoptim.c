@@ -793,6 +793,10 @@ binary_search_loop:
 		cinfo.image_height=dinfo.image_height;
 		jpeg_set_defaults(&cinfo);
 		jpeg_set_quality(&cinfo,quality,TRUE);
+#ifdef HAVE_JINT_DC_SCAN_OPT_MODE
+		if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
+			jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
+#endif
 		if (all_normal) {
 			/* Explicitly disables progressive if libjpeg had it on by default */
 			cinfo.scan_info = NULL;
@@ -806,7 +810,7 @@ binary_search_loop:
 			cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
 		if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
-			/* If outputting Adobe marker, dont write JFIF marker... */
+			/* If outputting Adobe marker, don't write JFIF marker... */
 			cinfo.write_JFIF_header = FALSE;
 		}
 
@@ -826,6 +830,10 @@ binary_search_loop:
 		/* lossless "optimization" ... */
 
 		jpeg_copy_critical_parameters(&dinfo, &cinfo);
+#ifdef HAVE_JINT_DC_SCAN_OPT_MODE
+		if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
+			jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
+#endif
 		if (all_normal) {
 			/* Explicitly disables progressive if libjpeg had it on by default */
 			cinfo.scan_info = NULL;
@@ -839,7 +847,7 @@ binary_search_loop:
 			cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
 		if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
-			/* If outputting Adobe marker, dont write JFIF marker... */
+			/* If outputting Adobe marker, don't write JFIF marker... */
 			cinfo.write_JFIF_header = FALSE;
 		}
 
