@@ -43,5 +43,5 @@ jobs:
       # Upload the compiled binary
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.triplet }}
+          name: jpegoptim-${{ matrix.triplet }}
           path: build/dist
