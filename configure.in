@@ -122,6 +122,31 @@ AC_MSG_RESULT($jpegoptim_cv_arith_code_support)
 
 echo "Arithmetic Coding: $arith_code_status"
 
+AC_MSG_CHECKING([Extension settings in JPEG library])
+AC_CACHE_VAL(jpegoptim_cv_extension_settings,
+[AC_TRY_RUN([
+#include <stdio.h>
+#include <jpeglib.h>
+int main(void)
+{
+	struct jpeg_compress_struct cinfo;
+	if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
+		jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
+	return 0;
+}
+],
+jpegoptim_cv_extension_settings=yes,
+jpegoptim_cv_extension_settings=no,
+jpegoptim_cv_extension_settings=no)])
+if test $jpegoptim_cv_extension_settings = yes; then
+  extension_settings_status="Present"
+  AC_DEFINE(HAVE_JINT_DC_SCAN_OPT_MODE)
+else
+  extension_settings_status="Absent"
+fi
+
+echo "Extension settings: $extension_settings_status"
+
 
 AC_OUTPUT(Makefile)
 

@@ -7,7 +7,7 @@
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
 
-/* The number of bytes in a int.  */
+/* The number of bytes in an int.  */
 #undef SIZEOF_INT
 
 /* The number of bytes in a long.  */
@@ -64,8 +64,11 @@
 /* Define if you have the jpeg library (-ljpeg).  */
 #undef HAVE_LIBJPEG
 
-/* Define if jpeg library support Arithmetic coding */
+/* Define if jpeg library supports Arithmetic coding */
 #undef HAVE_ARITH_CODE
+
+/* Define if jpeg library supports the MozJPEG extension setting JINT_DC_SCAN_OPT_MODE */
+#undef HAVE_JINT_DC_SCAN_OPT_MODE
 
 
 /* Define if you have broken jmorecfg.h (SGI's usually have this problem) */
