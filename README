@@ -11,7 +11,7 @@ TESTED PLATFORMS
 	Linux
 	Solaris 
 	Darwin/OS X j
-	Windows (setargv.obj "link option" may be needed for wildcards expansion to work)
+	Windows (setargv.obj "link option" is needed for wildcards expansion to work)
 
 
 INSTALLATION
