@@ -709,6 +709,8 @@ retry_point:
 		}
 	} else {
 		coef_arrays = jpeg_read_coefficients(&dinfo);
+        if (coef_arrays == NULL)
+            fatal("failed to read coefficients");
 	}
 
 	inpos=ftell(infile);
