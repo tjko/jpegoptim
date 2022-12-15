@@ -709,6 +709,11 @@ retry_point:
 		}
 	} else {
 		coef_arrays = jpeg_read_coefficients(&dinfo);
+		if (!coef_arrays) {
+			if (!quiet_mode)
+				fprintf(log_fh, " (failed to read coefficients) ");
+			goto abort_decompress;
+		}
 	}
 
 	inpos=ftell(infile);
