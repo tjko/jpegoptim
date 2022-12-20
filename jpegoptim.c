@@ -760,6 +760,8 @@ retry_point:
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		jcerr.jump_set=0;
+		jpeg_destroy_compress(&cinfo);
+		jpeg_destroy_decompress(&dinfo);
 		return 2;
 	} else {
 		jcerr.jump_set=1;
@@ -1068,6 +1070,8 @@ binary_search_loop:
 		free(inbuffer);
 	if (outbuffer)
 		free(outbuffer);
+	jpeg_destroy_compress(&cinfo);
+	jpeg_destroy_decompress(&dinfo);
 
 	return 0;
 }
