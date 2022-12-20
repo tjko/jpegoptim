@@ -1127,7 +1127,7 @@ int wait_for_worker(FILE *log_fh)
 	if (!p) fatal("fdopen failed()");
 	while (fgets(buf, sizeof(buf), p)) {
 		if (verbose_mode > 2)
-			fprintf(log_fh, "PIPE: %s\n", buf);
+			fprintf(log_fh, "worker[%d] PIPE: %s", pid, buf);
 		if (state == 0 && buf[0] == '\n') {
 			state=1;
 			continue;
@@ -1152,7 +1152,7 @@ int wait_for_worker(FILE *log_fh)
 			continue;
 		}
 		if (state == 0)
-			fprintf(log_fh, "%s\n", buf);
+			fprintf(log_fh, "%s", buf);
 	}
 	close(w->read_pipe);
 	w->pid = -1;
