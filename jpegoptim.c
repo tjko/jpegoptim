@@ -557,6 +557,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	int j;
 	int oldquality, searchcount, searchdone;
 	double ratio;
+	int res = -1;
 
 	jpeg_log_fh = log_fh;
 
@@ -583,7 +584,8 @@ retry_point:
 	if (filename) {
 		if ((infile = fopen(filename, "rb")) == NULL) {
 			warn("cannot open file: %s", filename);
-			return 1;
+			res = 1;
+			goto exit_point;
 		}
 	} else {
 		infile = stdin;
@@ -595,16 +597,13 @@ retry_point:
 	abort_decompress:
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
-		if (inbuffer)
-			free(inbuffer);
-		if (outbuffer)
-			free(outbuffer);
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		if (!quiet_mode || csv)
 			fprintf(log_fh,csv ? ",,,,,error\n" : " [ERROR]\n");
 		jderr.jump_set=0;
-		return 1;
+		res = 1;
+		goto exit_point;
 	} else {
 		jderr.jump_set=1;
 	}
@@ -753,16 +752,11 @@ retry_point:
 		fclose(infile);
 		if (!quiet_mode)
 			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
-		if (inbuffer)
-			free(inbuffer);
-		if (outbuffer)
-			free(outbuffer);
 		if (buf)
 			FREE_LINE_BUF(buf,dinfo.output_height);
 		jcerr.jump_set=0;
-		jpeg_destroy_compress(&cinfo);
-		jpeg_destroy_decompress(&dinfo);
-		return 2;
+		res = 2;
+		goto exit_point;
 	} else {
 		jcerr.jump_set=1;
 	}
@@ -945,8 +939,10 @@ binary_search_loop:
 		}
 		if (!quiet_mode || csv)
 			fprintf(log_fh,csv ? "optimized\n" : "optimized.\n");
-		if (noaction)
-			return 0;
+		if (noaction) {
+			res = 0;
+			goto exit_point;
+		}
 
 		if (stdout_mode) {
 			outfname=NULL;
@@ -1065,7 +1061,9 @@ binary_search_loop:
 		}
 	}
 
+	res = 0;
 
+ exit_point:
 	if (inbuffer)
 		free(inbuffer);
 	if (outbuffer)
@@ -1073,7 +1071,7 @@ binary_search_loop:
 	jpeg_destroy_compress(&cinfo);
 	jpeg_destroy_decompress(&dinfo);
 
-	return 0;
+	return res;
 }
 
 
