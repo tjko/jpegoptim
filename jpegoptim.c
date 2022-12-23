@@ -614,7 +614,7 @@ retry_point:
 	}
 
 	/* prepare to decompress */
-	if (stdin_mode) {
+	if (stdin_mode || stdout_mode) {
 		if (inbuffer)
 			free(inbuffer);
 		inbuffersize=65536;
