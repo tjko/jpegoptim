@@ -155,6 +155,7 @@ void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
 	src->pub.init_source = custom_init_source;
 	src->pub.fill_input_buffer = custom_fill_input_buffer;
 	src->pub.resync_to_restart = jpeg_resync_to_restart;
+	src->pub.skip_input_data = custom_skip_input_data;
 	src->pub.term_source = custom_term_source;
 	src->infile = infile;
 	src->pub.bytes_in_buffer = 0;
