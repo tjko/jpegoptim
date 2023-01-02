@@ -119,7 +119,7 @@ int save_xmp = 1;
 int save_adobe = 0;
 int save_jfxx = 0;
 int strip_none = 0;
-int threshold = -1;
+double threshold = -1.0;
 int csv = 0;
 int all_normal = 0;
 int all_progressive = 0;
@@ -392,8 +392,8 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 			break;
 		case 'T':
 		{
-			int tmpvar;
-			if (sscanf(optarg,"%d",&tmpvar) == 1) {
+			double tmpvar;
+			if (sscanf(optarg,"%lf", &tmpvar) == 1) {
 				threshold=tmpvar;
 				if (threshold < 0) threshold=0;
 				if (threshold > 100) threshold=100;
@@ -404,7 +404,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 		case 'S':
 		{
 			unsigned int tmpvar;
-			if (sscanf(optarg,"%u",&tmpvar) == 1) {
+			if (sscanf(optarg,"%u", &tmpvar) == 1) {
 				if (tmpvar > 0 && tmpvar < 100 &&
 					optarg[strlen(optarg)-1] == '%' ) {
 					target_size=-tmpvar;
@@ -1197,10 +1197,10 @@ int main(int argc, char **argv)
 	log_fh = (stdout_mode ? stderr : stdout);
 
 	if (verbose_mode) {
-		if (quality>=0 && target_size==0)
+		if (quality >= 0 && target_size == 0)
 			fprintf(log_fh, "Image quality limit set to: %d\n", quality);
-		if (threshold>=0)
-			fprintf(log_fh, "Compression threshold (%%) set to: %d\n", threshold);
+		if (threshold >= 0)
+			fprintf(log_fh, "Compression threshold (%%) set to: %0.1lf\n", threshold);
 		if (all_normal)
 			fprintf(log_fh, "All output files will be non-progressive\n");
 		if (all_progressive)
