@@ -1,5 +1,5 @@
 
-Jpegoptim v1.5.1beta - Copyright (C)  Timo Kokkonen, 1996-2022. All Rights Reserved.
+Jpegoptim v1.5.1 - Copyright (C)  Timo Kokkonen, 1996-2023. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -9,8 +9,7 @@ REQUIREMENTS
 
 TESTED PLATFORMS
 	Linux
-	Solaris 
-	Darwin/OS X j
+	MacOS
 	Windows (setargv.obj "link option" is needed for wildcards expansion to work)
 
 
@@ -29,7 +28,10 @@ INSTALLATION
 
 HISTORY
         v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta,
-	         some minor fixes
+	         update --treshold option accept decimal numbers as parameter,
+		 fix crashes when processing certain broken JPEG images,
+		 fix memory leaks,
+		 fix (logging) output in parallel processing mode
         v1.5.0 - add --workers=<max> option to enable parallel processing
 	         fix --stdin option,
                  other minor fixes
@@ -125,5 +127,5 @@ Special thanks for following Github Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-02-Nov-2022
+04-Jan-2023
 

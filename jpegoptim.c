@@ -63,8 +63,8 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.5.1beta"
-#define COPYRIGHT  "Copyright (C) 1996-2022, Timo Kokkonen"
+#define VERSIO "1.5.1"
+#define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING
