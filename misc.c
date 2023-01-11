@@ -42,8 +42,11 @@ int delete_file(const char *name)
 {
 	int retval;
 
-	if (!name) return -1;
-	if (verbose_mode > 1 && !quiet_mode) fprintf(stderr,"deleting: %s\n",name);
+	if (!name)
+		return -1;
+
+	if (verbose_mode > 1 && !quiet_mode)
+		fprintf(stderr,"deleting: %s\n",name);
 	if ((retval=unlink(name)) && !quiet_mode)
 		warn("error removing file: %s",name);
 
@@ -55,8 +58,11 @@ long file_size(FILE *fp)
 {
 	struct stat buf;
 
-	if (!fp) return -1;
-	if (fstat(fileno(fp),&buf)) return -2;
+	if (!fp)
+		return -1;
+	if (fstat(fileno(fp),&buf) != 0)
+		return -2;
+
 	return (long)buf.st_size;
 }
 
@@ -65,10 +71,13 @@ int is_directory(const char *pathname)
 {
 	struct stat buf;
 
-	if (!pathname) return 0;
-	if (stat(pathname,&buf) != 0) return 0;
-	if (S_ISDIR(buf.st_mode)) return 1;
-	return 0;
+	if (!pathname)
+		return 0;
+
+	if (stat(pathname,&buf) != 0)
+		return 0;
+
+	return (S_ISDIR(buf.st_mode) ? 1 : 0);
 }
 
 
@@ -76,11 +85,15 @@ int is_file(const char *filename, struct stat *st)
 {
 	struct stat buf;
 
-	if (!filename) return 0;
-	if (lstat(filename,&buf) != 0) return 0;
-	if (st) *st=buf;
-	if (S_ISREG(buf.st_mode)) return 1;
-	return 0;
+	if (!filename)
+		return 0;
+
+	if (lstat(filename,&buf) != 0)
+		return 0;
+	if (st)
+		*st=buf;
+
+	return (S_ISREG(buf.st_mode) ? 1 : 0);
 }
 
 
@@ -88,17 +101,20 @@ int file_exists(const char *pathname)
 {
 	struct stat buf;
 
-	if (!pathname) return 0;
-	if (stat(pathname,&buf) != 0) return 0;
-	return 1;
+	if (!pathname)
+		return 0;
+
+	return (stat(pathname,&buf) == 0 ? 1 : 0);
 }
 
 
 int rename_file(const char *old_path, const char *new_path)
 {
-	if (!old_path || !new_path) return -1;
+	if (!old_path || !new_path)
+		return -1;
 #ifdef WIN32
-	if (file_exists(new_path)) delete_file(new_path);
+	if (file_exists(new_path))
+		delete_file(new_path);
 #endif
 	return rename(old_path,new_path);
 }
@@ -113,7 +129,8 @@ int copy_file(const char *srcfile, const char *dstfile)
 	int r,w;
 	int err=0;
 
-	if (!srcfile || !dstfile) return -1;
+	if (!srcfile || !dstfile)
+		return -1;
 
 	in=fopen(srcfile,"rb");
 	if (!in) {
@@ -157,11 +174,15 @@ char *splitdir(const char *pathname, char *buf, int buflen)
 	char *s = NULL;
 	int size = 0;
 
-	if (!pathname || !buf || buflen < 2) return NULL;
+	if (!pathname || !buf || buflen < 2)
+		return NULL;
 
-	if ((s = strrchr(pathname,DIR_SEPARATOR_C))) size = (s-pathname)+1;
-	if (size >= buflen) return NULL;
-	if (size > 0) memcpy(buf,pathname,size);
+	if ((s = strrchr(pathname,DIR_SEPARATOR_C)))
+		size = (s-pathname)+1;
+	if (size >= buflen)
+		return NULL;
+	if (size > 0)
+		memcpy(buf,pathname,size);
 	buf[size]=0;
 
 	return buf;
@@ -173,7 +194,8 @@ char *splitname(const char *pathname, char *buf, int buflen)
 	const char *s = NULL;
 	int size = 0;
 
-	if (!pathname || !buf || buflen < 2) return NULL;
+	if (!pathname || !buf || buflen < 2)
+		return NULL;
 
 	if ((s = strrchr(pathname,DIR_SEPARATOR_C))) {
 		s++;
@@ -181,12 +203,43 @@ char *splitname(const char *pathname, char *buf, int buflen)
 		s=pathname;
 	}
 
-	size=strlen(s);
-	if (size >= buflen) return NULL;
-	if (size > 0) memcpy(buf,s,size);
+	size = strlen(s);
+	if (size >= buflen)
+		return NULL;
+	if (size > 0)
+		memcpy(buf,s,size);
 	buf[size]=0;
 
 	return buf;
+}
+
+
+char *strncopy(char *dst, const char *src, size_t size)
+{
+	if (!dst || !src || size < 1)
+		return dst;
+
+	if (size > 1)
+		strncpy(dst, src, size - 1);
+	dst[size - 1] = 0;
+
+	return dst;
+}
+
+
+char *strncatenate(char *dst, const char *src, size_t size)
+{
+	int used, free;
+
+	if (!dst || !src || size < 1)
+		return dst;
+
+	/* Check if dst string is already "full" ... */
+	used = strnlen(dst, size);
+	if ((free = size - used) <= 1)
+		return dst;
+
+	return strncat(dst + used, src, free - 1);
 }
 
 

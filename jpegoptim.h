@@ -100,6 +100,8 @@ int rename_file(const char *old_path, const char *new_path);
 int copy_file(const char *srcname, const char *dstname);
 char *splitdir(const char *pathname, char *buf, int buflen);
 char *splitname(const char *pathname, char *buf, int buflen);
+char *strncopy(char *dst, const char *src, size_t size);
+char *strncatenate(char *dst, const char *src, size_t size);
 void fatal(const char *format, ...);
 void warn(const char *format, ...);
 

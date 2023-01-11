@@ -79,8 +79,6 @@
 		buf=NULL;				\
 	}
 
-#define STRNCPY(dest,src,n) { strncpy(dest,src,n); dest[n-1]=0; }
-
 struct my_error_mgr {
 	struct jpeg_error_mgr pub;
 	jmp_buf setjmp_buffer;
@@ -205,14 +203,14 @@ METHODDEF(void) my_output_message (j_common_ptr cinfo)
 {
 	char buffer[JMSG_LENGTH_MAX+1];
 
-	(*cinfo->err->format_message)((j_common_ptr)cinfo,buffer);
-	buffer[sizeof(buffer)-1]=0;
+	(*cinfo->err->format_message)((j_common_ptr)cinfo, buffer);
+	buffer[sizeof(buffer)-1] = 0;
 
 	if (verbose_mode)
-		fprintf(jpeg_log_fh," (%s) ",buffer);
+		fprintf(jpeg_log_fh, " (%s) ", buffer);
 
 	global_error_counter++;
-	strncpy(last_error,buffer,sizeof(last_error));
+	strncopy(last_error, buffer, sizeof(last_error));
 }
 
 
@@ -337,7 +335,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
-			strncat(dest_path,DIR_SEPARATOR_S,sizeof(dest_path)-strlen(dest_path)-1);
+			strncatenate(dest_path, DIR_SEPARATOR_S, sizeof(dest_path));
 
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
@@ -643,25 +641,25 @@ retry_point:
 		if (cmarker->marker == EXIF_JPEG_MARKER &&
 			cmarker->data_length >= EXIF_IDENT_STRING_SIZE &&
 			!memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
-			strncat(marker_str,"Exif ",sizeof(marker_str)-strlen(marker_str)-1);
+			strncatenate(marker_str, "Exif ", sizeof(marker_str));
 
 		if (cmarker->marker == IPTC_JPEG_MARKER)
-			strncat(marker_str,"IPTC ",sizeof(marker_str)-strlen(marker_str)-1);
+			strncatenate(marker_str, "IPTC ", sizeof(marker_str));
 
 		if (cmarker->marker == ICC_JPEG_MARKER &&
 			cmarker->data_length >= ICC_IDENT_STRING_SIZE &&
 			!memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
-			strncat(marker_str,"ICC ",sizeof(marker_str)-strlen(marker_str)-1);
+			strncatenate(marker_str, "ICC ", sizeof(marker_str));
 
 		if (cmarker->marker == XMP_JPEG_MARKER &&
 			cmarker->data_length >= XMP_IDENT_STRING_SIZE &&
 			!memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
-			strncat(marker_str,"XMP ",sizeof(marker_str)-strlen(marker_str)-1);
+			strncatenate(marker_str, "XMP ", sizeof(marker_str));
 
 		if (cmarker->marker == JFXX_JPEG_MARKER &&
 			cmarker->data_length >= JFXX_IDENT_STRING_SIZE &&
 			!memcmp(cmarker->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE))
-			strncat(marker_str,"JFXX ",sizeof(marker_str)-strlen(marker_str)-1);
+			strncatenate(marker_str, "JFXX ", sizeof(marker_str));
 
 		cmarker=cmarker->next;
 	}
@@ -1249,15 +1247,15 @@ int main(int argc, char **argv)
 		if (!noaction) {
 			/* generate tmp dir & new filename */
 			if (dest) {
-				STRNCPY(tmpdir, dest_path, sizeof(tmpdir));
-				STRNCPY(newname, dest_path, sizeof(newname));
+				strncopy(tmpdir, dest_path, sizeof(tmpdir));
+				strncopy(newname, dest_path, sizeof(newname));
 				if (!splitname(filename, tmpfilename, sizeof(tmpfilename)))
 					fatal("splitname() failed for: %s", filename);
-				strncat(newname, tmpfilename, sizeof(newname)-strlen(newname)-1);
+				strncatenate(newname, tmpfilename, sizeof(newname));
 			} else {
 				if (!splitdir(filename, tmpdir, sizeof(tmpdir)))
 					fatal("splitdir() failed for: %s", filename);
-				STRNCPY(newname, filename, sizeof(newname));
+				strncopy(newname, filename, sizeof(newname));
 			}
 		}
 
