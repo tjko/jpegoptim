@@ -243,6 +243,18 @@ char *strncatenate(char *dst, const char *src, size_t size)
 }
 
 
+char *str_add_list(char *dst, size_t size, const char *src, const char *delim)
+{
+	if (!dst || !src || !delim || size < 1)
+		return dst;
+
+	if (strnlen(dst, size) > 0)
+		strncatenate(dst, delim, size);
+
+	return strncatenate(dst, src, size);
+}
+
+
 void fatal(const char *format, ...)
 {
 	va_list args;

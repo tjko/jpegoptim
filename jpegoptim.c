@@ -63,7 +63,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.5.1"
+#define VERSIO "1.5.2beta"
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
@@ -85,6 +85,7 @@ struct my_error_mgr {
 	int     jump_set;
 };
 typedef struct my_error_mgr * my_error_ptr;
+
 
 #ifdef HAVE_FORK
 struct worker {
@@ -191,9 +192,9 @@ METHODDEF(void)	my_error_exit (j_common_ptr cinfo)
 {
 	my_error_ptr myerr = (my_error_ptr)cinfo->err;
 
-	(*cinfo->err->output_message) (cinfo);
+	(*cinfo->err->output_message)(cinfo);
 	if (myerr->jump_set)
-		longjmp(myerr->setjmp_buffer,1);
+		longjmp(myerr->setjmp_buffer, 1);
 	else
 		fatal("fatal error");
 }
@@ -204,7 +205,7 @@ METHODDEF(void) my_output_message (j_common_ptr cinfo)
 	char buffer[JMSG_LENGTH_MAX+1];
 
 	(*cinfo->err->format_message)((j_common_ptr)cinfo, buffer);
-	buffer[sizeof(buffer)-1] = 0;
+	buffer[sizeof(buffer) - 1] = 0;
 
 	if (verbose_mode)
 		fprintf(jpeg_log_fh, " (%s) ", buffer);
@@ -283,8 +284,7 @@ void print_usage(void)
 
 void print_version()
 {
-	struct jpeg_error_mgr jcerr, *err;
-
+	struct jpeg_error_mgr jerr;
 
 #ifdef  __DATE__
 	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSIO,HOST_TYPE,__DATE__);
@@ -296,12 +296,12 @@ void print_version()
 		"and you are welcome to redistirbute it under certain conditions.\n"
 		"See the GNU General Public License for more details.\n\n");
 
-	if (!(err=jpeg_std_error(&jcerr)))
+	if (!jpeg_std_error(&jerr))
 		fatal("jpeg_std_error() failed");
 
 	printf("\nlibjpeg version: %s\n%s\n",
-		err->jpeg_message_table[JMSG_VERSION],
-		err->jpeg_message_table[JMSG_COPYRIGHT]);
+		jerr.jpeg_message_table[JMSG_VERSION],
+		jerr.jpeg_message_table[JMSG_COPYRIGHT]);
 }
 
 
@@ -527,19 +527,89 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 }
 
 
+unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
+			char *str, unsigned int str_size, unsigned int *markers_total_size)
+{
+	jpeg_saved_marker_ptr m;
+	unsigned int count = 0;
+	int exif_seen = 0;
+	int iptc_seen = 0;
+	int icc_seen = 0;
+	int xmp_seen = 0;
+	int jfxx_seen = 0;
+	int com_seen = 0;
+
+	m = dinfo->marker_list;
+	str[0] = 0;
+	*markers_total_size = 0;
+
+	while (m) {
+		count++;
+		*markers_total_size += m->data_length;
+
+		if (m->marker == EXIF_JPEG_MARKER && !exif_seen &&
+			m->data_length >= EXIF_IDENT_STRING_SIZE &&
+			!memcmp(m->data, EXIF_IDENT_STRING, EXIF_IDENT_STRING_SIZE)) {
+			str_add_list(str, str_size, "Exif", ",");
+			exif_seen = 1;
+		}
+
+		if (m->marker == IPTC_JPEG_MARKER && !iptc_seen) {
+			str_add_list(str, str_size, "IPTC", ",");
+			iptc_seen = 1;
+		}
+
+		if (m->marker == ICC_JPEG_MARKER && !icc_seen &&
+			m->data_length >= ICC_IDENT_STRING_SIZE &&
+			!memcmp(m->data, ICC_IDENT_STRING, ICC_IDENT_STRING_SIZE)) {
+			str_add_list(str, str_size, "ICC", ",");
+			icc_seen = 1;
+		}
+
+		if (m->marker == XMP_JPEG_MARKER && !xmp_seen &&
+			m->data_length >= XMP_IDENT_STRING_SIZE &&
+			!memcmp(m->data, XMP_IDENT_STRING, XMP_IDENT_STRING_SIZE)) {
+			str_add_list(str, str_size, "XMP", ",");
+			xmp_seen = 1;
+		}
+
+		if (m->marker == JFXX_JPEG_MARKER && !jfxx_seen &&
+			m->data_length >= JFXX_IDENT_STRING_SIZE &&
+			!memcmp(m->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE)) {
+			str_add_list(str, str_size, "JFXX", ",");
+			jfxx_seen = 1;
+		}
+
+		if (m->marker == JPEG_COM && !com_seen) {
+			str_add_list(str, str_size, "COM", ",");
+			com_seen = 1;
+		}
+
+		m = m->next;
+	}
+
+	if (dinfo->saw_Adobe_marker)
+		str_add_list(str, str_size, "Adobe ", ",");
+	if (dinfo->saw_JFIF_marker)
+		str_add_list(str, str_size, "JFIF ", ",");
+
+	return count;
+}
+
+
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
 	double *rate, double *saved)
 {
-	FILE *infile = NULL, *outfile = NULL;
+	FILE *infile = NULL;
+	FILE *outfile = NULL;
 	const char *outfname = NULL;
 	char tmpfilename[MAXPATHLEN];
 	struct jpeg_decompress_struct dinfo;
 	struct jpeg_compress_struct cinfo;
-	struct my_error_mgr jcerr,jderr;
+	struct my_error_mgr jcerr, jderr;
 	JSAMPARRAY buf = NULL;
 
-	jpeg_saved_marker_ptr cmarker;
 	unsigned char *outbuffer = NULL;
 	size_t outbuffersize = 0;
 	unsigned char *inbuffer = NULL;
@@ -548,7 +618,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
-	int marker_in_count, marker_in_size;
+	unsigned int marker_in_count, marker_in_size;
 
 	long insize = 0, outsize = 0, lastsize = 0;
 	long inpos;
@@ -559,14 +629,14 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 
 	jpeg_log_fh = log_fh;
 
-	/* initialize decompression object */
+	/* Initialize decompression object */
 	dinfo.err = jpeg_std_error(&jderr.pub);
 	jpeg_create_decompress(&dinfo);
 	jderr.pub.error_exit=my_error_exit;
 	jderr.pub.output_message=my_output_message;
 	jderr.jump_set = 0;
 
-	/* initialize compression object */
+	/* Initialize compression object */
 	cinfo.err = jpeg_std_error(&jcerr.pub);
 	jpeg_create_compress(&cinfo);
 	jcerr.pub.error_exit=my_error_exit;
@@ -591,7 +661,7 @@ retry_point:
 	}
 
 	if (setjmp(jderr.setjmp_buffer)) {
-		/* error handler for decompress */
+		/* Error handler for decompress */
 	abort_decompress:
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
@@ -611,7 +681,7 @@ retry_point:
 		fflush(log_fh);
 	}
 
-	/* prepare to decompress */
+	/* Prepare to decompress */
 	if (stdin_mode || stdout_mode) {
 		if (inbuffer)
 			free(inbuffer);
@@ -628,69 +698,33 @@ retry_point:
 	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
 	jpeg_read_header(&dinfo, TRUE);
 
-	/* check for Exif/IPTC/ICC/XMP markers */
-	marker_str[0]=0;
-	marker_in_count=0;
-	marker_in_size=0;
-	cmarker=dinfo.marker_list;
-
-	while (cmarker) {
-		marker_in_count++;
-		marker_in_size+=cmarker->data_length;
-
-		if (cmarker->marker == EXIF_JPEG_MARKER &&
-			cmarker->data_length >= EXIF_IDENT_STRING_SIZE &&
-			!memcmp(cmarker->data,EXIF_IDENT_STRING,EXIF_IDENT_STRING_SIZE))
-			strncatenate(marker_str, "Exif ", sizeof(marker_str));
-
-		if (cmarker->marker == IPTC_JPEG_MARKER)
-			strncatenate(marker_str, "IPTC ", sizeof(marker_str));
-
-		if (cmarker->marker == ICC_JPEG_MARKER &&
-			cmarker->data_length >= ICC_IDENT_STRING_SIZE &&
-			!memcmp(cmarker->data,ICC_IDENT_STRING,ICC_IDENT_STRING_SIZE))
-			strncatenate(marker_str, "ICC ", sizeof(marker_str));
-
-		if (cmarker->marker == XMP_JPEG_MARKER &&
-			cmarker->data_length >= XMP_IDENT_STRING_SIZE &&
-			!memcmp(cmarker->data,XMP_IDENT_STRING,XMP_IDENT_STRING_SIZE))
-			strncatenate(marker_str, "XMP ", sizeof(marker_str));
-
-		if (cmarker->marker == JFXX_JPEG_MARKER &&
-			cmarker->data_length >= JFXX_IDENT_STRING_SIZE &&
-			!memcmp(cmarker->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE))
-			strncatenate(marker_str, "JFXX ", sizeof(marker_str));
-
-		cmarker=cmarker->next;
-	}
-
-
+	/* Check for Exif/IPTC/ICC/XMP markers */
+	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),
+					&marker_in_size);
 	if (verbose_mode > 1) {
 		fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
 			marker_in_count,marker_in_size);
 		fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
 	}
+
+
 	if (!retry && (!quiet_mode || csv)) {
 		fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 			(int)dinfo.image_height,(int)dinfo.num_components*8,
 			(dinfo.progressive_mode?'P':'N'));
-
-		if (!csv) {
+		if (!csv)
 			fprintf(log_fh,"%s",marker_str);
-			if (dinfo.saw_Adobe_marker) fprintf(log_fh,"Adobe ");
-			if (dinfo.saw_JFIF_marker) fprintf(log_fh,"JFIF ");
-		}
 		fflush(log_fh);
 	}
 
 	if ((insize=file_size(infile)) < 0)
 		fatal("failed to stat() input file");
 
-	/* decompress the file */
+	/* Decompress the image */
 	if (quality >= 0 && !retry) {
 		jpeg_start_decompress(&dinfo);
 
-		/* allocate line buffer to store the decompressed image */
+		/* Allocate line buffer to store the decompressed image */
 		buf = malloc(sizeof(JSAMPROW)*dinfo.output_height);
 		if (!buf) fatal("not enough memory");
 		for (j=0;j<dinfo.output_height;j++) {
@@ -730,7 +764,7 @@ retry_point:
 		insize = inbufferused;
 
 	if (nofix_mode && global_error_counter != 0) {
-		/* skip files containing any errors (warnings) */
+		/* Skip files containing any errors (or warnings) */
 		goto abort_decompress;
 	}
 
@@ -744,7 +778,7 @@ retry_point:
 
 
 	if (setjmp(jcerr.setjmp_buffer)) {
-		/* error handler for compress failures */
+		/* Error handler for compress failures */
 		jpeg_abort_compress(&cinfo);
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
@@ -764,14 +798,14 @@ retry_point:
 	searchdone = 0;
 	oldquality = 200;
 	if (target_size != 0) {
-		/* always start with quality 100 if -S option specified... */
+		/* Always start with quality 100 if -S option specified... */
 		quality = 100;
 	}
 
 
 binary_search_loop:
 
-	/* allocate memory buffer that should be large enough to store the output JPEG... */
+	/* Allocate memory buffer that should be large enough to store the output JPEG... */
 	if (outbuffer)
 		free(outbuffer);
 	outbuffersize=insize + 32768;
@@ -784,7 +818,7 @@ binary_search_loop:
 
 
 	if (quality >= 0 && !retry) {
-		/* lossy "optimization" ... */
+		/* Lossy "optimization" ... */
 
 		cinfo.in_color_space=dinfo.out_color_space;
 		cinfo.input_components=dinfo.output_components;
@@ -816,17 +850,17 @@ binary_search_loop:
 		j=0;
 		jpeg_start_compress(&cinfo,TRUE);
 
-		/* write markers */
+		/* Write markers */
 		write_markers(&dinfo,&cinfo);
 
-		/* write image */
+		/* Write image */
 		while (cinfo.next_scanline < cinfo.image_height) {
 			jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
 					dinfo.output_height);
 		}
 
 	} else {
-		/* lossless "optimization" ... */
+		/* Lossless optimization ... */
 
 		jpeg_copy_critical_parameters(&dinfo, &cinfo);
 #ifdef HAVE_JINT_DC_SCAN_OPT_MODE
@@ -850,10 +884,10 @@ binary_search_loop:
 			cinfo.write_JFIF_header = FALSE;
 		}
 
-		/* write image */
+		/* Write image */
 		jpeg_write_coefficients(&cinfo, coef_arrays);
 
-		/* write markers */
+		/* Write markers */
 		write_markers(&dinfo,&cinfo);
 
 	}
@@ -862,7 +896,7 @@ binary_search_loop:
 	outsize=outbuffersize;
 
 	if (target_size != 0 && !retry) {
-		/* perform (binary) search to try to reach target file size... */
+		/* Perform (binary) search to try to reach target file size... */
 
 		long osize = outsize/1024;
 		long isize = insize/1024;
