@@ -63,7 +63,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSIO "1.5.2beta"
+#define VERSION "1.5.2beta"
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
@@ -128,12 +128,14 @@ int arith_mode = -1;
 #endif
 int max_workers = 1;
 int nofix_mode = 0;
+int files_stdin = 0;
+FILE *files_from = NULL;
 
 int compress_err_count = 0;
 int decompress_err_count = 0;
 int global_error_counter = 0;
 char last_error[JMSG_LENGTH_MAX+1];
-FILE* jpeg_log_fh;
+FILE *jpeg_log_fh;
 long average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
@@ -174,6 +176,8 @@ struct option long_options[] = {
 	{"size",1,0,'S'},
 	{"stdout",0,&stdout_mode,1},
 	{"stdin",0,&stdin_mode,1},
+	{"files-stdin",0,&files_stdin,1},
+	{"files-from",1,0,'F'},
 #ifdef HAVE_ARITH_CODE
 	{"all-arith",0,&arith_mode,1},
 	{"all-huffman",0,&arith_mode,0},
@@ -217,7 +221,7 @@ METHODDEF(void) my_output_message (j_common_ptr cinfo)
 
 void print_usage(void)
 {
-	fprintf(stderr,PROGRAMNAME " v" VERSIO "  " COPYRIGHT "\n");
+	fprintf(stderr,PROGRAMNAME " v" VERSION "  " COPYRIGHT "\n");
 
 	fprintf(stderr,
 		"Usage: " PROGRAMNAME " [options] <filenames> \n\n"
@@ -239,7 +243,7 @@ void print_usage(void)
 		"                    keep old file if the gain is below a threshold (%%)\n"
 #ifdef PARALLEL_PROCESSING
 		"  -w<max>, --workers=<max>\n"
-		"                    set mximum number of parellel threads (default is 1)\n"
+		"                    set mximum number of parallel threads (default is 1)\n"
 #endif
 		"  -b, --csv         print progress info in CSV format\n"
 		"  -o, --overwrite   overwrite target file even if it exists (meaningful\n"
@@ -277,6 +281,8 @@ void print_usage(void)
 #endif
 		"  --stdout          send output to standard output (instead of a file)\n"
 		"  --stdin           read input from standard input (instead of a file)\n"
+		"  --files-stdin     Read names of files to process from stdin\n"
+		"  --files-from=FILE Read names of files to process from a file\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
 		"\n\n");
 }
@@ -287,13 +293,13 @@ void print_version()
 	struct jpeg_error_mgr jerr;
 
 #ifdef  __DATE__
-	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSIO,HOST_TYPE,__DATE__);
+	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSION,HOST_TYPE,__DATE__);
 #else
-	printf(PROGRAMNAME " v%s  %s\n",VERSIO,HOST_TYPE);
+	printf(PROGRAMNAME " v%s  %s\n",VERSION,HOST_TYPE);
 #endif
 	printf(COPYRIGHT "\n\n");
 	printf("This program comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
-		"and you are welcome to redistirbute it under certain conditions.\n"
+		"and you are welcome to redistribute it under certain conditions.\n"
 		"See the GNU General Public License for more details.\n\n");
 
 	if (!jpeg_std_error(&jerr))
@@ -317,68 +323,79 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 			break;
 
 		switch (c) {
-		case 'm':
-		{
-			int tmpvar;
 
-			if (sscanf(optarg,"%d",&tmpvar) == 1) {
-				quality=tmpvar;
-				if (quality < 0) quality=0;
-				if (quality > 100) quality=100;
+		case 'm':
+		        {
+				int tmpvar;
+
+				if (sscanf(optarg,"%d",&tmpvar) == 1) {
+					quality=tmpvar;
+					if (quality < 0) quality=0;
+					if (quality > 100) quality=100;
+				}
+				else
+					fatal("invalid argument for -m, --max");
 			}
-			else
-				fatal("invalid argument for -m, --max");
-		}
-		break;
+			break;
+
 		case 'd':
 			if (realpath(optarg,dest_path)==NULL)
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
 			strncatenate(dest_path, DIR_SEPARATOR_S, sizeof(dest_path));
-
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
 			dest=1;
 			break;
+
 		case 'v':
 			verbose_mode++;
 			break;
+
 		case 'h':
 			print_usage();
 			exit(0);
 			break;
+
 		case 'q':
 			quiet_mode=1;
 			break;
+
 		case 't':
 			totals_mode=1;
 			break;
+
 		case 'n':
 			noaction=1;
 			break;
+
 		case 'f':
 			force=1;
 			break;
+
 		case 'b':
 			csv=1;
 			quiet_mode=1;
 			break;
-		case '?':
-			exit(1);
+
 		case 'V':
 			print_version();
 			exit(0);
 			break;
+
 		case 'o':
 			overwrite_mode=1;
 			break;
+
 		case 'p':
 			preserve_mode=1;
 			break;
+
 		case 'P':
 			preserve_perms=1;
 			break;
+
 		case 's':
 			save_exif=0;
 			save_iptc=0;
@@ -388,44 +405,64 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 			save_adobe=0;
 			save_jfxx=0;
 			break;
+
 		case 'T':
-		{
-			double tmpvar;
-			if (sscanf(optarg,"%lf", &tmpvar) == 1) {
-				threshold=tmpvar;
-				if (threshold < 0) threshold=0;
-				if (threshold > 100) threshold=100;
-			}
-			else fatal("invalid argument for -T, --threshold");
-		}
-		break;
-		case 'S':
-		{
-			unsigned int tmpvar;
-			if (sscanf(optarg,"%u", &tmpvar) == 1) {
-				if (tmpvar > 0 && tmpvar < 100 &&
-					optarg[strlen(optarg)-1] == '%' ) {
-					target_size=-tmpvar;
-				} else {
-					target_size=tmpvar;
+		        {
+				double tmpvar;
+				if (sscanf(optarg,"%lf", &tmpvar) == 1) {
+					threshold=tmpvar;
+					if (threshold < 0) threshold=0;
+					if (threshold > 100) threshold=100;
 				}
-				quality=100;
+				else fatal("invalid argument for -T, --threshold");
 			}
-			else fatal("invalid argument for -S, --size");
-		}
-		break;
+			break;
+
+		case 'S':
+		        {
+				unsigned int tmpvar;
+				if (sscanf(optarg,"%u", &tmpvar) == 1) {
+					if (tmpvar > 0 && tmpvar < 100 &&
+						optarg[strlen(optarg)-1] == '%' ) {
+						target_size=-tmpvar;
+					} else {
+						target_size=tmpvar;
+					}
+					quality=100;
+				}
+				else fatal("invalid argument for -S, --size");
+			}
+			break;
+
 #ifdef PARALLEL_PROCESSING
 		case 'w':
-		{
-			int tmpvar;
-			if (sscanf(optarg, "%d", &tmpvar) == 1) {
-				if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
-					max_workers = tmpvar;
+		        {
+				int tmpvar;
+				if (sscanf(optarg, "%d", &tmpvar) == 1) {
+					if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
+						max_workers = tmpvar;
+				}
+				else fatal("invalid argument for -w, --workers");
 			}
-			else fatal("invalid argument for -w, --workers");
-		}
-		break;
+			break;
 #endif
+
+		case 'F':
+		        {
+				if (optarg[0] == '-' && optarg[1] == 0) {
+					files_stdin = 1;
+					break;
+				}
+				if (!is_file(optarg, NULL))
+					fatal("argument for --files-from must be a file");
+				if ((files_from = fopen(optarg, "r")) == NULL)
+					fatal("cannot open file: '%s'", optarg);
+			}
+			break;
+
+		case '?':
+			exit(1);
+
 		}
 	}
 
@@ -443,6 +480,12 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 
 	if (all_normal && all_progressive)
 		fatal("cannot specify both --all-normal and --all-progressive");
+
+	if (files_stdin)
+		files_from = stdin;
+
+	if (stdin_mode && files_from == stdin)
+		fatal("cannot specify both --stdin and --files-stdin");
 }
 
 
@@ -1133,7 +1176,7 @@ int wait_for_worker(FILE *log_fh)
 		}
 	}
 	if (!w)
-		fatal("Unknow worker[%d] process found\n", pid);
+		fatal("Unknown worker[%d] process found\n", pid);
 
 	if (WIFEXITED(wstatus)) {
 		e = WEXITSTATUS(wstatus);
@@ -1198,8 +1241,9 @@ int wait_for_worker(FILE *log_fh)
 int main(int argc, char **argv)
 {
 	struct stat file_stat;
-	char tmpfilename[MAXPATHLEN],tmpdir[MAXPATHLEN];
-	char newname[MAXPATHLEN], dest_path[MAXPATHLEN];
+	char tmpfilename[MAXPATHLEN + 1],tmpdir[MAXPATHLEN + 1];
+	char newname[MAXPATHLEN + 1], dest_path[MAXPATHLEN + 1];
+	char namebuf[MAXPATHLEN + 2];
 	const char *filename;
 	volatile int i;
 	int res;
@@ -1211,7 +1255,7 @@ int main(int argc, char **argv)
 	pid_t pid;
 	int j;
 
-	/* allocate table to keep track of child processes... */
+	/* Allocate table to keep track of child processes... */
 	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
 		fatal("not enough memory");
 	for (i = 0; i < MAX_WORKERS; i++) {
@@ -1224,7 +1268,7 @@ int main(int argc, char **argv)
 	signal(SIGINT,own_signal_handler);
 	signal(SIGTERM,own_signal_handler);
 
-	/* parse command line parameters */
+	/* Parse command line parameters */
 	parse_arguments(argc, argv, dest_path);
 	log_fh = (stdout_mode ? stderr : stdout);
 
@@ -1251,13 +1295,13 @@ int main(int argc, char **argv)
 
 
 	if (stdin_mode) {
-		/* process just one file, if source is stdin... */
+		/* Process just one file, if source is stdin... */
 		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL);
 		return (res == 0 ? 0 : 1);
 	}
 
 	i=(optind > 0 ? optind : 1);
-	if (argc <= i) {
+	if (files_from == NULL && argc <= i) {
 		if (!quiet_mode)
 			fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
 				"Try '" PROGRAMNAME " --help' for more information.\n");
@@ -1265,15 +1309,21 @@ int main(int argc, char **argv)
 	}
 
 
-	/* loop to process the input files */
+	/* Main loop to process input files */
 	do {
-		filename = argv[i];
+		if (files_from) {
+			if (!fgetstr(namebuf, sizeof(namebuf), files_from))
+				break;
+			filename = namebuf;
+		} else {
+			filename = argv[i];
+		}
 
-		if (i >= argc || filename[0] == 0)
+		if (*filename == 0)
 			continue;
 		if (verbose_mode > 1)
 			fprintf(log_fh, "processing file: %s\n", filename);
-		if (strlen(filename) >= MAXPATHLEN) {
+		if (strnlen(filename, MAXPATHLEN + 1) > MAXPATHLEN) {
 			warn("skipping too long filename: %s", filename);
 			continue;
 		}
@@ -1320,7 +1370,7 @@ int main(int argc, char **argv)
 			if (pid < 0)
 				fatal("fork() failed");
 			if (pid == 0) {
-				/* child process starts here... */
+				/* Child process starts here... */
 				close(pipe_fd[0]);
 				FILE *p;
 
@@ -1332,7 +1382,7 @@ int main(int argc, char **argv)
 					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
 				exit(res);
 			} else {
-				/* parent continues here... */
+				/* Parent continues here... */
 				close(pipe_fd[1]);
 
 				w = NULL;
@@ -1368,7 +1418,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-	} while (++i < argc);
+	} while (files_from || ++i < argc);
 
 
 #ifdef PARALLEL_PROCESSING

@@ -101,5 +101,9 @@ install.dirs:
 # a tradition !
 love:	
 	@echo "Not War - Eh?"
+
+spell:
+	codespell -S .git -S tools
+
 # eof
 

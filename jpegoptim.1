@@ -144,14 +144,23 @@ than the input file, then no output original image is passed through unmodified
 .TP 0.6i
 .B --stdin
 Read input image from standard input and send output to standard output (--stdout is
-assumend when this option is used).
+assumed when this option is used).
 When this option is used then only one image is read from standard input.
 Any (other) input files specified on command-line are ignored. 
 Note, if input file '-' is seen on command line then standard input is also assumed.
 
+.TP 0.6i
+.B --files-stdin
+Read names of files to process from standard input. One filename per line.
+
+.TP 0.6i
+.B --files-from=<filename>
+Read names of files to process from a file. One filename per line.
+
+
 .SH METADATA OPTIONS
 .PP
-By default jpetoptim will keep common metadata (JPEG markers) and discard any other (unkown ones).
+By default jpetoptim will keep common metadata (JPEG markers) and discard any other (unknown ones).
 
 Following markers are kept by default:
  - EXIF
@@ -165,7 +174,7 @@ However, Adobe marker is also generated (or omitted) by libjpeg based on the ima
 This behavior depends on libjpeg library version being used. To make sure Adobe marker is preserved
 option --keep-adobe can be used.
 
-To remove additonal markers one or more the --strip-* options can be used.
+To remove additional markers one or more the --strip-* options can be used.
 .PP
 For example:
 	--strip-icc --strip-xmp --strip-com

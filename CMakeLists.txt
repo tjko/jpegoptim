@@ -191,7 +191,7 @@ if(MSVC)
         /Gy;                 # Link per-function
         /W3;                 # Warning level
         /Zi;                 # Emit debug info in a separate PDB
-        /TC;                 # Compile all source files as C source code regardles of extension
+        /TC;                 # Compile all source files as C source code regardless of extension
         /wd4996;             # Suppress deprecation warnings
         ${DEFAULT_CXX_EXCEPTION_HANDLING};
         /GS;                 # Enable security checks against buffer overruns

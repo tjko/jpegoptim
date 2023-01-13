@@ -169,46 +169,62 @@ int copy_file(const char *srcfile, const char *dstfile)
 }
 
 
-char *splitdir(const char *pathname, char *buf, int buflen)
+char *fgetstr(char *s, size_t size, FILE *stream)
 {
-	char *s = NULL;
-	int size = 0;
+	char *p;
 
-	if (!pathname || !buf || buflen < 2)
+	if (!s || size < 1 || !stream)
 		return NULL;
 
-	if ((s = strrchr(pathname,DIR_SEPARATOR_C)))
-		size = (s-pathname)+1;
-	if (size >= buflen)
+	if (!fgets(s, size, stream))
 		return NULL;
-	if (size > 0)
-		memcpy(buf,pathname,size);
-	buf[size]=0;
+
+	p = s + strnlen(s, size) - 1;
+	while ((p >= s) && ((*p == 10) || (*p == 13)))
+		*p--=0;
+
+	return s;
+}
+
+
+char *splitdir(const char *pathname, char *buf, size_t size)
+{
+	char *s;
+	int len = 0;
+
+	if (!pathname || !buf || size < 1)
+		return NULL;
+
+	if ((s = strrchr(pathname, DIR_SEPARATOR_C)))
+		len = (s - pathname) + 1;
+	if (len >= size)
+		return NULL;
+	if (len > 0)
+		memcpy(buf, pathname, len);
+	buf[len] = 0;
 
 	return buf;
 }
 
 
-char *splitname(const char *pathname, char *buf, int buflen)
+char *splitname(const char *pathname, char *buf, size_t size)
 {
 	const char *s = NULL;
-	int size = 0;
+	int len;
 
-	if (!pathname || !buf || buflen < 2)
+	if (!pathname || !buf || size < 1)
 		return NULL;
 
-	if ((s = strrchr(pathname,DIR_SEPARATOR_C))) {
+	if ((s = strrchr(pathname, DIR_SEPARATOR_C)))
 		s++;
-	} else {
+	else
 		s=pathname;
-	}
 
-	size = strlen(s);
-	if (size >= buflen)
+	if ((len = strlen(s)) >= size)
 		return NULL;
-	if (size > 0)
-		memcpy(buf,s,size);
-	buf[size]=0;
+	if (len > 0)
+		memcpy(buf, s, len);
+	buf[len] = 0;
 
 	return buf;
 }

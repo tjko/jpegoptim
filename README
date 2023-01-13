@@ -27,7 +27,9 @@ INSTALLATION
 
 
 HISTORY
-        v1.5.2 - improved JPEG marker reporting,
+        v1.5.2 - add support for reading list of files to process from a file
+	         (--files-from) or from standard input (--files-stdin),
+		 improved JPEG marker reporting,
 	         other minor fixes
         v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta,
 	         improved CMake support (and Github CI stuff) *thanks to Eta,
