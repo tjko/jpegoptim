@@ -1,7 +1,6 @@
 #########################################################################
-# $Id$ 
-# 
 # Makefile for jpegoptim
+#
 #
 Version = 1.5.2
 PKGNAME = jpegoptim
@@ -32,11 +31,14 @@ mandir = @mandir@
 
 
 
-CC        = @CC@ 
+CC        = @CC@
 XCPPFLAGS = @CPPFLAGS@
 CFLAGS    = @CFLAGS@ $(XCPPFLAGS) $(DEFS)
-#CFLAGS	 += -Wall -Wformat -Werror=format-security
-#CFLAGS	 += -fstack-protector --param=ssp-buffer-size=4 -D_FORTIFY_SOURCE=2 -fsanitize=address,undefined
+ifeq ($(CC),gcc)
+CFLAGS	 += -Wall -Wformat -Werror=format-security
+#CFLAGS  += -no-omit-frame-pointer -D_FORTIFY_SOURCE=2
+#CFLAGS	 += -fstack-protector --param=ssp-buffer-size=4 -fsanitize=address,undefined
+endif
 LDFLAGS   = @LDFLAGS@
 LIBS      = @LIBS@
 STRIP     = strip
@@ -51,18 +53,18 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 # should be no reason to modify lines below this
 #########################################################################
 
-DIRNAME = $(shell basename `pwd`) 
+DIRNAME = $(shell basename `pwd`)
 DISTNAME  = $(PKGNAME)-$(Version)
 
 OBJS = $(PKGNAME).o jpegdest.o jpegsrc.o misc.o @GNUGETOPT@
 
-all:	$(PKGNAME) 
+all:	$(PKGNAME)
 
 dssim.o:	dssim.c
 	$(CC) $(CFLAGS) -std=c99 -c
 
-$(PKGNAME):	$(OBJS) 
-	$(CC) $(CFLAGS) -o $(PKGNAME) $(OBJS) $(LDFLAGS) $(LIBS) 
+$(PKGNAME):	$(OBJS)
+	$(CC) $(CFLAGS) -o $(PKGNAME) $(OBJS) $(LDFLAGS) $(LIBS)
 
 
 strip:
@@ -99,11 +101,10 @@ install.dirs:
 	$(INSTALL) -d -m 755 $(DESTDIR)$(bindir)
 
 # a tradition !
-love:	
+love:
 	@echo "Not War - Eh?"
 
 spell:
 	codespell -S .git -S tools
 
 # eof
-
