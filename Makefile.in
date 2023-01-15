@@ -56,7 +56,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 DIRNAME = $(shell basename `pwd`)
 DISTNAME  = $(PKGNAME)-$(Version)
 
-OBJS = $(PKGNAME).o jpegdest.o jpegsrc.o misc.o @GNUGETOPT@
+OBJS = $(PKGNAME).o jpegdest.o jpegsrc.o jpegmarker.o misc.o @GNUGETOPT@
 
 all:	$(PKGNAME)
 

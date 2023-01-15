@@ -60,6 +60,7 @@
 #include <time.h>
 #include <math.h>
 
+#include "jpegmarker.h"
 #include "jpegoptim.h"
 
 
@@ -502,48 +503,38 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 {
 	jpeg_saved_marker_ptr mrk;
 	int write_marker;
+	const char *s_name;
 
 	if (!cinfo || !dinfo)
 		fatal("invalid call to write_markers()");
 
 	mrk=dinfo->marker_list;
 	while (mrk) {
-		write_marker=0;
+		write_marker = 0;
+		s_name = jpeg_special_marker_name(mrk);
 
-		/* check for markers to save... */
+		/* Check for markers to save... */
 
 		if (save_com && mrk->marker == JPEG_COM)
 			write_marker++;
 
-		if (save_iptc && mrk->marker == IPTC_JPEG_MARKER)
+		if (save_iptc && !strncmp(s_name, "IPTC", 5))
 			write_marker++;
 
-		if (save_exif && mrk->marker == EXIF_JPEG_MARKER &&
-			mrk->data_length >= EXIF_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, EXIF_IDENT_STRING, EXIF_IDENT_STRING_SIZE))
+		if (save_exif && !strncmp(s_name, "Exif", 5))
 			write_marker++;
 
-		if (save_icc && mrk->marker == ICC_JPEG_MARKER &&
-			mrk->data_length >= ICC_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, ICC_IDENT_STRING, ICC_IDENT_STRING_SIZE))
+		if (save_icc && !strncmp(s_name, "ICC", 4))
 			write_marker++;
 
-		if (save_xmp && mrk->marker == XMP_JPEG_MARKER &&
-			mrk->data_length >= XMP_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, XMP_IDENT_STRING, XMP_IDENT_STRING_SIZE))
+		if (save_xmp && !strncmp(s_name, "XMP", 4))
 			write_marker++;
 
-		if (save_jfxx && mrk->marker == JFXX_JPEG_MARKER &&
-			mrk->data_length >= JFXX_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE))
+		if (save_jfxx && !strncmp(s_name, "JFXX", 5))
 			write_marker++;
 
-		if (save_adobe && cinfo->write_Adobe_marker == FALSE &&
-			mrk->marker == ADOBE_JPEG_MARKER &&
-			mrk->data_length >= ADOBE_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, ADOBE_IDENT_STRING, ADOBE_IDENT_STRING_SIZE)) {
+		if (save_adobe && !strncmp(s_name, "Adobe", 6))
 			write_marker++;
-		}
 
 		if (strip_none)
 			write_marker++;
@@ -551,16 +542,12 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 		/* libjpeg emits some markers automatically so skip these to avoid duplicates... */
 
-		/* skip JFIF (APP0) marker */
-		if ( mrk->marker == JFIF_JPEG_MARKER &&
-			mrk->data_length >= JFIF_IDENT_STRING_SIZE &&
-			!memcmp(mrk->data, JFIF_IDENT_STRING, JFIF_IDENT_STRING_SIZE)) {
+		if (!strncmp(s_name, "JFIF", 5)) {
 			if (verbose_mode > 2)
 				fprintf(jpeg_log_fh, " (skip JFIF v%u.%02u marker) ",
 					mrk->data[5], mrk->data[6]);
 			write_marker=0;
 		}
-
 
 		if (write_marker)
 			jpeg_write_marker(cinfo,mrk->marker,mrk->data,mrk->data_length);
@@ -575,52 +562,27 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 {
 	jpeg_saved_marker_ptr m;
 	unsigned int count = 0;
-	int exif_seen = 0;
-	int iptc_seen = 0;
-	int icc_seen = 0;
-	int xmp_seen = 0;
-	int jfxx_seen = 0;
+	char *seen;
+	size_t marker_types = jpeg_special_marker_types_count();
 	int com_seen = 0;
+	int special;
 
-	m = dinfo->marker_list;
+	if ((seen = malloc(marker_types)) == NULL)
+		fatal("not enough of memory");
+
+	memset(seen, 0, marker_types);
 	str[0] = 0;
 	*markers_total_size = 0;
 
+	m = dinfo->marker_list;
 	while (m) {
 		count++;
 		*markers_total_size += m->data_length;
 
-		if (m->marker == EXIF_JPEG_MARKER && !exif_seen &&
-			m->data_length >= EXIF_IDENT_STRING_SIZE &&
-			!memcmp(m->data, EXIF_IDENT_STRING, EXIF_IDENT_STRING_SIZE)) {
-			str_add_list(str, str_size, "Exif", ",");
-			exif_seen = 1;
-		}
-
-		if (m->marker == IPTC_JPEG_MARKER && !iptc_seen) {
-			str_add_list(str, str_size, "IPTC", ",");
-			iptc_seen = 1;
-		}
-
-		if (m->marker == ICC_JPEG_MARKER && !icc_seen &&
-			m->data_length >= ICC_IDENT_STRING_SIZE &&
-			!memcmp(m->data, ICC_IDENT_STRING, ICC_IDENT_STRING_SIZE)) {
-			str_add_list(str, str_size, "ICC", ",");
-			icc_seen = 1;
-		}
-
-		if (m->marker == XMP_JPEG_MARKER && !xmp_seen &&
-			m->data_length >= XMP_IDENT_STRING_SIZE &&
-			!memcmp(m->data, XMP_IDENT_STRING, XMP_IDENT_STRING_SIZE)) {
-			str_add_list(str, str_size, "XMP", ",");
-			xmp_seen = 1;
-		}
-
-		if (m->marker == JFXX_JPEG_MARKER && !jfxx_seen &&
-			m->data_length >= JFXX_IDENT_STRING_SIZE &&
-			!memcmp(m->data, JFXX_IDENT_STRING, JFXX_IDENT_STRING_SIZE)) {
-			str_add_list(str, str_size, "JFXX", ",");
-			jfxx_seen = 1;
+		if ((special = jpeg_special_marker(m)) >= 0) {
+			if (!seen[special])
+				str_add_list(str, str_size, jpeg_special_marker_types[special].name, ",");
+			seen[special]++;
 		}
 
 		if (m->marker == JPEG_COM && !com_seen) {
@@ -631,10 +593,7 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 		m = m->next;
 	}
 
-	if (dinfo->saw_Adobe_marker)
-		str_add_list(str, str_size, "Adobe ", ",");
-	if (dinfo->saw_JFIF_marker)
-		str_add_list(str, str_size, "JFIF ", ",");
+	free(seen);
 
 	return count;
 }
