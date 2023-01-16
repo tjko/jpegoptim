@@ -63,10 +63,34 @@ const struct marker_name jpeg_marker_names[] = {
 const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0,		"JFIF",		5,	"JFIF\0" },
 	{ JPEG_APP0,		"JFXX",		5,	"JFXX\0" },
+	{ JPEG_APP0,		"CIFF",		2,	"II" },
+	{ JPEG_APP0,		"CIFF",		2,	"MM" },
+	{ JPEG_APP0,		"AVI1",		4,	"AVI1" },
 	{ JPEG_APP0 + 1,	"Exif",		6,	"Exif\0\0" },
 	{ JPEG_APP0 + 1,	"XMP",		29,	"http://ns.adobe.com/xap/1.0/\0" },
+	{ JPEG_APP0 + 1,	"XMP",		34,	"http://ns.adobe.com/xmp/extension/\0" },
+	{ JPEG_APP0 + 1,	"QVCI",		5,	"QVCI\0" },
+	{ JPEG_APP0 + 1,	"FLIR",		5,	"FLIR\0" },
 	{ JPEG_APP0 + 2,	"ICC",		12,	"ICC_PROFILE\0" },
-	{ JPEG_APP0 + 13,	"IPTC",		0,	NULL },
+	{ JPEG_APP0 + 2,	"FPXR",		5,	"FPXR\0" },
+	{ JPEG_APP0 + 2,	"MPF",		4,	"MPF\0" },
+	{ JPEG_APP0 + 3,	"Meta",		6,	"Meta\0\0" },
+	{ JPEG_APP0 + 3,	"Meta",		6,	"META\0\0" },
+	{ JPEG_APP0 + 3,	"Meta",		6,	"Exif\0\0" },
+	{ JPEG_APP0 + 3,	"Stim",		5,	"Stim\0" },
+	{ JPEG_APP0 + 3,	"JPS",		8,	"_JPSJPS_" },
+	{ JPEG_APP0 + 4,	"Scalado",	8,	"SCALADO\0" },
+	{ JPEG_APP0 + 4,	"FXPR",		5,	"FXPR\0" },
+	{ JPEG_APP0 + 5,	"RMETA",	6,	"RMETA\0" },
+	{ JPEG_APP0 + 6,	"EPPIM",	6,	"EPPIM\0" },
+	{ JPEG_APP0 + 6,	"NITF",		5,	"NTIF\0" },
+	{ JPEG_APP0 + 6,	"GoPro",	6,	"GoPro\0" },
+	{ JPEG_APP0 + 8,	"SPIFF",	6,	"SPIFF\0" },
+	{ JPEG_APP0 + 10,	"AROT",		6,	"AROT\0\0" },
+	{ JPEG_APP0 + 11,	"HDR",		6,	"HDR_RI" },
+	{ JPEG_APP0 + 13,	"IPTC",		14,	"Photoshop 3.0\0" },
+	{ JPEG_APP0 + 13,	"IPTC",		18,	"Adobe_Photoshop2.5" },
+	{ JPEG_APP0 + 13,	"Adobe_CM",	8,	"Adobe_CM" },
 	{ JPEG_APP0 + 14,	"Adobe",	5,	"Adobe" },
 	{ 0, NULL, 0, NULL }
 };
@@ -93,7 +117,7 @@ size_t jpeg_special_marker_types_count()
 	while (jpeg_special_marker_types[i].name)
 		i++;
 
-	return (i > 0 ? i - 1 : 0);
+	return i;
 }
 
 int jpeg_special_marker(jpeg_saved_marker_ptr marker)
