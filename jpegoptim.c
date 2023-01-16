@@ -542,13 +542,13 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 		/* libjpeg emits some markers automatically so skip these to avoid duplicates... */
 
-		if (!strncmp(s_name, "JFIF", 5)) {
-			if (verbose_mode > 2)
-				fprintf(jpeg_log_fh, " (skip JFIF v%u.%02u marker) ",
-					mrk->data[5], mrk->data[6]);
+		if (!strncmp(s_name, "JFIF", 5))
 			write_marker=0;
-		}
 
+
+		if (verbose_mode > 2)
+			fprintf(jpeg_log_fh, " (Marker %s [%s]: %s) ", jpeg_marker_name(mrk->marker),
+				s_name, (write_marker ? "Keep" : "Discard"));
 		if (write_marker)
 			jpeg_write_marker(cinfo, mrk->marker, mrk->data, mrk->data_length);
 
@@ -700,7 +700,7 @@ retry_point:
 	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
 	jpeg_read_header(&dinfo, TRUE);
 
-	/* Check for Exif/IPTC/ICC/XMP markers */
+	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
 	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),
 					&marker_in_size);
 	if (verbose_mode > 1) {
