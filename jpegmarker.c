@@ -80,7 +80,7 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0 + 3,	"Stim",		5,	"Stim\0" },
 	{ JPEG_APP0 + 3,	"JPS",		8,	"_JPSJPS_" },
 	{ JPEG_APP0 + 4,	"Scalado",	8,	"SCALADO\0" },
-	{ JPEG_APP0 + 4,	"FXPR",		5,	"FXPR\0" },
+	{ JPEG_APP0 + 4,	"FPXR",		5,	"FPXR\0" },
 	{ JPEG_APP0 + 5,	"RMETA",	6,	"RMETA\0" },
 	{ JPEG_APP0 + 6,	"EPPIM",	6,	"EPPIM\0" },
 	{ JPEG_APP0 + 6,	"NITF",		5,	"NTIF\0" },
@@ -90,7 +90,7 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0 + 11,	"HDR",		6,	"HDR_RI" },
 	{ JPEG_APP0 + 13,	"IPTC",		14,	"Photoshop 3.0\0" },
 	{ JPEG_APP0 + 13,	"IPTC",		18,	"Adobe_Photoshop2.5" },
-	{ JPEG_APP0 + 13,	"Adobe_CM",	8,	"Adobe_CM" },
+	{ JPEG_APP0 + 13,	"AdobeCM",	8,	"Adobe_CM" },
 	{ JPEG_APP0 + 14,	"Adobe",	5,	"Adobe" },
 	{ 0, NULL, 0, NULL }
 };
