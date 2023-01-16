@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2022.
+ * Copyright (c) Timo Kokkonen, 1996-2023.
  * All Rights Reserved.
  *
  * requires libjpeg (Independent JPEG Group's JPEG software
@@ -469,7 +469,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 
 
 	/* check for '-' option indicating input is from stdin... */
-	i=1;
+	i = optind;
 	while (argv[i]) {
 		if (argv[i][0]=='-' && argv[i][1]==0)
 			stdin_mode=1;
@@ -493,7 +493,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 void own_signal_handler(int a)
 {
 	if (verbose_mode > 1)
-		fprintf(stderr,PROGRAMNAME ": signal: %d\n",a);
+		fprintf(stderr,PROGRAMNAME ": died from signal: %d\n",a);
 	exit(2);
 }
 
@@ -550,7 +550,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 		}
 
 		if (write_marker)
-			jpeg_write_marker(cinfo,mrk->marker,mrk->data,mrk->data_length);
+			jpeg_write_marker(cinfo, mrk->marker, mrk->data, mrk->data_length);
 
 		mrk=mrk->next;
 	}
@@ -749,10 +749,11 @@ retry_point:
 		}
 	}
 
-	inpos=ftell(infile);
+	inpos = ftell(infile);
 	if (inpos > 0 && inpos < insize) {
 		if (!quiet_mode)
-			fprintf(log_fh, " (Extraneous data found after end of JPEG image) ");
+			fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
+				insize - inpos);
 		if (nofix_mode)
 			global_error_counter++;
 	}
