@@ -1,7 +1,8 @@
 dnl jpegoptim
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(jpegoptim.c)
+AC_INIT
+AC_CONFIG_SRCDIR([jpegoptim.c])
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_AUX_DIR(tools)
 
@@ -81,17 +82,14 @@ dnl own tests
 
 AC_MSG_CHECKING([for broken jmorecfg.h (METHODDEF)])
 AC_CACHE_VAL(jpeginfo_cv_broken_methoddef,
-[AC_TRY_RUN([
+[AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <jpeglib.h>
 METHODDEF(void) foo(void) { };
 int main(void)
 {
   return 0;
-}],
-jpeginfo_cv_broken_methoddef=no,
-jpeginfo_cv_broken_methoddef=yes,
-jpeginfo_cv_broken_methoddef=no)])
+}]])],[jpeginfo_cv_broken_methoddef=no],[jpeginfo_cv_broken_methoddef=yes],[jpeginfo_cv_broken_methoddef=no])])
 if test $jpeginfo_cv_broken_methoddef = yes; then
   AC_DEFINE(BROKEN_METHODDEF)
 fi
@@ -99,7 +97,7 @@ AC_MSG_RESULT($jpeginfo_cv_broken_methoddef)
 
 AC_MSG_CHECKING([Arithmetic Coding support in JPEG library])
 AC_CACHE_VAL(jpegoptim_cv_arith_code_support,
-[AC_TRY_RUN([
+[AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <jpeglib.h>
 int main(void)
@@ -108,10 +106,7 @@ int main(void)
 	cinfo.arith_code=TRUE;
 	return 0;
 }
-],
-jpegoptim_cv_arith_code_support=yes,
-jpegoptim_cv_arith_code_support=no,
-jpegoptim_cv_arith_code_support=no)])
+]])],[jpegoptim_cv_arith_code_support=yes],[jpegoptim_cv_arith_code_support=no],[jpegoptim_cv_arith_code_support=no])])
 if test $arith_code == 1 -a $jpegoptim_cv_arith_code_support = yes; then
   arith_code_status="Enabled"
   AC_DEFINE(HAVE_ARITH_CODE)
@@ -120,11 +115,10 @@ else
 fi
 AC_MSG_RESULT($jpegoptim_cv_arith_code_support)
 
-echo "Arithmetic Coding: $arith_code_status"
 
 AC_MSG_CHECKING([Extension settings in JPEG library])
 AC_CACHE_VAL(jpegoptim_cv_extension_settings,
-[AC_TRY_RUN([
+[AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <jpeglib.h>
 int main(void)
@@ -134,18 +128,24 @@ int main(void)
 		jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
 	return 0;
 }
-],
-jpegoptim_cv_extension_settings=yes,
-jpegoptim_cv_extension_settings=no,
-jpegoptim_cv_extension_settings=no)])
+]])],[jpegoptim_cv_extension_settings=yes],[jpegoptim_cv_extension_settings=no],[jpegoptim_cv_extension_settings=no])])
 if test $jpegoptim_cv_extension_settings = yes; then
   extension_settings_status="Present"
   AC_DEFINE(HAVE_JINT_DC_SCAN_OPT_MODE)
 else
   extension_settings_status="Absent"
 fi
+AC_MSG_RESULT($jpegoptim_cv_extension_settings)
 
+
+echo "--------------------------------------------------"
 echo "Extension settings: $extension_settings_status"
+echo "Arithmetic coding: $arith_code_status"
+if test $arith_code == 0 -a "$jpegoptim_cv_arith_code_support" == "yes"; then
+   echo "(use --with-arith to enable Arithmetic coding support)"
+fi
+echo "--------------------------------------------------"
 
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
