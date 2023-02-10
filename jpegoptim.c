@@ -344,7 +344,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
-			strncatenate(dest_path, DIR_SEPARATOR_S, sizeof(dest_path));
+			strncatenate(dest_path, DIR_SEPARATOR_S, MAXPATHLEN+1);
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
 			dest=1;
