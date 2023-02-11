@@ -68,7 +68,7 @@
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
-#define PARALLEL_PROCESSING
+#define PARALLEL_PROCESSING 1
 #define MAX_WORKERS 256
 #endif
 
@@ -88,7 +88,7 @@ struct my_error_mgr {
 typedef struct my_error_mgr * my_error_ptr;
 
 
-#ifdef HAVE_FORK
+#ifdef PARALLEL_PROCESSING
 struct worker {
 	pid_t pid;
 	int   read_pipe;
@@ -312,7 +312,7 @@ void print_version()
 }
 
 
-void parse_arguments(int argc, char **argv, char *dest_path)
+void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_len)
 {
 	int opt_index;
 	int i, c;
@@ -344,7 +344,7 @@ void parse_arguments(int argc, char **argv, char *dest_path)
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
-			strncatenate(dest_path, DIR_SEPARATOR_S, MAXPATHLEN+1);
+			strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
 			dest=1;
@@ -1229,7 +1229,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM,own_signal_handler);
 
 	/* Parse command line parameters */
-	parse_arguments(argc, argv, dest_path);
+	parse_arguments(argc, argv, dest_path, sizeof(dest_path));
 	log_fh = (stdout_mode ? stderr : stdout);
 
 	if (verbose_mode) {
