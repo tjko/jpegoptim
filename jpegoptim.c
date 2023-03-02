@@ -64,7 +64,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSION "1.5.2"
+#define VERSION "1.5.3beta"
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
