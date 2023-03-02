@@ -1090,7 +1090,7 @@ binary_search_loop:
 			fprintf(log_fh,csv ? "skipped\n" : "skipped.\n");
 		if (stdout_mode) {
 			set_filemode_binary(stdout);
-			if (fwrite(inbuffer,insize,1,stdout) != 1)
+			if (fwrite(inbuffer, inbufferused, 1, stdout) != 1)
 				fatal("%s, write failed to stdout",
 					(stdin_mode ? "stdin" : filename));
 		}
