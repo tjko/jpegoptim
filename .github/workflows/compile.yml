@@ -1,5 +1,8 @@
 name: compile
-on: [push, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   job:
@@ -17,10 +20,13 @@ jobs:
           - os: macos-latest
             triplet: x64-osx
     steps:
-      - uses: actions/checkout@v3
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
 
       # Install CMake
-      - uses: lukka/get-cmake@v3.24.2  # CMake 3.24.2, Ninja 1.11.1
+      - uses: lukka/get-cmake@v3.24.2
       # Install NASM
       - uses: ilammy/setup-nasm@v1
       # Launch the MSVC Tools Command Prompt (Windows)
