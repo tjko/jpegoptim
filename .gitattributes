@@ -1,4 +1,6 @@
+# Enforce Unix newlines
+* text=auto eol=lf
+
 *.c	ident
 *.in	ident
 README	ident
-
