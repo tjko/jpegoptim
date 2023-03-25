@@ -27,7 +27,7 @@ INSTALLATION
 
 
 HISTORY
-	v1.5.3 - fix potential heap-buffer-overflor (read) when using
+	v1.5.3 - fix potential heap-buffer-overflow (read) when using
 	         stdin/stdout and processing corrupt JPEG
         v1.5.2 - add support for reading list of files to process from a file
 	         (--files-from) or from standard input (--files-stdin),
