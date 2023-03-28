@@ -1,0 +1,10 @@
+name: "jpegoptim CodeQL config"
+
+languages: cpp
+
+queries:
+  - uses: security-and-quality
+  
+paths-ignore:
+  - build/mozjpeg
+  
