@@ -33,7 +33,7 @@ jobs:
         with:
           languages: cpp
           queries: security-extended
-          config-file: ././github/codeql/codeql-config.yml
+          config-file: ./.github/codeql/codeql-config.yml
 
       # Install CMake
       - uses: lukka/get-cmake@v3.26.0
