@@ -31,9 +31,9 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
-          languages: "cpp"
-          # TODO switch to security-extended,security-and-quality later
+          languages: cpp
           queries: security-extended
+          config-file: ././github/codeql/codeql-config.yml
 
       # Install CMake
       - uses: lukka/get-cmake@v3.26.0
