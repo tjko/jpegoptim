@@ -1,0 +1,52 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches:
+      - "**"
+      - "!dependabot/**"
+  pull_request:
+    branches:
+      - "**"
+      - "!dependabot/**"
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: "cpp"
+          # TODO switch to security-extended,security-and-quality later
+          queries: security-extended
+
+      # Install CMake
+      - uses: lukka/get-cmake@v3.24.2
+      # Install NASM
+      - uses: ilammy/setup-nasm@v1
+
+      # Initialize the CMake directory and build
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_NO_SUBFOLDERS=1
+          cmake --build build --config Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:cpp"
