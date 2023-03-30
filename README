@@ -1,5 +1,5 @@
 
-Jpegoptim v1.5.3 - Copyright (C)  Timo Kokkonen, 1996-2023. All Rights Reserved.
+Jpegoptim v1.5.4beta - Copyright (C)  Timo Kokkonen, 1996-2023. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -18,8 +18,8 @@ INSTALLATION
 	tar file, make necessary changes to the Makefile,  and then
         compile the program. You may wanna do something like this:
 
-		tar xzvf jpegoptim-1.5.3.tar.gz
-		cd jpegoptim-1.5.3
+		tar xzvf jpegoptim-1.5.4.tar.gz
+		cd jpegoptim-1.5.4
 		./configure
 		make
 		make strip
@@ -27,6 +27,8 @@ INSTALLATION
 
 
 HISTORY
+        v1.5.4 - make sure JPEG mode (progressive vs non-progressive) is preserved
+	         by default
 	v1.5.3 - fix potential heap-buffer-overflow (read) when using
 	         stdin/stdout and processing corrupt JPEG
         v1.5.2 - add support for reading list of files to process from a file

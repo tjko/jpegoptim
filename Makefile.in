@@ -2,7 +2,7 @@
 # Makefile for jpegoptim
 #
 #
-Version = 1.5.3
+Version = 1.5.4
 PKGNAME = jpegoptim
 
 SHELL = /bin/sh
