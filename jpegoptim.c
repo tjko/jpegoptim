@@ -833,11 +833,12 @@ binary_search_loop:
 		if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
 			jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
 #endif
-		if (all_normal) {
-			/* Explicitly disables progressive if libjpeg had it on by default */
+		if (all_normal || (!dinfo.progressive_mode && !all_progressive)) {
+			/* Explicitly disable progressive mode. */
 			cinfo.scan_info = NULL;
 			cinfo.num_scans = 0;
-		} else if (dinfo.progressive_mode || all_progressive) {
+		} else if (all_progressive || dinfo.progressive_mode) {
+			/* Enable progressive mode. */
 			jpeg_simple_progression(&cinfo);
 		}
 		cinfo.optimize_coding = TRUE;
@@ -870,11 +871,12 @@ binary_search_loop:
 		if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
 			jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
 #endif
-		if (all_normal) {
-			/* Explicitly disables progressive if libjpeg had it on by default */
+		if (all_normal || (!dinfo.progressive_mode && !all_progressive)) {
+			/* Explicitly disable progressive mode. */
 			cinfo.scan_info = NULL;
 			cinfo.num_scans = 0;
-		} else if ( dinfo.progressive_mode || all_progressive ) {
+		} else if (all_progressive || dinfo.progressive_mode) {
+			/* Enable progressive mode. */
 			jpeg_simple_progression(&cinfo);
 		}
 		cinfo.optimize_coding = TRUE;
