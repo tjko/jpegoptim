@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-latest, windows-latest]
+        os: [ubuntu-20.04, ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: windows-latest
             triplet: x64-windows
@@ -44,6 +44,7 @@ jobs:
       # Gather documentation and executables to a common directory
       # Ignore copying errors from only one of build/jpegoptim or build/jpegoptim.exe existing
       - name: Prepare files
+        if: matrix.os != 'ubuntu-latest'
         run: |
           mkdir build/dist
           cp build/jpegoptim build/jpegoptim.exe COPYRIGHT LICENSE README build/dist/ 2>/dev/null || true
@@ -51,6 +52,7 @@ jobs:
 
       # Upload the compiled binary
       - uses: actions/upload-artifact@v3
+        if: matrix.os != 'ubuntu-latest'
         with:
           name: jpegoptim-${{ matrix.triplet }}
           path: build/dist
