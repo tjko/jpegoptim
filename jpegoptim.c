@@ -244,7 +244,7 @@ void print_usage(void)
 		"                    keep old file if the gain is below a threshold (%%)\n"
 #ifdef PARALLEL_PROCESSING
 		"  -w<max>, --workers=<max>\n"
-		"                    set mximum number of parallel threads (default is 1)\n"
+		"                    set maximum number of parallel threads (default is 1)\n"
 #endif
 		"  -b, --csv         print progress info in CSV format\n"
 		"  -o, --overwrite   overwrite target file even if it exists (meaningful\n"
