@@ -1328,6 +1328,8 @@ int main(int argc, char **argv)
 			}
 			if (pipe(pipe_fd) < 0)
 				fatal("failed to open pipe");
+			if (files_from)
+				fflush(files_from);
 			pid = fork();
 			if (pid < 0)
 				fatal("fork() failed");
