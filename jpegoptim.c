@@ -1328,13 +1328,13 @@ int main(int argc, char **argv)
 			}
 			if (pipe(pipe_fd) < 0)
 				fatal("failed to open pipe");
-			if (files_from)
-				fflush(files_from);
 			pid = fork();
 			if (pid < 0)
 				fatal("fork() failed");
 			if (pid == 0) {
 				/* Child process starts here... */
+				if (files_from)
+					fclose(files_from);
 				close(pipe_fd[0]);
 				FILE *p;
 
