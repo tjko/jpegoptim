@@ -1333,6 +1333,8 @@ int main(int argc, char **argv)
 				fatal("fork() failed");
 			if (pid == 0) {
 				/* Child process starts here... */
+				if (files_from)
+					fclose(files_from);
 				close(pipe_fd[0]);
 				FILE *p;
 
