@@ -1,5 +1,5 @@
 
-Jpegoptim v1.5.4beta - Copyright (C)  Timo Kokkonen, 1996-2023. All Rights Reserved.
+Jpegoptim v1.5.4 - Copyright (C)  Timo Kokkonen, 1996-2023. All Rights Reserved.
 
 
 REQUIREMENTS
@@ -27,8 +27,10 @@ INSTALLATION
 
 
 HISTORY
-        v1.5.4 - make sure JPEG mode (progressive vs non-progressive) is preserved
-	         by default
+        v1.5.4 - make sure JPEG mode (progressive vs non-progressive) is
+                 preserved by default,
+		 fix parallel processing when reading file list
+		 (thanks to Cubittus)
 	v1.5.3 - fix potential heap-buffer-overflow (read) when using
 	         stdin/stdout and processing corrupt JPEG
         v1.5.2 - add support for reading list of files to process from a file
@@ -137,4 +139,4 @@ Special thanks for following Github Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-24-Mar-2023
+14-May-2023
