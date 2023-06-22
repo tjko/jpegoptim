@@ -411,6 +411,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			save_icc=0;
 			save_xmp=0;
 			save_adobe=0;
+			save_jfif=0;
 			save_jfxx=0;
 			break;
 
