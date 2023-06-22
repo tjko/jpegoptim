@@ -1,6 +1,6 @@
 Summary: Utility for optimizing/compressing JPEG files.
 Name: jpegoptim
-Version: 1.5.4
+Version: 1.5.5
 Release: 1
 License: GPL
 Group: Applications/Multimedia
@@ -11,7 +11,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 %description
 Jpegoptim can optimize/compress jpeg files. Program support
 lossless optimization, which is based on optimizing the Huffman
-tables. So called, "lossy" optimization (compression) is done 
+tables. So called, "lossy" optimization (compression) is done
 by re-encoding the image using user specified image quality factor.
 
 %prep
@@ -44,7 +44,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat Dec  7 2002 Timo Kokkonen <tjko@iki.fi> 
+* Sat Dec  7 2002 Timo Kokkonen <tjko@iki.fi>
 - Initial build.
 
 

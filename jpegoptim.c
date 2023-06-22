@@ -64,7 +64,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSION "1.5.4"
+#define VERSION "1.5.5beta"
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
@@ -118,6 +118,7 @@ int save_icc = 1;
 int save_xmp = 1;
 int save_adobe = 0;
 int save_jfxx = 0;
+int save_jfif = 1;
 int strip_none = 0;
 double threshold = -1.0;
 int csv = 0;
@@ -142,52 +143,55 @@ double average_rate = 0.0;
 double total_save = 0.0;
 
 struct option long_options[] = {
-	{"verbose",0,0,'v'},
-	{"help",0,0,'h'},
-	{"quiet",0,0,'q'},
-	{"max",1,0,'m'},
-	{"totals",0,0,'t'},
-	{"noaction",0,0,'n'},
-	{"dest",1,0,'d'},
-	{"force",0,0,'f'},
-	{"version",0,0,'V'},
-	{"overwrite",0,0,'o'},
-	{"preserve",0,0,'p'},
-	{"preserve-perms",0,0,'P'},
-	{"strip-all",0,0,'s'},
-	{"strip-none",0,&strip_none,1},
-	{"strip-com",0,&save_com,0},
-	{"strip-exif",0,&save_exif,0},
-	{"strip-iptc",0,&save_iptc,0},
-	{"strip-icc",0,&save_icc,0},
-	{"strip-xmp",0,&save_xmp,0},
-	{"strip-jfxx",0,&save_jfxx,0},
-	{"strip-adobe",0,&save_adobe,0},
-	{"keep-com",0,&save_com,1},
-	{"keep-exif",0,&save_exif,1},
-	{"keep-iptc",0,&save_iptc,1},
-	{"keep-icc",0,&save_icc,1},
-	{"keep-xmp",0,&save_xmp,1},
-	{"keep-jfxx",0,&save_jfxx,1},
-	{"keep-adobe",0,&save_adobe,1},
-	{"threshold",1,0,'T'},
-	{"csv",0,0,'b'},
-	{"all-normal",0,&all_normal,1},
-	{"all-progressive",0,&all_progressive,1},
-	{"size",1,0,'S'},
-	{"stdout",0,&stdout_mode,1},
-	{"stdin",0,&stdin_mode,1},
-	{"files-stdin",0,&files_stdin,1},
-	{"files-from",1,0,'F'},
 #ifdef HAVE_ARITH_CODE
-	{"all-arith",0,&arith_mode,1},
-	{"all-huffman",0,&arith_mode,0},
+	{ "all-arith",          0, &arith_mode,          1 },
+	{ "all-huffman",        0, &arith_mode,          0 },
 #endif
+	{ "all-normal",         0, &all_normal,          1 },
+	{ "all-progressive",    0, &all_progressive,     1 },
+	{ "csv",                0, 0,                    'b' },
+	{ "dest",               1, 0,                    'd' },
+	{ "files-stdin",        0, &files_stdin,         1 },
+	{ "files-from",         1, 0,                    'F' },
+	{ "force",              0, 0,                    'f' },
+	{ "help",               0, 0,                    'h' },
+	{ "keep-adobe",         0, &save_adobe,          1 },
+	{ "keep-all",           0, &strip_none,          1 },
+	{ "keep-com",           0, &save_com,            1 },
+	{ "keep-exif",          0, &save_exif,           1 },
+	{ "keep-iptc",          0, &save_iptc,           1 },
+	{ "keep-icc",           0, &save_icc,            1 },
+	{ "keep-jfif",          0, &save_jfif,           1 },
+	{ "keep-jfxx",          0, &save_jfxx,           1 },
+	{ "keep-xmp",           0, &save_xmp,            1 },
+	{ "max",                1, 0,                    'm' },
+	{ "noaction",           0, 0,                    'n' },
+	{ "nofix",              0, &nofix_mode,          1 },
+	{ "overwrite",          0, 0,                    'o' },
+	{ "preserve",           0, 0,                    'p' },
+	{ "preserve-perms",     0, 0,                    'P' },
+	{ "quiet",              0, 0,                    'q' },
+	{ "size",               1, 0,                    'S' },
+	{ "stdin",              0, &stdin_mode,          1 },
+	{ "stdout",             0, &stdout_mode,         1 },
+	{ "strip-all",          0, 0,                    's' },
+	{ "strip-none",         0, &strip_none,          1 },
+	{ "strip-com",          0, &save_com,            0 },
+	{ "strip-exif",         0, &save_exif,           0 },
+	{ "strip-iptc",         0, &save_iptc,           0 },
+	{ "strip-icc",          0, &save_icc,            0 },
+	{ "strip-xmp",          0, &save_xmp,            0 },
+	{ "strip-jfif",         0, &save_jfif,           0 },
+	{ "strip-jfxx",         0, &save_jfxx,           0 },
+	{ "strip-adobe",        0, &save_adobe,          0 },
+	{ "threshold",          1, 0,                    'T' },
+	{ "totals",             0, 0,                    't' },
+	{ "verbose",            0, 0,                    'v' },
+	{ "version",            0, 0,                    'V' },
 #ifdef PARALLEL_PROCESSING
-	{"workers",1,&max_workers,'w'},
+	{ "workers",            1, &max_workers,         'w' },
 #endif
-	{"nofix",0,&nofix_mode,1},
-	{0,0,0,0}
+	{ 0, 0, 0, 0 }
 };
 
 
@@ -263,14 +267,17 @@ void print_usage(void)
 		"  --strip-exif      strip Exif markers from output file\n"
 		"  --strip-iptc      strip IPTC/Photoshop (APP13) markers from output file\n"
 		"  --strip-icc       strip ICC profile markers from output file\n"
+		"  --strip-jfif      strip JFIF markers from output file\n"
 		"  --strip-jfxx      strip JFXX (JFIF Extension) markers from output file\n"
 		"  --strip-xmp       strip XMP markers markers from output file\n"
 		"\n"
+		"  --keep-all        do not strip any markers (same as --strip-none)\n"
 		"  --keep-adobe      preserve any Adobe (APP14) markers\n"
 		"  --keep-com        preserve any Comment markers\n"
 		"  --keep-exif       preserve any Exif markers\n"
 		"  --keep-iptc       preserve any IPTC/Photoshop (APP13) markers\n"
 		"  --keep-icc        preserve any ICC profile markers\n"
+		"  --keep-jfif       preserve any JFIF markers\n"
 		"  --keep-jfxx       preserve any JFXX (JFIF Extension) markers\n"
 		"  --keep-xmp        preserve any XMP markers markers\n"
 		"\n"
@@ -846,6 +853,11 @@ binary_search_loop:
 		if (arith_mode >= 0)
 			cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
+		if (dinfo.saw_JFIF_marker && (save_jfif || strip_none)) {
+			cinfo.write_JFIF_header = TRUE;
+		} else {
+			cinfo.write_JFIF_header = FALSE;
+		}
 		if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
 			/* If outputting Adobe marker, don't write JFIF marker... */
 			cinfo.write_JFIF_header = FALSE;
@@ -884,6 +896,11 @@ binary_search_loop:
 		if (arith_mode >= 0)
 			cinfo.arith_code = (arith_mode > 0 ? TRUE : FALSE);
 #endif
+		if (dinfo.saw_JFIF_marker && (save_jfif || strip_none)) {
+			cinfo.write_JFIF_header = TRUE;
+		} else {
+			cinfo.write_JFIF_header = FALSE;
+		}
 		if (dinfo.saw_Adobe_marker && (save_adobe || strip_none)) {
 			/* If outputting Adobe marker, don't write JFIF marker... */
 			cinfo.write_JFIF_header = FALSE;
