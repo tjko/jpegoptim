@@ -31,6 +31,10 @@ class JpegoptimTests(unittest.TestCase):
     program = '../jpegoptim'
     debug = False
 
+    def setUp(self):
+        if "JPEGOPTIM" in os.environ:
+            self.program = os.environ["JPEGOPTIM"]
+
     def run_test(self, args, check=True, directory=None):
         """execute jpegoptim for a test"""
         command = [self.program] + args
