@@ -44,8 +44,7 @@ jobs:
       # Run tests
       - name: Tests
         run: |
-          cd build
-          make test
+          ctest --test-dir build
 
       # Gather documentation and executables to a common directory
       # Ignore copying errors from only one of build/jpegoptim or build/jpegoptim.exe existing
