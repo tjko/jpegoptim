@@ -41,6 +41,12 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_NO_SUBFOLDERS=1
           cmake --build build --config Release
 
+      # Run tests
+      - name: Tests
+        run: |
+          cd build
+          make test
+
       # Gather documentation and executables to a common directory
       # Ignore copying errors from only one of build/jpegoptim or build/jpegoptim.exe existing
       - name: Prepare files
