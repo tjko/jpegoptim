@@ -7,6 +7,5 @@ jpegoptim.prn
 jpegoptim.ps
 jpegoptim.txt
 *.o
-*.jpg
 build/
 autom4te.cache/

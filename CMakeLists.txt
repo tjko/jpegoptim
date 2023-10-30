@@ -447,3 +447,17 @@ if(ARITH_ENABLED)
 else()
     message(STATUS "Arithmetic Coding: Disabled")
 endif()
+
+
+
+find_package(Python3 COMPONENTS Interpreter Development)
+
+if (Python3_FOUND)
+  enable_testing()
+  add_test(NAME unittests
+	 COMMAND ${Python3_EXECUTABLE} test.py
+	 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
+	 )
+
+  set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>")
+endif()
