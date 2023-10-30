@@ -287,7 +287,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 
 # Include getopt only if no native implementation found.
-if(!HAVE_GETOPT)
+if(NOT HAVE_GETOPT_LONG)
     target_sources(${PROJECT_NAME} PRIVATE getopt.c getopt1.c)
 endif()
 
