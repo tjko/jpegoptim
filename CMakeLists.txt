@@ -83,7 +83,13 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Source groups
 
-file(GLOB SOURCE_FILES *.c)
+set(SOURCE_FILES
+    jpegoptim.c
+    jpegsrc.c
+    jpegdest.c
+    jpegmarker.c
+    misc.c
+    )
 source_group("Source Files" FILES ${SOURCE_FILES})
 
 
@@ -146,9 +152,9 @@ endif()
 
 # Include directories
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+#target_include_directories(${PROJECT_NAME} PUBLIC
+#    "${CMAKE_CURRENT_SOURCE_DIR}"
+#)
 
 
 # Compile definitions
@@ -278,6 +284,12 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_GETOPT_LONG}>:HAVE_GETOPT_LONG>
     $<$<BOOL:${HAVE_STRUCT_STAT_ST_MTIM}>:HAVE_STRUCT_STAT_ST_MTIM>
 )
+
+
+# Include getopt only if no native implementation found.
+if(!HAVE_GETOPT)
+    target_sources(${PROJECT_NAME} PRIVATE getopt.c getopt1.c)
+endif()
 
 
 # Attach a manifest file to support UTF-8 on compatible Windows systems (see https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page)
