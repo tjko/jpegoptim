@@ -36,7 +36,7 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       # Install CMake
-      - uses: lukka/get-cmake@v3.28.1
+      - uses: lukka/get-cmake@v3.28.3
       # Install NASM
       - uses: ilammy/setup-nasm@v1
 
