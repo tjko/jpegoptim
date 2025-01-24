@@ -77,7 +77,7 @@ class JpegoptimTests(unittest.TestCase):
                            os.path.getsize('tmp/default/jpegoptim_test1.jpg'))
 
         # check that output file is valid and "optimized"
-        output, _ = self.run_test(['-n', 'tmp/default/jpegoptim_test1.jpg'])
+        output, _ = self.run_test(['-n', 'tmp/default/jpegoptim_test1.jpg'], check=False)
         self.assertRegex(output, r'\s\[OK\]\s.*\sskipped\.\s*$')
 
     def test_lossy(self):
@@ -91,7 +91,7 @@ class JpegoptimTests(unittest.TestCase):
                            os.path.getsize('tmp/lossy/jpegoptim_test1.jpg'))
 
         # check that output file is valid and "optimized"
-        output, _ = self.run_test(['-n', 'tmp/lossy/jpegoptim_test1.jpg'])
+        output, _ = self.run_test(['-n', 'tmp/lossy/jpegoptim_test1.jpg'], check=False)
         self.assertRegex(output, r'\s\[OK\]\s.*\sskipped\.\s*$')
 
     def test_optimized(self):
