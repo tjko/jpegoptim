@@ -65,7 +65,7 @@
 
 
 #define VERSION "1.5.6beta"
-#define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
+#define COPYRIGHT  "Copyright (C) 1996-2025, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING 1
@@ -301,9 +301,9 @@ void print_version()
 	struct jpeg_error_mgr jerr;
 
 #ifdef  __DATE__
-	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSION,HOST_TYPE,__DATE__);
+	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSION, HOST_TYPE, __DATE__);
 #else
-	printf(PROGRAMNAME " v%s  %s\n",VERSION,HOST_TYPE);
+	printf(PROGRAMNAME " v%s  %s\n", VERSION, HOST_TYPE);
 #endif
 	printf(COPYRIGHT "\n\n");
 	printf("This program comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
