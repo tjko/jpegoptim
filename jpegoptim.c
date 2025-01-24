@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2023.
+ * Copyright (c) Timo Kokkonen, 1996-2025.
  * All Rights Reserved.
  *
  * requires libjpeg (Independent JPEG Group's JPEG software
@@ -64,7 +64,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSION "1.5.5"
+#define VERSION "1.5.6beta"
 #define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
@@ -1021,7 +1021,7 @@ binary_search_loop:
 				if (copy_file(newname,tmpfilename))
 					fatal("%s, failed to create backup: %s",
 						(stdin_mode ? "stdin" : filename), tmpfilename);
-				if ((outfile=fopen(newname,"wb"))==NULL)
+				if ((outfile=create_file(newname))==NULL)
 					fatal("%s, error opening output file: %s",
 						(stdin_mode ? "stdin" : filename), newname);
 				outfname=newname;
@@ -1044,7 +1044,7 @@ binary_search_loop:
 					snprintf(tmpfilename,sizeof(tmpfilename),
 						"%sjpegoptim-%d-%d.%ld.tmp", tmpdir,
 						(int)getuid(), (int)getpid(), (long)time(NULL));
-				if ((outfile = fopen(tmpfilename,"wb")) == NULL)
+				if ((outfile = create_file(tmpfilename)) == NULL)
 #endif
 					fatal("error opening temporary file: %s", tmpfilename);
 				outfname=tmpfilename;

@@ -64,6 +64,7 @@ extern int quiet_mode;
 
 
 /* misc.c */
+FILE* create_file(const char *name);
 int delete_file(const char *name);
 long file_size(FILE *fp);
 int is_directory(const char *path);
