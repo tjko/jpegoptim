@@ -70,6 +70,7 @@ class JpegoptimTests(unittest.TestCase):
     def test_default(self):
         """test default optimization"""
         output, _ = self.run_test(['jpegoptim_test1.jpg'], directory='tmp/default')
+        self.assertTrue(os.path.exists('tmp/default/jpegoptim_test1.jpg'))
         self.assertRegex(output, r'\s\[OK\]\s.*\soptimized\.\s*$')
         # check that output file is indeed smaller than the input file
         self.assertGreater(os.path.getsize('jpegoptim_test1.jpg'),
@@ -83,6 +84,7 @@ class JpegoptimTests(unittest.TestCase):
         """test lossy optimization"""
         output, _ = self.run_test(['-m', '10', 'jpegoptim_test1.jpg'],
                                   directory='tmp/lossy')
+        self.assertTrue(os.path.exists('tmp/lossy/jpegoptim_test1.jpg'))
         self.assertRegex(output, r'\s\[OK\]\s.*\soptimized\.\s*$')
         # check that output file is indeed smaller than the input file
         self.assertGreater(os.path.getsize('jpegoptim_test1.jpg'),
