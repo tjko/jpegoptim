@@ -47,7 +47,7 @@ FILE* create_file(const char *name)
 	if (!name)
 		return NULL;
 
-	if ((fd = open(name, (O_WRONLY | O_CREAT | O_TRUNC), (S_IWUSR | S_IRUSR))) < 0)
+	if ((fd = creat(name, S_IWUSR | S_IRUSR)) < 0)
 		return NULL;
 	if (!(f = fdopen(fd, "wb"))) {
 		close(fd);
