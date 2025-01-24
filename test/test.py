@@ -2,7 +2,7 @@
 #
 # test.py -- Unit tests for jpegoptim
 #
-# Copyright (C) 2023 Timo Kokkonen <tjko@iki.fi>
+# Copyright (C) 2023-2025 Timo Kokkonen <tjko@iki.fi>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ class JpegoptimTests(unittest.TestCase):
     def setUp(self):
         if "JPEGOPTIM" in os.environ:
             self.program = os.environ["JPEGOPTIM"]
+        if "DEBUG" in os.environ:
+            self.debug = True
 
     def run_test(self, args, check=True, directory=None):
         """execute jpegoptim for a test"""
