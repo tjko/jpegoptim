@@ -47,7 +47,12 @@ FILE* create_file(const char *name)
 	if (!name)
 		return NULL;
 
-	if ((fd = creat(name, S_IWUSR | S_IRUSR)) < 0)
+#ifdef WIN32
+	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, _S_IREAD | _S_IWRITE);
+#else
+	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IRUSR);
+#endif
+	if (fd < 0)
 		return NULL;
 	if (!(f = fdopen(fd, "wb"))) {
 		close(fd);
