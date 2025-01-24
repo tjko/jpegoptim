@@ -1,6 +1,6 @@
 /* misc.c
  *
- * Copyright (C) 1996-2022 Timo Kokkonen
+ * Copyright (C) 1996-2025 Timo Kokkonen
  * All Rights Reserved.
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -25,6 +25,7 @@
 #include "config.h"
 #endif
 #include <stdio.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
@@ -37,6 +38,29 @@
 
 #include "jpegoptim.h"
 
+
+FILE* create_file(const char *name)
+{
+	FILE *f;
+	int fd;
+
+	if (!name)
+		return NULL;
+
+#ifdef WIN32
+	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, _S_IREAD | _S_IWRITE);
+#else
+	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IRUSR);
+#endif
+	if (fd < 0)
+		return NULL;
+	if (!(f = fdopen(fd, "wb"))) {
+		close(fd);
+		return NULL;
+	}
+
+	return f;
+}
 
 int delete_file(const char *name)
 {
@@ -132,13 +156,11 @@ int copy_file(const char *srcfile, const char *dstfile)
 	if (!srcfile || !dstfile)
 		return -1;
 
-	in=fopen(srcfile,"rb");
-	if (!in) {
+	if (!(in = fopen(srcfile, "rb"))) {
 		warn("failed to open file for reading: %s", srcfile);
 		return -2;
 	}
-	out=fopen(dstfile,"wb");
-	if (!out) {
+	if (!(out = create_file(dstfile))) {
 		fclose(in);
 		warn("failed to open file for writing: %s", dstfile);
 		return -3;

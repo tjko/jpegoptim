@@ -471,5 +471,5 @@ if (Python3_FOUND)
 	 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
 	 )
 
-  set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>")
+  set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>" "DEBUG=1")
 endif()
