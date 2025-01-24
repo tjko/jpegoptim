@@ -40,12 +40,20 @@ extern "C" {
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
+#ifndef S_IRUSR
+#define S_IRUSR _S_IREAD
+#endif
+
+#ifndef S_IWUSR
+#define S_IWUSR _S_IWRITE
+#endif
+
 #ifndef HOST_TYPE
 #if _WIN64
 #define HOST_TYPE "Win64"
 #elif WIN32
 #define HOST_TYPE "Win32"
-#endif 
+#endif
 #endif
 
 
