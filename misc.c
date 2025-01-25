@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 #include "jpegoptim.h"
