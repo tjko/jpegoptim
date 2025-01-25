@@ -742,7 +742,7 @@ retry_point:
 		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW))))
 			fatal("not enough memory");
 		for (int i = 0; i < dinfo.output_height; i++) {
-			if (!(buf[i]=calloc(dinfo.output_width * dinfo.out_color_components,
+			if (!(buf[i]=calloc((size_t)dinfo.output_width * dinfo.out_color_components,
 							sizeof(JSAMPLE))))
 				fatal("not enough memory");
 		}
