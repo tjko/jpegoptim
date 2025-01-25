@@ -1027,30 +1027,11 @@ binary_search_loop:
 				if ((outfile=create_file(newname))==NULL)
 					fatal("%s, error opening output file: %s",
 						(stdin_mode ? "stdin" : filename), newname);
-				outfname=newname;
+				outfname = newname;
 			} else {
-#ifdef HAVE_MKSTEMPS
-				/* rely on mkstemps() to create us temporary file safely... */
-				int newlen = snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.XXXXXX.tmp",
-						tmpdir, (int)getuid(), (int)getpid());
-				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
-				int tmpfd = mkstemps(tmpfilename,4);
-				if (tmpfd < 0)
-					fatal("%s, error creating temp file %s: mkstemps() failed",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
-				if ((outfile = fdopen(tmpfd,"wb")) == NULL)
-#else
-					/* if platform is missing mkstemps(), try to create
-					   at least somewhat "safe" temp file... */
-					snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.%ld.tmp", tmpdir,
-						(int)getuid(), (int)getpid(), (long)time(NULL));
-				if ((outfile = create_file(tmpfilename)) == NULL)
-#endif
-					fatal("error opening temporary file: %s", tmpfilename);
-				outfname=tmpfilename;
+				if (!(outfile = create_temp_file(tmpdir, "jpegoptim", tmpfilename, sizeof(tmpfilename))))
+					fatal("error creating temporary file: %s", tmpfilename);
+				outfname = tmpfilename;
 			}
 
 			if (verbose_mode > 1 && !quiet_mode)

@@ -62,6 +62,41 @@ FILE* create_file(const char *name)
 	return f;
 }
 
+
+FILE *create_temp_file(const char *tmpdir, const char *name, char *filename, size_t filename_len)
+{
+	FILE *f;
+	int newlen;
+
+#ifdef HAVE_MKSTEMPS
+	/* Rely on mkstemps() to create us temporary file safely... */
+	newlen = snprintf(filename, filename_len, "%s%s-%u-%u.XXXXXX.tmp",
+			tmpdir, name, getuid(), getpid());
+#else
+	/* If platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */
+	newlen = snprintf(filename, filename_len, "%s%s-%u-%u.%lu.tmp",
+			tmpdir, name, getuid(), getpid(), (unsigned long)time(NULL));
+#endif
+	if (newlen >= filename_len) {
+		warn("temp filename too long: %s", filename);
+		return NULL;
+	}
+
+#ifdef HAVE_MKSTEMPS
+	int tmpfd = mkstemps(filename, 4);
+	if (tmpfd < 0) {
+		warn("error creating temp file: mkstemps('%s', 4) failed", filename);
+		return NULL;
+	}
+	f = fdopen(tmpfd, "wb");
+#else
+	f = create_file(filename);
+#endif
+
+	return f;
+}
+
+
 int delete_file(const char *name)
 {
 	int retval;
