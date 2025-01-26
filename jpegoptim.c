@@ -706,7 +706,7 @@ retry_point:
 	}
 	global_error_counter=0;
 	jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-	for (int i = 0; i <= 15; i++) {
+	for (int i = 0; i < 16; i++) {
 		jpeg_save_markers(&dinfo, JPEG_APP0 + i, 0xffff);
 	}
 	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
@@ -1009,7 +1009,7 @@ binary_search_loop:
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
 				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
+					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1 && !quiet_mode)
 					fprintf(log_fh,"%s, creating backup as: %s\n",
