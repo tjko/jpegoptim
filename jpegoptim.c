@@ -73,13 +73,6 @@
 #endif
 
 
-#define FREE_LINE_BUF(buf,lines)  {			\
-		int j;					\
-		for (j=0;j<lines;j++) free(buf[j]);	\
-		free(buf);				\
-		buf=NULL;				\
-	}
-
 struct my_error_mgr {
 	struct jpeg_error_mgr pub;
 	jmp_buf setjmp_buffer;
@@ -142,7 +135,7 @@ long average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
 
-struct option long_options[] = {
+const struct option long_options[] = {
 #ifdef HAVE_ARITH_CODE
 	{ "all-arith",          0, &arith_mode,          1 },
 	{ "all-huffman",        0, &arith_mode,          0 },
@@ -196,6 +189,21 @@ struct option long_options[] = {
 
 
 /*****************************************************************/
+
+
+void free_line_buf(JSAMPARRAY *buf, unsigned int lines)
+{
+	if (*buf == NULL)
+		return;
+
+	for (unsigned int i = 0; i < lines; i++) {
+		if ((*buf)[i])
+			free((*buf)[i]);
+	}
+	free(*buf);
+	*buf = NULL;
+}
+
 
 METHODDEF(void)	my_error_exit (j_common_ptr cinfo)
 {
@@ -575,10 +583,9 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 	int com_seen = 0;
 	int special;
 
-	if ((seen = malloc(marker_types)) == NULL)
+	if ((seen = calloc(marker_types, 1)) == NULL)
 		fatal("not enough of memory");
 
-	memset(seen, 0, marker_types);
 	str[0] = 0;
 	*markers_total_size = 0;
 
@@ -632,7 +639,6 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 
 	long insize = 0, outsize = 0, lastsize = 0;
 	long inpos;
-	int j;
 	int oldquality, searchcount, searchdone;
 	double ratio;
 	int res = -1;
@@ -675,8 +681,7 @@ retry_point:
 	abort_decompress:
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
-		if (buf)
-			FREE_LINE_BUF(buf,dinfo.output_height);
+		free_line_buf(&buf, dinfo.output_height);
 		if (!quiet_mode || csv)
 			fprintf(log_fh,csv ? ",,,,,error\n" : " [ERROR]\n");
 		jderr.jump_set=0;
@@ -695,15 +700,14 @@ retry_point:
 	if (stdin_mode || stdout_mode) {
 		if (inbuffer)
 			free(inbuffer);
-		inbuffersize=65536;
-		inbuffer=malloc(inbuffersize);
-		if (!inbuffer)
+		inbuffersize = 65536;
+		if (!(inbuffer=calloc(inbuffersize, 1)))
 			fatal("not enough memory");
 	}
 	global_error_counter=0;
 	jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-	for (j=0;j<=15;j++) {
-		jpeg_save_markers(&dinfo, JPEG_APP0+j, 0xffff);
+	for (int i = 0; i < 16; i++) {
+		jpeg_save_markers(&dinfo, JPEG_APP0 + i, 0xffff);
 	}
 	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
 	jpeg_read_header(&dinfo, TRUE);
@@ -735,12 +739,11 @@ retry_point:
 		jpeg_start_decompress(&dinfo);
 
 		/* Allocate line buffer to store the decompressed image */
-		buf = malloc(sizeof(JSAMPROW)*dinfo.output_height);
-		if (!buf) fatal("not enough memory");
-		for (j=0;j<dinfo.output_height;j++) {
-			buf[j]=malloc(sizeof(JSAMPLE)*dinfo.output_width*
-				dinfo.out_color_components);
-			if (!buf[j])
+		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW))))
+			fatal("not enough memory");
+		for (int i = 0; i < dinfo.output_height; i++) {
+			if (!(buf[i]=calloc((size_t)dinfo.output_width * dinfo.out_color_components,
+							sizeof(JSAMPLE))))
 				fatal("not enough memory");
 		}
 
@@ -790,13 +793,12 @@ retry_point:
 
 	if (setjmp(jcerr.setjmp_buffer)) {
 		/* Error handler for compress failures */
+		if (!quiet_mode)
+			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
 		jpeg_abort_compress(&cinfo);
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
-		if (!quiet_mode)
-			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
-		if (buf)
-			FREE_LINE_BUF(buf,dinfo.output_height);
+		free_line_buf(&buf, dinfo.output_height);
 		jcerr.jump_set=0;
 		res = 2;
 		goto exit_point;
@@ -819,9 +821,8 @@ binary_search_loop:
 	/* Allocate memory buffer that should be large enough to store the output JPEG... */
 	if (outbuffer)
 		free(outbuffer);
-	outbuffersize=insize + 32768;
-	outbuffer=malloc(outbuffersize);
-	if (!outbuffer)
+	outbuffersize = insize + 32768;
+	if (!(outbuffer=calloc(outbuffersize, 1)))
 		fatal("not enough memory");
 
 	/* setup custom "destination manager" for libjpeg to write to our buffer */
@@ -864,7 +865,6 @@ binary_search_loop:
 			cinfo.write_JFIF_header = FALSE;
 		}
 
-		j=0;
 		jpeg_start_compress(&cinfo,TRUE);
 
 		/* Write markers */
@@ -967,10 +967,9 @@ binary_search_loop:
 		}
 	}
 
-	if (buf)
-		FREE_LINE_BUF(buf,dinfo.output_height);
 	jpeg_finish_decompress(&dinfo);
 	fclose(infile);
+	free_line_buf(&buf, dinfo.output_height);
 
 
 	if (quality >= 0 && outsize >= insize && !retry && !stdin_mode) {
@@ -1010,7 +1009,7 @@ binary_search_loop:
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
 				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
+					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1 && !quiet_mode)
 					fprintf(log_fh,"%s, creating backup as: %s\n",
@@ -1024,30 +1023,11 @@ binary_search_loop:
 				if ((outfile=create_file(newname))==NULL)
 					fatal("%s, error opening output file: %s",
 						(stdin_mode ? "stdin" : filename), newname);
-				outfname=newname;
+				outfname = newname;
 			} else {
-#ifdef HAVE_MKSTEMPS
-				/* rely on mkstemps() to create us temporary file safely... */
-				int newlen = snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.XXXXXX.tmp",
-						tmpdir, (int)getuid(), (int)getpid());
-				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
-				int tmpfd = mkstemps(tmpfilename,4);
-				if (tmpfd < 0)
-					fatal("%s, error creating temp file %s: mkstemps() failed",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
-				if ((outfile = fdopen(tmpfd,"wb")) == NULL)
-#else
-					/* if platform is missing mkstemps(), try to create
-					   at least somewhat "safe" temp file... */
-					snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.%ld.tmp", tmpdir,
-						(int)getuid(), (int)getpid(), (long)time(NULL));
-				if ((outfile = create_file(tmpfilename)) == NULL)
-#endif
-					fatal("error opening temporary file: %s", tmpfilename);
-				outfname=tmpfilename;
+				if (!(outfile = create_temp_file(tmpdir, "jpegoptim", tmpfilename, sizeof(tmpfilename))))
+					fatal("error creating temporary file: %s", tmpfilename);
+				outfname = tmpfilename;
 			}
 
 			if (verbose_mode > 1 && !quiet_mode)
@@ -1225,7 +1205,7 @@ int main(int argc, char **argv)
 	char newname[MAXPATHLEN + 1], dest_path[MAXPATHLEN + 1];
 	char namebuf[MAXPATHLEN + 2];
 	const char *filename;
-	volatile int i;
+	int arg_idx;
 	int res;
 	double rate, saved;
 	FILE *log_fh;
@@ -1233,12 +1213,12 @@ int main(int argc, char **argv)
 	struct worker *w;
 	int pipe_fd[2];
 	pid_t pid;
-	int j;
+
 
 	/* Allocate table to keep track of child processes... */
-	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
+	if (!(workers = calloc(MAX_WORKERS, sizeof(struct worker))))
 		fatal("not enough memory");
-	for (i = 0; i < MAX_WORKERS; i++) {
+	for (int i = 0; i < MAX_WORKERS; i++) {
 		workers[i].pid = -1;
 		workers[i].read_pipe = -1;
 	}
@@ -1280,8 +1260,8 @@ int main(int argc, char **argv)
 		return (res == 0 ? 0 : 1);
 	}
 
-	i=(optind > 0 ? optind : 1);
-	if (files_from == NULL && argc <= i) {
+	arg_idx = (optind > 0 ? optind : 1);
+	if (files_from == NULL && argc <= arg_idx) {
 		if (!quiet_mode)
 			fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
 				"Try '" PROGRAMNAME " --help' for more information.\n");
@@ -1296,7 +1276,7 @@ int main(int argc, char **argv)
 				break;
 			filename = namebuf;
 		} else {
-			filename = argv[i];
+			filename = argv[arg_idx];
 		}
 
 		if (*filename == 0)
@@ -1365,6 +1345,8 @@ int main(int argc, char **argv)
 				exit(res);
 			} else {
 				/* Parent continues here... */
+				int j;
+
 				close(pipe_fd[1]);
 
 				w = NULL;
@@ -1400,7 +1382,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-	} while (files_from || ++i < argc);
+	} while (files_from || ++arg_idx < argc);
 
 
 #ifdef PARALLEL_PROCESSING

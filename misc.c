@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 #include "jpegoptim.h"
@@ -61,6 +62,41 @@ FILE* create_file(const char *name)
 
 	return f;
 }
+
+
+FILE *create_temp_file(const char *tmpdir, const char *name, char *filename, size_t filename_len)
+{
+	FILE *f;
+	int newlen;
+
+#ifdef HAVE_MKSTEMPS
+	/* Rely on mkstemps() to create us temporary file safely... */
+	newlen = snprintf(filename, filename_len, "%s%s-%u-%u.XXXXXX.tmp",
+			tmpdir, name, getuid(), getpid());
+#else
+	/* If platform is missing mkstemps(), try to create at least somewhat "safe" temp file... */
+	newlen = snprintf(filename, filename_len, "%s%s-%u-%u.%lu.tmp",
+			tmpdir, name, getuid(), getpid(), (unsigned long)time(NULL));
+#endif
+	if (newlen >= filename_len) {
+		warn("temp filename too long: %s", filename);
+		return NULL;
+	}
+
+#ifdef HAVE_MKSTEMPS
+	int tmpfd = mkstemps(filename, 4);
+	if (tmpfd < 0) {
+		warn("error creating temp file: mkstemps('%s', 4) failed", filename);
+		return NULL;
+	}
+	f = fdopen(tmpfd, "wb");
+#else
+	f = create_file(filename);
+#endif
+
+	return f;
+}
+
 
 int delete_file(const char *name)
 {
@@ -144,12 +180,12 @@ int rename_file(const char *old_path, const char *new_path)
 }
 
 
-#define COPY_BUF_SIZE  (256*1024)
+#define COPY_BUF_SIZE  (256 * 1024)
 
 int copy_file(const char *srcfile, const char *dstfile)
 {
 	FILE *in,*out;
-	unsigned char buf[COPY_BUF_SIZE];
+	unsigned char *buf;
 	int r,w;
 	int err=0;
 
@@ -166,11 +202,14 @@ int copy_file(const char *srcfile, const char *dstfile)
 		return -3;
 	}
 
+	if (!(buf = calloc(COPY_BUF_SIZE, 1)))
+		fatal("out of memory");
+
 
 	do {
-		r=fread(buf,1,sizeof(buf),in);
+		r = fread(buf, 1, COPY_BUF_SIZE, in);
 		if (r > 0) {
-			w=fwrite(buf,1,r,out);
+			w = fwrite(buf, 1, r, out);
 			if (w != r) {
 				err=1;
 				warn("error writing to file: %s", dstfile);
@@ -179,7 +218,7 @@ int copy_file(const char *srcfile, const char *dstfile)
 		} else {
 			if (ferror(in)) {
 				err=2;
-				warn("error reading file: %s", srcfile);
+				warn("error reading from file: %s", srcfile);
 				break;
 			}
 		}
@@ -187,6 +226,8 @@ int copy_file(const char *srcfile, const char *dstfile)
 
 	fclose(out);
 	fclose(in);
+	free(buf);
+
 	return err;
 }
 
