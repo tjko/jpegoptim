@@ -614,6 +614,8 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 }
 
 
+#define IN_BUF_SIZE (256 * 1024)
+
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
 	double *rate, double *saved)
@@ -638,7 +640,6 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	unsigned int marker_in_count, marker_in_size;
 
 	long insize = 0, outsize = 0, lastsize = 0;
-	long inpos;
 	int oldquality, searchdone;
 	double ratio;
 	int res = -1;
@@ -664,7 +665,6 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	if (saved)
 		*saved = 0.0;
 
-retry_point:
 	if (filename) {
 		if ((infile = fopen(filename, "rb")) == NULL) {
 			warn("cannot open file: %s", filename);
@@ -675,6 +675,8 @@ retry_point:
 		infile = stdin;
 		set_filemode_binary(infile);
 	}
+
+retry_point:
 
 	if (setjmp(jderr.setjmp_buffer)) {
 		/* Error handler for decompress */
@@ -691,16 +693,22 @@ retry_point:
 		jderr.jump_set=1;
 	}
 
-	if (!retry && (!quiet_mode || csv)) {
-		fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
-		fflush(log_fh);
-	}
 
 	/* Prepare to decompress */
-	if (stdin_mode || stdout_mode) {
+	if (!retry) {
+		if (!quiet_mode || csv) {
+			fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
+			fflush(log_fh);
+		}
+
+		if (stdin_mode || stdout_mode) {
+			inbuffersize = IN_BUF_SIZE;
+		} else {
+			if ((inbuffersize = file_size(infile)) < IN_BUF_SIZE)
+				inbuffersize = IN_BUF_SIZE;
+		}
 		if (inbuffer)
 			free(inbuffer);
-		inbuffersize = 65536;
 		if (!(inbuffer=calloc(inbuffersize, 1)))
 			fatal("not enough memory");
 	}
@@ -709,30 +717,34 @@ retry_point:
 	for (int i = 0; i < 16; i++) {
 		jpeg_save_markers(&dinfo, JPEG_APP0 + i, 0xffff);
 	}
-	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
+	if (!retry) {
+		jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, IN_BUF_SIZE);
+	} else {
+		jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
+	}
 	jpeg_read_header(&dinfo, TRUE);
+
 
 	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
 	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),
 					&marker_in_size);
-	if (verbose_mode > 1) {
-		fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
-			marker_in_count,marker_in_size);
-		fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+
+	if (!retry) {
+		if (verbose_mode > 1) {
+			fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
+				marker_in_count,marker_in_size);
+			fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+		}
+
+		if (!quiet_mode || csv) {
+			fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
+				(int)dinfo.image_height,(int)dinfo.num_components*8,
+				(dinfo.progressive_mode?'P':'N'));
+			if (!csv)
+				fprintf(log_fh,"%s",marker_str);
+			fflush(log_fh);
+		}
 	}
-
-
-	if (!retry && (!quiet_mode || csv)) {
-		fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
-			(int)dinfo.image_height,(int)dinfo.num_components*8,
-			(dinfo.progressive_mode?'P':'N'));
-		if (!csv)
-			fprintf(log_fh,"%s",marker_str);
-		fflush(log_fh);
-	}
-
-	if ((insize=file_size(infile)) < 0)
-		fatal("failed to stat() input file");
 
 	/* Decompress the image */
 	if (quality >= 0 && !retry) {
@@ -760,22 +772,26 @@ retry_point:
 		}
 	}
 
-	inpos = ftell(infile);
-	if (inpos > 0 && inpos < insize) {
-		if (!quiet_mode)
-			fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
-				insize - inpos);
-		if (nofix_mode)
-			global_error_counter++;
+	if (!retry) {
+		if (stdin_mode) {
+			insize = inbufferused;
+		} else {
+			if ((insize=file_size(infile)) < 0)
+				fatal("failed to stat() input file");
+			long inpos = ftell(infile);
+			if (inpos > 0 && inpos < insize) {
+				if (!quiet_mode)
+					fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
+						insize - inpos);
+				if (nofix_mode)
+					global_error_counter++;
+			}
+		}
+		if (!quiet_mode) {
+			fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
+			fflush(log_fh);
+		}
 	}
-
-	if (!retry && !quiet_mode) {
-		fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
-		fflush(log_fh);
-	}
-
-	if (stdin_mode)
-		insize = inbufferused;
 
 	if (nofix_mode && global_error_counter != 0) {
 		/* Skip files containing any errors (or warnings) */
@@ -975,17 +991,18 @@ binary_search_loop:
 	}
 
 	jpeg_finish_decompress(&dinfo);
-	fclose(infile);
 	free_line_buf(&buf, dinfo.output_height);
 
 
 	/* In case "lossy" compression resulted larger file than original, retry with "lossless"... */
-	if (quality >= 0 && outsize >= insize && !retry && !stdin_mode) {
+	if (quality >= 0 && outsize >= insize && !retry) {
 		if (verbose_mode)
 			fprintf(log_fh,"(retry w/lossless) ");
 		retry=1;
 		goto retry_point;
 	}
+
+	fclose(infile);
 
 	retry=0;
 	ratio=(insize-outsize)*100.0/insize;

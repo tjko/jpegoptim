@@ -90,7 +90,7 @@ void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr,
 /* jpegsrc.c */
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
 		unsigned char **bufptr,	size_t *bufsizeptr, size_t *bufusedptr, size_t incsize);
-
+void jpeg_custom_mem_src(j_decompress_ptr dinfo, unsigned char *buf, size_t bufsize);
 
 
 
