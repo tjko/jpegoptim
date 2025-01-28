@@ -639,7 +639,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 
 	long insize = 0, outsize = 0, lastsize = 0;
 	long inpos;
-	int oldquality, searchcount, searchdone;
+	int oldquality, searchdone;
 	double ratio;
 	int res = -1;
 
@@ -791,6 +791,7 @@ retry_point:
 	}
 
 
+	/* Prepare to compress... */
 	if (setjmp(jcerr.setjmp_buffer)) {
 		/* Error handler for compress failures */
 		if (!quiet_mode)
@@ -807,7 +808,6 @@ retry_point:
 	}
 
 	lastsize = 0;
-	searchcount = 0;
 	searchdone = 0;
 	oldquality = 200;
 	if (target_size != 0) {
@@ -925,18 +925,20 @@ binary_search_loop:
 		long isize = insize/1024;
 		long tsize = target_size;
 
+		if (verbose_mode > 1)
+			fprintf(log_fh, "(size=%ld)",outsize);
 		if (tsize < 0) {
 			tsize=((-target_size)*insize/100)/1024;
 			if (tsize < 1)
 				tsize = 1;
 		}
 
-		if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
+		if (osize == tsize || searchdone || tsize > isize) {
 			if (searchdone < 42 && lastsize > 0) {
 				if (labs(osize-tsize) > labs(lastsize-tsize)) {
 					if (verbose_mode) fprintf(log_fh,"(revert to %d)",oldquality);
-					searchdone=42;
-					quality=oldquality;
+					searchdone = 42;
+					quality = oldquality;
 					goto binary_search_loop;
 				}
 			}
@@ -945,24 +947,29 @@ binary_search_loop:
 
 		} else {
 			int newquality;
-			int dif = floor((abs(oldquality-quality)/2.0)+0.5);
-			if (osize > tsize) {
-				newquality=quality-dif;
-				if (dif < 1) { newquality--; searchdone=1; }
-				if (newquality < 0) { newquality=0; searchdone=2; }
-			} else {
-				newquality=quality+dif;
-				if (dif < 1) { newquality++; searchdone=3; }
-				if (newquality > 100) { newquality=100; searchdone=4; }
-			}
-			oldquality=quality;
-			quality=newquality;
+			double dif = abs(oldquality-quality) / 2.0;
 
+			if (osize > tsize)
+				newquality = quality - dif;
+			else
+				newquality = quality + dif + 0.5;
+
+			if (dif < 1.0)
+				searchdone = 1;
+			if (newquality < 0) {
+				newquality = 0;
+				searchdone = 1;
+			}
+			if (newquality > 100) {
+				newquality = 100;
+				searchdone = 1;
+			}
+
+			oldquality = quality;
+			quality = newquality;
+			lastsize = osize;
 			if (verbose_mode)
 				fprintf(log_fh,"(try %d)",quality);
-
-			lastsize=osize;
-			searchcount++;
 			goto binary_search_loop;
 		}
 	}
@@ -972,6 +979,7 @@ binary_search_loop:
 	free_line_buf(&buf, dinfo.output_height);
 
 
+	/* In case "lossy" compression resulted larger file than original, retry with "lossless"... */
 	if (quality >= 0 && outsize >= insize && !retry && !stdin_mode) {
 		if (verbose_mode)
 			fprintf(log_fh,"(retry w/lossless) ");
