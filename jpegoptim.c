@@ -72,6 +72,8 @@
 #define MAX_WORKERS 256
 #endif
 
+#define IN_BUF_SIZE (256 * 1024)
+
 
 struct my_error_mgr {
 	struct jpeg_error_mgr pub;
@@ -620,7 +622,6 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 }
 
 
-#define IN_BUF_SIZE (256 * 1024)
 
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
