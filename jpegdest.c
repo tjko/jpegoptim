@@ -53,7 +53,7 @@ typedef jpeg_memory_destination_mgr* jpeg_memory_destination_ptr;
 
 
 
-void jpeg_memory_init_destination (j_compress_ptr cinfo)
+static void jpeg_memory_init_destination (j_compress_ptr cinfo)
 {
 	jpeg_memory_destination_ptr dest = (jpeg_memory_destination_ptr) cinfo->dest;
 
@@ -62,7 +62,7 @@ void jpeg_memory_init_destination (j_compress_ptr cinfo)
 }
 
 
-boolean jpeg_memory_empty_output_buffer (j_compress_ptr cinfo)
+static boolean jpeg_memory_empty_output_buffer (j_compress_ptr cinfo)
 {
 	jpeg_memory_destination_ptr dest = (jpeg_memory_destination_ptr) cinfo->dest;
 	unsigned char *newbuf;
@@ -87,7 +87,7 @@ boolean jpeg_memory_empty_output_buffer (j_compress_ptr cinfo)
 
 
 
-void jpeg_memory_term_destination (j_compress_ptr cinfo)
+static void jpeg_memory_term_destination (j_compress_ptr cinfo)
 {
 	jpeg_memory_destination_ptr dest = (jpeg_memory_destination_ptr) cinfo->dest;
 

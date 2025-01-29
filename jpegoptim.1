@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "21 Jun 2023"
+.TH JPEGOPTIM 1 "28 Jan 2025"
 .UC 4
 .SH NAME
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -98,6 +98,13 @@ as jpegoptim is able to preserve file permissions when run by root in default mo
 .TP 0.6i
 .B -q, --quiet
 Quiet mode.
+.TP 0.6i
+.B -r, --retry
+Recursively re-try compression until output file size does not get smaller anymore.
+This can result a few bytes smaller output file, but with the expense of lot more
+computing time used.
+
+NOTE! This option is on only effective when used in compbination with -m (--max) or -S (--size) option.
 .TP 0.6i
 .B -t, --totals
 Print totals after processing all files.
@@ -268,17 +275,19 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996-2023  Timo Kokkonen
+Copyright (C) 1996-2025  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
- This program is distributed in the hope that it will be useful,
+
+This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
- You should have received a copy of the GNU General Public License
+
+You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.

@@ -96,12 +96,12 @@ int quiet_mode = 0;
 int preserve_mode = 0;
 int preserve_perms = 0;
 int overwrite_mode = 0;
+int retry_mode = 0;
 int totals_mode = 0;
 int stdin_mode = 0;
 int stdout_mode = 0;
 int noaction = 0;
 int quality = -1;
-int retry = 0;
 int dest = 0;
 int force = 0;
 int save_exif = 1;
@@ -164,6 +164,7 @@ const struct option long_options[] = {
 	{ "preserve",           0, 0,                    'p' },
 	{ "preserve-perms",     0, 0,                    'P' },
 	{ "quiet",              0, 0,                    'q' },
+	{ "retry",              0, &retry_mode,          'r' },
 	{ "size",               1, 0,                    'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
 	{ "stdout",             0, &stdout_mode,         1 },
@@ -265,6 +266,7 @@ void print_usage(void)
 		"  -P, --preserve-perms\n"
 		"                    preserve original file permissions by overwriting it\n"
 		"  -q, --quiet       quiet mode\n"
+		"  -r, --retry       try (recursively) optimize until file size does not change anymore\n"
 		"  -t, --totals      print totals after processing all files\n"
 		"  -v, --verbose     enable verbose mode (positively chatty)\n"
 		"  -V, --version     print program version\n\n"
@@ -334,7 +336,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 	while(1) {
 		opt_index=0;
-		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:bw:",
+		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpProT:S:bw:",
 						long_options, &opt_index)) == -1)
 			break;
 
@@ -376,6 +378,10 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case 'q':
 			quiet_mode=1;
+			break;
+
+		case 'r':
+			retry_mode=1;
 			break;
 
 		case 't':
@@ -634,6 +640,8 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	unsigned char *inbuffer = NULL;
 	size_t inbuffersize = 0;
 	size_t inbufferused = 0;
+	unsigned char *tmpbuffer = NULL;
+	size_t tmpbuffersize = 0;
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
@@ -642,6 +650,9 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	long insize = 0, outsize = 0, lastsize = 0;
 	int oldquality, searchdone;
 	double ratio;
+	size_t last_retry_size = 0;
+	int retry_count = 0;
+	int retry = 0;
 	int res = -1;
 
 	jpeg_log_fh = log_fh;
@@ -720,7 +731,10 @@ retry_point:
 	if (!retry) {
 		jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, IN_BUF_SIZE);
 	} else {
-		jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
+		if (retry == 1)
+			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
+		else
+			jpeg_custom_mem_src(&dinfo, tmpbuffer, tmpbuffersize);
 	}
 	jpeg_read_header(&dinfo, TRUE);
 
@@ -747,7 +761,7 @@ retry_point:
 	}
 
 	/* Decompress the image */
-	if (quality >= 0 && !retry) {
+	if (quality >= 0 && retry != 1) {
 		jpeg_start_decompress(&dinfo);
 
 		/* Allocate line buffer to store the decompressed image */
@@ -771,7 +785,6 @@ retry_point:
 			goto abort_decompress;
 		}
 	}
-
 	if (!retry) {
 		if (stdin_mode) {
 			insize = inbufferused;
@@ -791,18 +804,18 @@ retry_point:
 			fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
 			fflush(log_fh);
 		}
-	}
 
-	if (nofix_mode && global_error_counter != 0) {
-		/* Skip files containing any errors (or warnings) */
-		goto abort_decompress;
-	}
-
-	if (dest && !noaction) {
-		if (file_exists(newname) && !overwrite_mode) {
-			if (!quiet_mode)
-				fprintf(log_fh, " (target file already exists) ");
+		if (nofix_mode && global_error_counter != 0) {
+			/* Skip files containing any errors (or warnings) */
 			goto abort_decompress;
+		}
+
+		if (dest && !noaction) {
+			if (file_exists(newname) && !overwrite_mode) {
+				if (!quiet_mode)
+					fprintf(log_fh, " (target file already exists) ");
+				goto abort_decompress;
+			}
 		}
 	}
 
@@ -825,10 +838,12 @@ retry_point:
 
 	lastsize = 0;
 	searchdone = 0;
-	oldquality = 200;
-	if (target_size != 0) {
-		/* Always start with quality 100 if -S option specified... */
-		quality = 100;
+	if (!retry) {
+		oldquality = 200;
+		if (target_size != 0) {
+			/* Always start with quality 100 if -S option specified... */
+			quality = 100;
+		}
 	}
 
 
@@ -845,7 +860,7 @@ binary_search_loop:
 	jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
 
 
-	if (quality >= 0 && !retry) {
+	if (quality >= 0 && retry != 1) {
 		/* Lossy "optimization" ... */
 
 		cinfo.in_color_space=dinfo.out_color_space;
@@ -993,19 +1008,48 @@ binary_search_loop:
 	jpeg_finish_decompress(&dinfo);
 	free_line_buf(&buf, dinfo.output_height);
 
+	if (retry_mode && retry != 1 && quality >= 0 && outsize <= insize) {
+		/* Retry compression until output file stops getting smaller
+		   or we hit max limit of iterations (10)... */
+		if (retry_count == 0)
+			last_retry_size = outsize + 1;
+		if (++retry_count < 10 && outsize < last_retry_size) {
+			if (tmpbuffer)
+				free(tmpbuffer);
+			tmpbuffer = outbuffer;
+			tmpbuffersize = outsize;
+			outbuffer = NULL;
+			last_retry_size = outsize;
+			retry = 2;
+			if (verbose_mode)
+				fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+			goto retry_point;
+		}
+	}
+	if (retry == 2) {
+		if (verbose_mode)
+			fprintf(log_fh, "(retry done: %lu) ", outsize);
+		if (outsize > last_retry_size) {
+			if (outbuffer)
+				free(outbuffer);
+			outbuffer = tmpbuffer;
+			outbuffersize = tmpbuffersize;
+			outsize = outbuffersize;
+			tmpbuffer = NULL;
+		}
+	}
 
 	/* In case "lossy" compression resulted larger file than original, retry with "lossless"... */
-	if (quality >= 0 && outsize >= insize && !retry) {
+	if (quality >= 0 && outsize >= insize && retry != 1) {
+		retry = 1;
 		if (verbose_mode)
-			fprintf(log_fh,"(retry w/lossless) ");
-		retry=1;
+			fprintf(log_fh, "(retry w/lossless) ");
 		goto retry_point;
 	}
 
 	fclose(infile);
 
-	retry=0;
-	ratio=(insize-outsize)*100.0/insize;
+	ratio = (insize - outsize) * 100.0 / insize;
 	if (!quiet_mode || csv)
 		fprintf(log_fh,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
 	if (rate) {
@@ -1128,6 +1172,8 @@ binary_search_loop:
 		free(inbuffer);
 	if (outbuffer)
 		free(outbuffer);
+	if (tmpbuffer)
+		free(tmpbuffer);
 	jpeg_destroy_compress(&cinfo);
 	jpeg_destroy_decompress(&dinfo);
 
