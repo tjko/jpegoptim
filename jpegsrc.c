@@ -1,7 +1,7 @@
 /*
  * jpegsrc.c
  *
- * Copyright (C) 2022 Timo Kokkonen
+ * Copyright (C) 2022-2025 Timo Kokkonen
  * All Rights Reserved.
  *
  * Custom libjpeg "Source Manager" for reading from a file handle
@@ -58,7 +58,7 @@ typedef jpeg_custom_source_mgr* jpeg_custom_source_mgr_ptr;
 
 
 
-void custom_init_source (j_decompress_ptr dinfo)
+static void custom_init_source (j_decompress_ptr dinfo)
 {
 	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 
@@ -68,8 +68,13 @@ void custom_init_source (j_decompress_ptr dinfo)
 	src->start_of_file = TRUE;
 }
 
+static void custom_init_mem_source (j_decompress_ptr dinfo)
+{
+	/* nothing to do */
+}
 
-boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
+
+static boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
 {
 	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 	size_t bytes_read;
@@ -107,8 +112,24 @@ boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
 	return TRUE;
 }
 
+static boolean custom_fill_mem_input_buffer (j_decompress_ptr dinfo)
+{
+	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 
-void custom_skip_input_data (j_decompress_ptr dinfo, long num_bytes)
+	WARNMS(dinfo, JWRN_JPEG_EOF);
+
+	/* Insert fake EOI marker as there is no more data... */
+	src->stdio_buffer[0] = (JOCTET) 0xff;
+	src->stdio_buffer[1] = (JOCTET) JPEG_EOI;
+
+	src->pub.next_input_byte = src->stdio_buffer;
+	src->pub.bytes_in_buffer = 2;
+
+	return TRUE;
+}
+
+
+static void custom_skip_input_data (j_decompress_ptr dinfo, long num_bytes)
 {
 	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 
@@ -118,14 +139,14 @@ void custom_skip_input_data (j_decompress_ptr dinfo, long num_bytes)
 	/* skip "num_bytes" bytes of data from input... */
 	while (num_bytes > (long) src->pub.bytes_in_buffer) {
 		num_bytes -= src->pub.bytes_in_buffer;
-		(void) custom_fill_input_buffer(dinfo);
+		(void)(src->pub.fill_input_buffer)(dinfo);
 	}
 	src->pub.next_input_byte += (size_t) num_bytes;
 	src->pub.bytes_in_buffer -= (size_t) num_bytes;
 }
 
 
-void custom_term_source (j_decompress_ptr dinfo)
+static void custom_term_source (j_decompress_ptr dinfo)
 {
 	jpeg_custom_source_mgr_ptr src = (jpeg_custom_source_mgr_ptr) dinfo->src;
 
@@ -167,6 +188,42 @@ void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
 	src->bufused_ptr = bufusedptr;
 	src->bufsize = (bufsizeptr ? *bufsizeptr : 0);
 	src->incsize = incsize;
+}
+
+
+
+void jpeg_custom_mem_src(j_decompress_ptr dinfo, unsigned char *buf, size_t bufsize)
+{
+	jpeg_custom_source_mgr_ptr src;
+
+	if (!dinfo->src) {
+		/* Allocate source manager object if needed */
+		dinfo->src = (struct jpeg_source_mgr *)
+			(*dinfo->mem->alloc_small) ((j_common_ptr) dinfo, JPOOL_PERMANENT,
+						sizeof(jpeg_custom_source_mgr));
+		src = (jpeg_custom_source_mgr_ptr) dinfo->src;
+		src->stdio_buffer = (JOCTET *)
+			(*dinfo->mem->alloc_small) ((j_common_ptr) dinfo, JPOOL_PERMANENT,
+						STDIO_BUFFER_SIZE * sizeof(JOCTET));
+	} else {
+		src = (jpeg_custom_source_mgr_ptr) dinfo->src;
+	}
+
+	src->pub.init_source = custom_init_mem_source;
+	src->pub.fill_input_buffer = custom_fill_mem_input_buffer;
+	src->pub.resync_to_restart = jpeg_resync_to_restart;
+	src->pub.skip_input_data = custom_skip_input_data;
+	src->pub.term_source = custom_term_source;
+	src->infile = NULL;
+	src->pub.bytes_in_buffer = bufsize;
+	src->pub.next_input_byte = (JOCTET*) buf;
+
+	src->buf_ptr = NULL;
+	src->buf = NULL;
+	src->bufsize_ptr = NULL;
+	src->bufused_ptr = NULL;
+	src->bufsize = bufsize;
+	src->incsize = 0;
 }
 
 
