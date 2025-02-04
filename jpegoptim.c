@@ -106,6 +106,7 @@ int noaction = 0;
 int quality = -1;
 int dest = 0;
 int force = 0;
+int save_extra = 0;
 int save_exif = 1;
 int save_iptc = 1;
 int save_com = 1;
@@ -167,6 +168,7 @@ const struct option long_options[] = {
 	{ "preserve-perms",     0, 0,                    'P' },
 	{ "quiet",              0, 0,                    'q' },
 	{ "retry",              0, &retry_mode,          'r' },
+	{ "save-extra",         0, &save_extra,          1 },
 	{ "size",               1, 0,                    'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
 	{ "stdout",             0, &stdout_mode,         1 },
@@ -304,6 +306,7 @@ void print_usage(void)
 		"  --files-stdin     Read names of files to process from stdin\n"
 		"  --files-from=FILE Read names of files to process from a file\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
+		"  --save-extra      preserve extraneous data after the end of image\n"
 		"\n\n");
 }
 
@@ -571,7 +574,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 		if (verbose_mode > 2)
-			fprintf(jpeg_log_fh, " (Marker %s [%s]: %s) ", jpeg_marker_name(mrk->marker),
+			fprintf(jpeg_log_fh, " (Marker %s [%s]: %s)", jpeg_marker_name(mrk->marker),
 				s_name, (write_marker ? "Keep" : "Discard"));
 		if (write_marker)
 			jpeg_write_marker(cinfo, mrk->marker, mrk->data, mrk->data_length);
@@ -643,11 +646,14 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	size_t inbufferused = 0;
 	unsigned char *tmpbuffer = NULL;
 	size_t tmpbuffersize = 0;
+	unsigned char *extrabuffer = NULL;
+	size_t extrabuffersize = 0;
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
 	unsigned int marker_in_count, marker_in_size;
 
+	long in_image_size = 0;
 	long insize = 0, outsize = 0, lastsize = 0;
 	int oldquality, searchdone;
 	double ratio;
@@ -787,18 +793,32 @@ retry_point:
 		}
 	}
 	if (!retry) {
+		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
+		if(verbose_mode > 2)
+			fprintf(log_fh, " (input image size: %lu (%lu))",
+				in_image_size, inbufferused);
 		if (stdin_mode) {
-			insize = inbufferused;
+			insize = in_image_size;
 		} else {
-			if ((insize=file_size(infile)) < 0)
+			if ((insize = file_size(infile)) < 0)
 				fatal("failed to stat() input file");
-			long inpos = ftell(infile);
-			if (inpos > 0 && inpos < insize) {
+			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
 					fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
-						insize - inpos);
+						insize - in_image_size);
 				if (nofix_mode)
 					global_error_counter++;
+				if (save_extra) {
+					extrabuffersize = insize - in_image_size;
+					if (extrabuffer)
+						free(extrabuffer);
+					if (!(extrabuffer = calloc(extrabuffersize, 1)))
+						fatal("not enough memory");
+					if (fseek(infile, in_image_size, SEEK_SET))
+						fatal("failed to seek input file");
+					if (fread(extrabuffer, extrabuffersize, 1, infile) != 1)
+						fatal("failed to read inputfile");
+				}
 			}
 		}
 		if (!quiet_mode) {
@@ -948,7 +968,9 @@ binary_search_loop:
 	}
 
 	jpeg_finish_compress(&cinfo);
-	outsize=outbuffersize;
+	outsize = outbuffersize + extrabuffersize;
+	if (verbose_mode > 2)
+		fprintf(log_fh, " (output image size: %lu (%lu))", outsize,extrabuffersize);
 
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
@@ -968,7 +990,8 @@ binary_search_loop:
 		if (osize == tsize || searchdone || tsize > isize) {
 			if (searchdone < 42 && lastsize > 0) {
 				if (labs(osize-tsize) > labs(lastsize-tsize)) {
-					if (verbose_mode) fprintf(log_fh,"(revert to %d)",oldquality);
+					if (verbose_mode)
+						fprintf(log_fh,"(revert to %d)",oldquality);
 					searchdone = 42;
 					quality = oldquality;
 					goto binary_search_loop;
@@ -1018,7 +1041,7 @@ binary_search_loop:
 			if (tmpbuffer)
 				free(tmpbuffer);
 			tmpbuffer = outbuffer;
-			tmpbuffersize = outsize;
+			tmpbuffersize = outbuffersize;
 			outbuffer = NULL;
 			last_retry_size = outsize;
 			retry = 2;
@@ -1035,7 +1058,7 @@ binary_search_loop:
 				free(outbuffer);
 			outbuffer = tmpbuffer;
 			outbuffersize = tmpbuffersize;
-			outsize = outbuffersize;
+			outsize = outbuffersize + extrabuffersize;
 			tmpbuffer = NULL;
 		}
 	}
@@ -1081,7 +1104,7 @@ binary_search_loop:
 				if (newlen >= sizeof(tmpfilename))
 					fatal("temp filename too long: %s", tmpfilename);
 
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"%s, creating backup as: %s\n",
 						(stdin_mode ? "stdin" : filename), tmpfilename);
 				if (file_exists(tmpfilename))
@@ -1100,18 +1123,24 @@ binary_search_loop:
 				outfname = tmpfilename;
 			}
 
-			if (verbose_mode > 1 && !quiet_mode)
+			if (verbose_mode > 1)
 				fprintf(log_fh,"writing %lu bytes to file: %s\n",
 					(long unsigned int)outbuffersize, outfname);
-			if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
+			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1)
 				fatal("write failed to file: %s", outfname);
+			if (save_extra && extrabuffersize > 0) {
+				if (verbose_mode > 1)
+					fprintf(log_fh,"writing %lu bytes to file: %s\n", extrabuffersize, outfname);
+				if (fwrite(extrabuffer, extrabuffersize, 1, outfile) != 1)
+					fatal("write failed to file: %s", outfname);
+			}
 			fclose(outfile);
 		}
 
 		if (outfname) {
 			if (preserve_mode) {
 				/* preserve file modification time */
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"set file modification time same as in original: %s\n",
 						outfname);
 #if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
@@ -1132,7 +1161,7 @@ binary_search_loop:
 
 			if (preserve_perms && !dest) {
 				/* original file was already replaced, remove backup... */
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"removing backup file: %s\n", tmpfilename);
 				if (delete_file(tmpfilename))
 					warn("failed to remove backup file: %s", tmpfilename);
@@ -1149,7 +1178,7 @@ binary_search_loop:
 						file_stat->st_gid) != 0)
 					warn("failed to reset output file group/owner");
 
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"renaming: %s to %s\n", outfname, newname);
 				if (rename_file(outfname, newname))
 					fatal("cannot rename temp file");
@@ -1160,7 +1189,7 @@ binary_search_loop:
 			fprintf(log_fh,csv ? "skipped\n" : "skipped.\n");
 		if (stdout_mode) {
 			set_filemode_binary(stdout);
-			if (fwrite(inbuffer, inbufferused, 1, stdout) != 1)
+			if (fwrite(inbuffer, in_image_size, 1, stdout) != 1)
 				fatal("%s, write failed to stdout",
 					(stdin_mode ? "stdin" : filename));
 		}
@@ -1175,6 +1204,8 @@ binary_search_loop:
 		free(outbuffer);
 	if (tmpbuffer)
 		free(tmpbuffer);
+	if (extrabuffer)
+		free(extrabuffer);
 	jpeg_destroy_compress(&cinfo);
 	jpeg_destroy_decompress(&dinfo);
 
@@ -1303,6 +1334,8 @@ int main(int argc, char **argv)
 	/* Parse command line parameters */
 	parse_arguments(argc, argv, dest_path, sizeof(dest_path));
 	log_fh = (stdout_mode ? stderr : stdout);
+	if (quiet_mode)
+		verbose_mode = 0;
 
 	if (verbose_mode) {
 		if (quality >= 0 && target_size == 0)

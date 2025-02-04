@@ -141,6 +141,14 @@ automatically.
 If this behaviour is not desired, this option can be used to make jpegoptim to skip
 any input files that contain any errors.
 
+.TP 0.6i
+.B --save-extra
+Save extraneous data after end of the JPEG image in the input file (default is to discard any
+extraneous data after the end of image that may be present).
+This may be useful if JPEG image contains non-standard extensions that are not part of the
+JPEG image format.
+NOTE! This option does not work if input JPEG image is read from standard input (stdin).
+
 
 .TP 0.6i
 .B --stdout
