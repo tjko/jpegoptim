@@ -68,6 +68,7 @@ endif()
 
 # Common utils
 
+include(GNUInstallDirs)
 include(CMake/Utils.cmake)
 
 
@@ -473,3 +474,8 @@ if (Python3_FOUND)
 
   set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>" "DEBUG=1")
 endif()
+
+
+install(TARGETS ${PROJECT_NAME})
+install(FILES jpegoptim.1 TYPE MAN)
+install(FILES README COPYRIGHT LICENSE TYPE DOC)
