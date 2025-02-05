@@ -118,6 +118,7 @@ int save_jfif = 1;
 int strip_none = 0;
 double threshold = -1.0;
 int csv = 0;
+int auto_mode = 0;
 int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
@@ -143,6 +144,7 @@ const struct option long_options[] = {
 	{ "all-arith",          0, &arith_mode,          1 },
 	{ "all-huffman",        0, &arith_mode,          0 },
 #endif
+	{ "auto-mode",          0, &auto_mode,          1 },
 	{ "all-normal",         0, &all_normal,          1 },
 	{ "all-progressive",    0, &all_progressive,     1 },
 	{ "csv",                0, 0,                    'b' },
@@ -297,6 +299,8 @@ void print_usage(void)
 		"\n"
 		"  --all-normal      force all output files to be non-progressive\n"
 		"  --all-progressive force all output files to be progressive\n"
+		"  --auto-mode       select normal or progressive based on which produces\n"
+		"                    smaller output file\n"
 #ifdef HAVE_ARITH_CODE
 		"  --all-arith       force all output files to use arithmetic coding\n"
 		"  --all-huffman     force all output files to use Huffman coding\n"
@@ -505,15 +509,14 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 	if (stdin_mode)
 		stdout_mode=1;
-
-	if (all_normal && all_progressive)
-		fatal("cannot specify both --all-normal and --all-progressive");
-
 	if (files_stdin)
 		files_from = stdin;
-
 	if (stdin_mode && files_from == stdin)
 		fatal("cannot specify both --stdin and --files-stdin");
+	if (all_normal && all_progressive)
+		fatal("cannot specify both --all-normal and --all-progressive");
+	if (auto_mode && (all_normal || all_progressive))
+		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
 }
 
 
@@ -1032,34 +1035,72 @@ binary_search_loop:
 	jpeg_finish_decompress(&dinfo);
 	free_line_buf(&buf, dinfo.output_height);
 
-	if (retry_mode && retry != 1 && quality >= 0 && outsize <= insize) {
-		/* Retry compression until output file stops getting smaller
-		   or we hit max limit of iterations (10)... */
-		if (retry_count == 0)
-			last_retry_size = outsize + 1;
-		if (++retry_count < 10 && outsize < last_retry_size) {
+	if (retry_mode) {
+		if ((retry == 0 || retry == 2) && quality >= 0 && outsize <= insize) {
+			/* Retry compression until output file stops getting smaller
+			   or we hit max limit of iterations (10)... */
+			if (retry_count == 0)
+				last_retry_size = outsize + 1;
+			if (++retry_count < 10 && outsize < last_retry_size) {
+				if (tmpbuffer)
+					free(tmpbuffer);
+				tmpbuffer = outbuffer;
+				tmpbuffersize = outbuffersize;
+				outbuffer = NULL;
+				last_retry_size = outsize;
+				retry = 2;
+				if (verbose_mode)
+					fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+				goto retry_point;
+			}
+		}
+		if (retry == 2) {
+			if (verbose_mode)
+				fprintf(log_fh, "(retry done: %lu) ", outsize);
+			if (outsize > last_retry_size) {
+				if (outbuffer)
+					free(outbuffer);
+				outbuffer = tmpbuffer;
+				outbuffersize = tmpbuffersize;
+				outsize = outbuffersize + extrabuffersize;
+				tmpbuffer = NULL;
+			}
+		}
+	}
+
+	/* If auto_mode, try both progressive and non-progressive... */
+	if (auto_mode) {
+		int newmode = (dinfo.progressive_mode ? 0 : 1);
+		if (retry != 3) {
+			if (newmode)
+				all_progressive = 1;
+			else
+				all_normal = 1;
 			if (tmpbuffer)
 				free(tmpbuffer);
 			tmpbuffer = outbuffer;
 			tmpbuffersize = outbuffersize;
 			outbuffer = NULL;
 			last_retry_size = outsize;
-			retry = 2;
+			retry = 3;
 			if (verbose_mode)
-				fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+				fprintf(log_fh, "(retry w/%s) ", (newmode ? "progressive" : "normal"));
 			goto retry_point;
-		}
-	}
-	if (retry == 2) {
-		if (verbose_mode)
-			fprintf(log_fh, "(retry done: %lu) ", outsize);
-		if (outsize > last_retry_size) {
-			if (outbuffer)
-				free(outbuffer);
-			outbuffer = tmpbuffer;
-			outbuffersize = tmpbuffersize;
-			outsize = outbuffersize + extrabuffersize;
-			tmpbuffer = NULL;
+		} else {
+			if (verbose_mode > 1)
+				fprintf(log_fh, "(automode done: %lu) ", outsize);
+			if (outsize > last_retry_size) {
+				if (verbose_mode)
+					fprintf(log_fh, "(revert to %s) ", (!newmode ? "progressive" : "normal"));
+				all_progressive = 0;
+				all_normal = 0;
+				if (outbuffer)
+					free(outbuffer);
+				outbuffer = tmpbuffer;
+				outbuffersize = tmpbuffersize;
+				outsize = outbuffersize + extrabuffersize;
+				tmpbuffer = NULL;
+			}
 		}
 	}
 

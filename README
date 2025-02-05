@@ -29,6 +29,7 @@ INSTALLATION
 HISTORY
         v1.5.6 - add new option -r, --retry,
                  add new option --save-extra,
+		 add new option --auto-mode,
 	         processing image from standard input now behaves same like from a file,
 		 other minor fixes
         v1.5.5 - improved JFIF handling (it should not longer get added
@@ -147,4 +148,4 @@ Special thanks for following Github Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-24-Jan-2025
+04-Feb-2025
