@@ -89,7 +89,19 @@ void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr,
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
 		unsigned char **bufptr,	size_t *bufsizeptr, size_t *bufusedptr, size_t incsize);
 
+#ifdef BUILD_FOR_OSS_FUZZ
+// Forward declare the main function to allow access from the harness
+int optimize(FILE *log_fh, const char *filename, const char *newname,
+	const char *tmpdir, struct stat *file_stat,
+	double *rate, double *saved);
 
+/**
+ * Fuzzing utility function to set the target size global value
+ * @param new_target_size: The value to override the target size with
+ */
+void fuzz_set_target_size(int new_target_size);
+
+#endif /* BUILD_FOR_OSS_FUZZ */
 
 
 #ifdef	__cplusplus

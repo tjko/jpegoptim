@@ -5,6 +5,8 @@ project(jpegoptim C)
 # LIBJPEG_INCLUDE_DIR and LIBJPEG_LIBRARY must both be specified if a custom libjpeg implementation is desired.
 option(WITH_ARITH "Enable arithmetic coding (if supported by the libjpeg implementation)" 1)
 option(USE_MOZJPEG "Download, build, and link with MozJPEG rather than the system libjpeg. Build with NASM installed for SIMD support." 1)
+option(BUILD_FUZZERS "Build harnesses with instrumentation" 0)
+
 set(LIBJPEG_INCLUDE_DIR "" CACHE PATH "Custom libjpeg header directory")
 set(LIBJPEG_LIBRARY "" CACHE FILEPATH "Custom libjpeg library binary")
 if(MSVC)
@@ -82,7 +84,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 
 # Source groups
-
 set(SOURCE_FILES
     jpegoptim.c
     jpegsrc.c
@@ -92,10 +93,20 @@ set(SOURCE_FILES
     )
 source_group("Source Files" FILES ${SOURCE_FILES})
 
-
 # Target
+if(BUILD_FUZZERS)
+    add_compile_definitions(BUILD_FOR_OSS_FUZZ=1)
+    add_compile_options(-Wno-implicit-function-declaration)
+    add_library(${PROJECT_NAME} ${SOURCE_FILES})
+    target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+    # Temporarily remove fuzzing flags that would break compiler checks
+    set(ORIG_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-fsanitize=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-fsanitize=[^ ]+" "" $ENV{CFLAGS} "${CMAKE_C_FLAGS}")
+else()
+    add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+endif()
 
 if(MSVC)
     use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
@@ -307,6 +318,7 @@ endif()
 # Dependencies
 
 if(USE_MOZJPEG)
+
     # Link with mozjpeg.
     # Version tree: https://github.com/mozilla/mozjpeg/tree/fd569212597dcc249752bd38ea58a4e2072da24f
 
@@ -321,7 +333,7 @@ if(USE_MOZJPEG)
          GIT_REPOSITORY https://github.com/mozilla/mozjpeg.git
          GIT_TAG fd569212597dcc249752bd38ea58a4e2072da24f
          PREFIX ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
-         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mozjpeg -DPNG_SUPPORTED=0 -DWITH_TURBOJPEG=0 -DENABLE_SHARED=0 ${ARITH_FLAGS}
+         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mozjpeg -DPNG_SUPPORTED=0 -DWITH_TURBOJPEG=0 -DENABLE_SHARED=0 ${ARITH_FLAGS} -DCMAKE_C_FLAGS=""
     )
 
 
@@ -472,4 +484,10 @@ if (Python3_FOUND)
 	 )
 
   set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>")
+endif()
+
+
+if (BUILD_FUZZERS AND DEFINED ENV{LIB_FUZZING_ENGINE})
+     set(CMAKE_C_FLAGS "${ORIG_C_FLAGS}")
+     add_subdirectory(fuzz)
 endif()
