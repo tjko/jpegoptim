@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo apt install libjpeg-dev
+DEBIAN_FRONTEND=noninteractive apt install -y libjpeg-dev
