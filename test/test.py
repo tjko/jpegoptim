@@ -2,7 +2,7 @@
 #
 # test.py -- Unit tests for jpegoptim
 #
-# Copyright (C) 2023 Timo Kokkonen <tjko@iki.fi>
+# Copyright (C) 2023-2025 Timo Kokkonen <tjko@iki.fi>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ class JpegoptimTests(unittest.TestCase):
     def setUp(self):
         if "JPEGOPTIM" in os.environ:
             self.program = os.environ["JPEGOPTIM"]
+        if "DEBUG" in os.environ:
+            self.debug = True
 
     def run_test(self, args, check=True, directory=None):
         """execute jpegoptim for a test"""
@@ -68,26 +70,28 @@ class JpegoptimTests(unittest.TestCase):
     def test_default(self):
         """test default optimization"""
         output, _ = self.run_test(['jpegoptim_test1.jpg'], directory='tmp/default')
+        self.assertTrue(os.path.exists('tmp/default/jpegoptim_test1.jpg'))
         self.assertRegex(output, r'\s\[OK\]\s.*\soptimized\.\s*$')
         # check that output file is indeed smaller than the input file
         self.assertGreater(os.path.getsize('jpegoptim_test1.jpg'),
                            os.path.getsize('tmp/default/jpegoptim_test1.jpg'))
 
         # check that output file is valid and "optimized"
-        output, _ = self.run_test(['-n', 'tmp/default/jpegoptim_test1.jpg'])
+        output, _ = self.run_test(['-n', 'tmp/default/jpegoptim_test1.jpg'], check=False)
         self.assertRegex(output, r'\s\[OK\]\s.*\sskipped\.\s*$')
 
     def test_lossy(self):
         """test lossy optimization"""
         output, _ = self.run_test(['-m', '10', 'jpegoptim_test1.jpg'],
                                   directory='tmp/lossy')
+        self.assertTrue(os.path.exists('tmp/lossy/jpegoptim_test1.jpg'))
         self.assertRegex(output, r'\s\[OK\]\s.*\soptimized\.\s*$')
         # check that output file is indeed smaller than the input file
         self.assertGreater(os.path.getsize('jpegoptim_test1.jpg'),
                            os.path.getsize('tmp/lossy/jpegoptim_test1.jpg'))
 
         # check that output file is valid and "optimized"
-        output, _ = self.run_test(['-n', 'tmp/lossy/jpegoptim_test1.jpg'])
+        output, _ = self.run_test(['-n', 'tmp/lossy/jpegoptim_test1.jpg'], check=False)
         self.assertRegex(output, r'\s\[OK\]\s.*\sskipped\.\s*$')
 
     def test_optimized(self):

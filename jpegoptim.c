@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2023.
+ * Copyright (c) Timo Kokkonen, 1996-2025.
  * All Rights Reserved.
  *
  * requires libjpeg (Independent JPEG Group's JPEG software
@@ -64,21 +64,16 @@
 #include "jpegoptim.h"
 
 
-#define VERSION "1.5.5"
-#define COPYRIGHT  "Copyright (C) 1996-2023, Timo Kokkonen"
+#define VERSION "1.5.6beta"
+#define COPYRIGHT  "Copyright (C) 1996-2025, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING 1
 #define MAX_WORKERS 256
 #endif
 
+#define IN_BUF_SIZE (256 * 1024)
 
-#define FREE_LINE_BUF(buf,lines)  {			\
-		int j;					\
-		for (j=0;j<lines;j++) free(buf[j]);	\
-		free(buf);				\
-		buf=NULL;				\
-	}
 
 struct my_error_mgr {
 	struct jpeg_error_mgr pub;
@@ -103,14 +98,15 @@ int quiet_mode = 0;
 int preserve_mode = 0;
 int preserve_perms = 0;
 int overwrite_mode = 0;
+int retry_mode = 0;
 int totals_mode = 0;
 int stdin_mode = 0;
 int stdout_mode = 0;
 int noaction = 0;
 int quality = -1;
-int retry = 0;
 int dest = 0;
 int force = 0;
+int save_extra = 0;
 int save_exif = 1;
 int save_iptc = 1;
 int save_com = 1;
@@ -122,6 +118,7 @@ int save_jfif = 1;
 int strip_none = 0;
 double threshold = -1.0;
 int csv = 0;
+int auto_mode = 0;
 int all_normal = 0;
 int all_progressive = 0;
 int target_size = 0;
@@ -142,11 +139,12 @@ long average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
 
-struct option long_options[] = {
+const struct option long_options[] = {
 #ifdef HAVE_ARITH_CODE
 	{ "all-arith",          0, &arith_mode,          1 },
 	{ "all-huffman",        0, &arith_mode,          0 },
 #endif
+	{ "auto-mode",          0, &auto_mode,          1 },
 	{ "all-normal",         0, &all_normal,          1 },
 	{ "all-progressive",    0, &all_progressive,     1 },
 	{ "csv",                0, 0,                    'b' },
@@ -171,6 +169,8 @@ struct option long_options[] = {
 	{ "preserve",           0, 0,                    'p' },
 	{ "preserve-perms",     0, 0,                    'P' },
 	{ "quiet",              0, 0,                    'q' },
+	{ "retry",              0, &retry_mode,          'r' },
+	{ "save-extra",         0, &save_extra,          1 },
 	{ "size",               1, 0,                    'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
 	{ "stdout",             0, &stdout_mode,         1 },
@@ -196,6 +196,21 @@ struct option long_options[] = {
 
 
 /*****************************************************************/
+
+
+void free_line_buf(JSAMPARRAY *buf, unsigned int lines)
+{
+	if (*buf == NULL)
+		return;
+
+	for (unsigned int i = 0; i < lines; i++) {
+		if ((*buf)[i])
+			free((*buf)[i]);
+	}
+	free(*buf);
+	*buf = NULL;
+}
+
 
 METHODDEF(void)	my_error_exit (j_common_ptr cinfo)
 {
@@ -257,6 +272,7 @@ void print_usage(void)
 		"  -P, --preserve-perms\n"
 		"                    preserve original file permissions by overwriting it\n"
 		"  -q, --quiet       quiet mode\n"
+		"  -r, --retry       try (recursively) optimize until file size does not change anymore\n"
 		"  -t, --totals      print totals after processing all files\n"
 		"  -v, --verbose     enable verbose mode (positively chatty)\n"
 		"  -V, --version     print program version\n\n"
@@ -283,6 +299,8 @@ void print_usage(void)
 		"\n"
 		"  --all-normal      force all output files to be non-progressive\n"
 		"  --all-progressive force all output files to be progressive\n"
+		"  --auto-mode       select normal or progressive based on which produces\n"
+		"                    smaller output file\n"
 #ifdef HAVE_ARITH_CODE
 		"  --all-arith       force all output files to use arithmetic coding\n"
 		"  --all-huffman     force all output files to use Huffman coding\n"
@@ -292,6 +310,7 @@ void print_usage(void)
 		"  --files-stdin     Read names of files to process from stdin\n"
 		"  --files-from=FILE Read names of files to process from a file\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
+		"  --save-extra      preserve extraneous data after the end of image\n"
 		"\n\n");
 }
 
@@ -301,9 +320,9 @@ void print_version()
 	struct jpeg_error_mgr jerr;
 
 #ifdef  __DATE__
-	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSION,HOST_TYPE,__DATE__);
+	printf(PROGRAMNAME " v%s  %s (%s)\n",VERSION, HOST_TYPE, __DATE__);
 #else
-	printf(PROGRAMNAME " v%s  %s\n",VERSION,HOST_TYPE);
+	printf(PROGRAMNAME " v%s  %s\n", VERSION, HOST_TYPE);
 #endif
 	printf(COPYRIGHT "\n\n");
 	printf("This program comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
@@ -326,7 +345,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 	while(1) {
 		opt_index=0;
-		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpPoT:S:bw:",
+		if ((c = getopt_long(argc,argv,"d:hm:nstqvfVpProT:S:bw:",
 						long_options, &opt_index)) == -1)
 			break;
 
@@ -368,6 +387,10 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case 'q':
 			quiet_mode=1;
+			break;
+
+		case 'r':
+			retry_mode=1;
 			break;
 
 		case 't':
@@ -486,15 +509,14 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 	if (stdin_mode)
 		stdout_mode=1;
-
-	if (all_normal && all_progressive)
-		fatal("cannot specify both --all-normal and --all-progressive");
-
 	if (files_stdin)
 		files_from = stdin;
-
 	if (stdin_mode && files_from == stdin)
 		fatal("cannot specify both --stdin and --files-stdin");
+	if (all_normal && all_progressive)
+		fatal("cannot specify both --all-normal and --all-progressive");
+	if (auto_mode && (all_normal || all_progressive))
+		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
 }
 
 
@@ -555,7 +577,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 		if (verbose_mode > 2)
-			fprintf(jpeg_log_fh, " (Marker %s [%s]: %s) ", jpeg_marker_name(mrk->marker),
+			fprintf(jpeg_log_fh, " (Marker %s [%s]: %s)", jpeg_marker_name(mrk->marker),
 				s_name, (write_marker ? "Keep" : "Discard"));
 		if (write_marker)
 			jpeg_write_marker(cinfo, mrk->marker, mrk->data, mrk->data_length);
@@ -575,10 +597,9 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 	int com_seen = 0;
 	int special;
 
-	if ((seen = malloc(marker_types)) == NULL)
+	if ((seen = calloc(marker_types, 1)) == NULL)
 		fatal("not enough of memory");
 
-	memset(seen, 0, marker_types);
 	str[0] = 0;
 	*markers_total_size = 0;
 
@@ -607,6 +628,7 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 }
 
 
+
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
 	double *rate, double *saved)
@@ -625,16 +647,22 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	unsigned char *inbuffer = NULL;
 	size_t inbuffersize = 0;
 	size_t inbufferused = 0;
+	unsigned char *tmpbuffer = NULL;
+	size_t tmpbuffersize = 0;
+	unsigned char *extrabuffer = NULL;
+	size_t extrabuffersize = 0;
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
 	unsigned int marker_in_count, marker_in_size;
 
+	long in_image_size = 0;
 	long insize = 0, outsize = 0, lastsize = 0;
-	long inpos;
-	int j;
-	int oldquality, searchcount, searchdone;
+	int oldquality, searchdone;
 	double ratio;
+	size_t last_retry_size = 0;
+	int retry_count = 0;
+	int retry = 0;
 	int res = -1;
 
 	jpeg_log_fh = log_fh;
@@ -658,7 +686,6 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	if (saved)
 		*saved = 0.0;
 
-retry_point:
 	if (filename) {
 		if ((infile = fopen(filename, "rb")) == NULL) {
 			warn("cannot open file: %s", filename);
@@ -670,13 +697,14 @@ retry_point:
 		set_filemode_binary(infile);
 	}
 
+retry_point:
+
 	if (setjmp(jderr.setjmp_buffer)) {
 		/* Error handler for decompress */
 	abort_decompress:
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
-		if (buf)
-			FREE_LINE_BUF(buf,dinfo.output_height);
+		free_line_buf(&buf, dinfo.output_height);
 		if (!quiet_mode || csv)
 			fprintf(log_fh,csv ? ",,,,,error\n" : " [ERROR]\n");
 		jderr.jump_set=0;
@@ -686,61 +714,72 @@ retry_point:
 		jderr.jump_set=1;
 	}
 
-	if (!retry && (!quiet_mode || csv)) {
-		fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
-		fflush(log_fh);
-	}
 
 	/* Prepare to decompress */
-	if (stdin_mode || stdout_mode) {
+	if (!retry) {
+		if (!quiet_mode || csv) {
+			fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
+			fflush(log_fh);
+		}
+
+		if (stdin_mode || stdout_mode) {
+			inbuffersize = IN_BUF_SIZE;
+		} else {
+			if ((inbuffersize = file_size(infile)) < IN_BUF_SIZE)
+				inbuffersize = IN_BUF_SIZE;
+		}
 		if (inbuffer)
 			free(inbuffer);
-		inbuffersize=65536;
-		inbuffer=malloc(inbuffersize);
-		if (!inbuffer)
+		if (!(inbuffer=calloc(inbuffersize, 1)))
 			fatal("not enough memory");
 	}
 	global_error_counter=0;
 	jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
-	for (j=0;j<=15;j++) {
-		jpeg_save_markers(&dinfo, JPEG_APP0+j, 0xffff);
+	for (int i = 0; i < 16; i++) {
+		jpeg_save_markers(&dinfo, JPEG_APP0 + i, 0xffff);
 	}
-	jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, 65536);
+	if (!retry) {
+		jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, IN_BUF_SIZE);
+	} else {
+		if (retry == 1)
+			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
+		else
+			jpeg_custom_mem_src(&dinfo, tmpbuffer, tmpbuffersize);
+	}
 	jpeg_read_header(&dinfo, TRUE);
+
 
 	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
 	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),
 					&marker_in_size);
-	if (verbose_mode > 1) {
-		fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
-			marker_in_count,marker_in_size);
-		fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+
+	if (!retry) {
+		if (verbose_mode > 1) {
+			fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
+				marker_in_count,marker_in_size);
+			fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+		}
+
+		if (!quiet_mode || csv) {
+			fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
+				(int)dinfo.image_height,(int)dinfo.num_components*8,
+				(dinfo.progressive_mode?'P':'N'));
+			if (!csv)
+				fprintf(log_fh,"%s",marker_str);
+			fflush(log_fh);
+		}
 	}
-
-
-	if (!retry && (!quiet_mode || csv)) {
-		fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
-			(int)dinfo.image_height,(int)dinfo.num_components*8,
-			(dinfo.progressive_mode?'P':'N'));
-		if (!csv)
-			fprintf(log_fh,"%s",marker_str);
-		fflush(log_fh);
-	}
-
-	if ((insize=file_size(infile)) < 0)
-		fatal("failed to stat() input file");
 
 	/* Decompress the image */
-	if (quality >= 0 && !retry) {
+	if (quality >= 0 && retry != 1) {
 		jpeg_start_decompress(&dinfo);
 
 		/* Allocate line buffer to store the decompressed image */
-		buf = malloc(sizeof(JSAMPROW)*dinfo.output_height);
-		if (!buf) fatal("not enough memory");
-		for (j=0;j<dinfo.output_height;j++) {
-			buf[j]=malloc(sizeof(JSAMPLE)*dinfo.output_width*
-				dinfo.out_color_components);
-			if (!buf[j])
+		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW))))
+			fatal("not enough memory");
+		for (int i = 0; i < dinfo.output_height; i++) {
+			if (!(buf[i]=calloc((size_t)dinfo.output_width * dinfo.out_color_components,
+							sizeof(JSAMPLE))))
 				fatal("not enough memory");
 		}
 
@@ -756,47 +795,64 @@ retry_point:
 			goto abort_decompress;
 		}
 	}
+	if (!retry) {
+		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
+		if(verbose_mode > 2)
+			fprintf(log_fh, " (input image size: %lu (%lu))",
+				in_image_size, inbufferused);
+		if (stdin_mode) {
+			insize = in_image_size;
+		} else {
+			if ((insize = file_size(infile)) < 0)
+				fatal("failed to stat() input file");
+			if (in_image_size > 0 && in_image_size < insize) {
+				if (!quiet_mode)
+					fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
+						insize - in_image_size);
+				if (nofix_mode)
+					global_error_counter++;
+				if (save_extra) {
+					extrabuffersize = insize - in_image_size;
+					if (extrabuffer)
+						free(extrabuffer);
+					if (!(extrabuffer = calloc(extrabuffersize, 1)))
+						fatal("not enough memory");
+					if (fseek(infile, in_image_size, SEEK_SET))
+						fatal("failed to seek input file");
+					if (fread(extrabuffer, extrabuffersize, 1, infile) != 1)
+						fatal("failed to read inputfile");
+				}
+			}
+		}
+		if (!quiet_mode) {
+			fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
+			fflush(log_fh);
+		}
 
-	inpos = ftell(infile);
-	if (inpos > 0 && inpos < insize) {
-		if (!quiet_mode)
-			fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
-				insize - inpos);
-		if (nofix_mode)
-			global_error_counter++;
-	}
-
-	if (!retry && !quiet_mode) {
-		fprintf(log_fh,(global_error_counter==0 ? " [OK] " : " [WARNING] "));
-		fflush(log_fh);
-	}
-
-	if (stdin_mode)
-		insize = inbufferused;
-
-	if (nofix_mode && global_error_counter != 0) {
-		/* Skip files containing any errors (or warnings) */
-		goto abort_decompress;
-	}
-
-	if (dest && !noaction) {
-		if (file_exists(newname) && !overwrite_mode) {
-			if (!quiet_mode)
-				fprintf(log_fh, " (target file already exists) ");
+		if (nofix_mode && global_error_counter != 0) {
+			/* Skip files containing any errors (or warnings) */
 			goto abort_decompress;
+		}
+
+		if (dest && !noaction) {
+			if (file_exists(newname) && !overwrite_mode) {
+				if (!quiet_mode)
+					fprintf(log_fh, " (target file already exists) ");
+				goto abort_decompress;
+			}
 		}
 	}
 
 
+	/* Prepare to compress... */
 	if (setjmp(jcerr.setjmp_buffer)) {
 		/* Error handler for compress failures */
+		if (!quiet_mode)
+			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
 		jpeg_abort_compress(&cinfo);
 		jpeg_abort_decompress(&dinfo);
 		fclose(infile);
-		if (!quiet_mode)
-			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
-		if (buf)
-			FREE_LINE_BUF(buf,dinfo.output_height);
+		free_line_buf(&buf, dinfo.output_height);
 		jcerr.jump_set=0;
 		res = 2;
 		goto exit_point;
@@ -805,12 +861,13 @@ retry_point:
 	}
 
 	lastsize = 0;
-	searchcount = 0;
 	searchdone = 0;
-	oldquality = 200;
-	if (target_size != 0) {
-		/* Always start with quality 100 if -S option specified... */
-		quality = 100;
+	if (!retry) {
+		oldquality = 200;
+		if (target_size != 0) {
+			/* Always start with quality 100 if -S option specified... */
+			quality = 100;
+		}
 	}
 
 
@@ -819,16 +876,15 @@ binary_search_loop:
 	/* Allocate memory buffer that should be large enough to store the output JPEG... */
 	if (outbuffer)
 		free(outbuffer);
-	outbuffersize=insize + 32768;
-	outbuffer=malloc(outbuffersize);
-	if (!outbuffer)
+	outbuffersize = insize + 32768;
+	if (!(outbuffer=calloc(outbuffersize, 1)))
 		fatal("not enough memory");
 
 	/* setup custom "destination manager" for libjpeg to write to our buffer */
 	jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
 
 
-	if (quality >= 0 && !retry) {
+	if (quality >= 0 && retry != 1) {
 		/* Lossy "optimization" ... */
 
 		cinfo.in_color_space=dinfo.out_color_space;
@@ -864,7 +920,6 @@ binary_search_loop:
 			cinfo.write_JFIF_header = FALSE;
 		}
 
-		j=0;
 		jpeg_start_compress(&cinfo,TRUE);
 
 		/* Write markers */
@@ -916,7 +971,9 @@ binary_search_loop:
 	}
 
 	jpeg_finish_compress(&cinfo);
-	outsize=outbuffersize;
+	outsize = outbuffersize + extrabuffersize;
+	if (verbose_mode > 2)
+		fprintf(log_fh, " (output image size: %lu (%lu))", outsize,extrabuffersize);
 
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
@@ -925,18 +982,21 @@ binary_search_loop:
 		long isize = insize/1024;
 		long tsize = target_size;
 
+		if (verbose_mode > 1)
+			fprintf(log_fh, "(size=%ld)",outsize);
 		if (tsize < 0) {
 			tsize=((-target_size)*insize/100)/1024;
 			if (tsize < 1)
 				tsize = 1;
 		}
 
-		if (osize == tsize || searchdone || searchcount >= 8 || tsize > isize) {
+		if (osize == tsize || searchdone || tsize > isize) {
 			if (searchdone < 42 && lastsize > 0) {
 				if (labs(osize-tsize) > labs(lastsize-tsize)) {
-					if (verbose_mode) fprintf(log_fh,"(revert to %d)",oldquality);
-					searchdone=42;
-					quality=oldquality;
+					if (verbose_mode)
+						fprintf(log_fh,"(revert to %d)",oldquality);
+					searchdone = 42;
+					quality = oldquality;
 					goto binary_search_loop;
 				}
 			}
@@ -945,43 +1005,116 @@ binary_search_loop:
 
 		} else {
 			int newquality;
-			int dif = floor((abs(oldquality-quality)/2.0)+0.5);
-			if (osize > tsize) {
-				newquality=quality-dif;
-				if (dif < 1) { newquality--; searchdone=1; }
-				if (newquality < 0) { newquality=0; searchdone=2; }
-			} else {
-				newquality=quality+dif;
-				if (dif < 1) { newquality++; searchdone=3; }
-				if (newquality > 100) { newquality=100; searchdone=4; }
-			}
-			oldquality=quality;
-			quality=newquality;
+			double dif = abs(oldquality-quality) / 2.0;
 
+			if (osize > tsize)
+				newquality = quality - dif;
+			else
+				newquality = quality + dif + 0.5;
+
+			if (dif < 1.0)
+				searchdone = 1;
+			if (newquality < 0) {
+				newquality = 0;
+				searchdone = 1;
+			}
+			if (newquality > 100) {
+				newquality = 100;
+				searchdone = 1;
+			}
+
+			oldquality = quality;
+			quality = newquality;
+			lastsize = osize;
 			if (verbose_mode)
 				fprintf(log_fh,"(try %d)",quality);
-
-			lastsize=osize;
-			searchcount++;
 			goto binary_search_loop;
 		}
 	}
 
-	if (buf)
-		FREE_LINE_BUF(buf,dinfo.output_height);
 	jpeg_finish_decompress(&dinfo);
-	fclose(infile);
+	free_line_buf(&buf, dinfo.output_height);
 
+	if (retry_mode) {
+		if ((retry == 0 || retry == 2) && quality >= 0 && outsize <= insize) {
+			/* Retry compression until output file stops getting smaller
+			   or we hit max limit of iterations (10)... */
+			if (retry_count == 0)
+				last_retry_size = outsize + 1;
+			if (++retry_count < 10 && outsize < last_retry_size) {
+				if (tmpbuffer)
+					free(tmpbuffer);
+				tmpbuffer = outbuffer;
+				tmpbuffersize = outbuffersize;
+				outbuffer = NULL;
+				last_retry_size = outsize;
+				retry = 2;
+				if (verbose_mode)
+					fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+				goto retry_point;
+			}
+		}
+		if (retry == 2) {
+			if (verbose_mode)
+				fprintf(log_fh, "(retry done: %lu) ", outsize);
+			if (outsize > last_retry_size) {
+				if (outbuffer)
+					free(outbuffer);
+				outbuffer = tmpbuffer;
+				outbuffersize = tmpbuffersize;
+				outsize = outbuffersize + extrabuffersize;
+				tmpbuffer = NULL;
+			}
+		}
+	}
 
-	if (quality >= 0 && outsize >= insize && !retry && !stdin_mode) {
+	/* If auto_mode, try both progressive and non-progressive... */
+	if (auto_mode) {
+		int newmode = (dinfo.progressive_mode ? 0 : 1);
+		if (retry != 3) {
+			if (newmode)
+				all_progressive = 1;
+			else
+				all_normal = 1;
+			if (tmpbuffer)
+				free(tmpbuffer);
+			tmpbuffer = outbuffer;
+			tmpbuffersize = outbuffersize;
+			outbuffer = NULL;
+			last_retry_size = outsize;
+			retry = 3;
+			if (verbose_mode)
+				fprintf(log_fh, "(retry w/%s) ", (newmode ? "progressive" : "normal"));
+			goto retry_point;
+		} else {
+			if (verbose_mode > 1)
+				fprintf(log_fh, "(automode done: %lu) ", outsize);
+			if (outsize > last_retry_size) {
+				if (verbose_mode)
+					fprintf(log_fh, "(revert to %s) ", (!newmode ? "progressive" : "normal"));
+				all_progressive = 0;
+				all_normal = 0;
+				if (outbuffer)
+					free(outbuffer);
+				outbuffer = tmpbuffer;
+				outbuffersize = tmpbuffersize;
+				outsize = outbuffersize + extrabuffersize;
+				tmpbuffer = NULL;
+			}
+		}
+	}
+
+	/* In case "lossy" compression resulted larger file than original, retry with "lossless"... */
+	if (quality >= 0 && outsize >= insize && retry != 1) {
+		retry = 1;
 		if (verbose_mode)
-			fprintf(log_fh,"(retry w/lossless) ");
-		retry=1;
+			fprintf(log_fh, "(retry w/lossless) ");
 		goto retry_point;
 	}
 
-	retry=0;
-	ratio=(insize-outsize)*100.0/insize;
+	fclose(infile);
+
+	ratio = (insize - outsize) * 100.0 / insize;
 	if (!quiet_mode || csv)
 		fprintf(log_fh,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
 	if (rate) {
@@ -1010,9 +1143,9 @@ binary_search_loop:
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
 				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
+					fatal("temp filename too long: %s", tmpfilename);
 
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"%s, creating backup as: %s\n",
 						(stdin_mode ? "stdin" : filename), tmpfilename);
 				if (file_exists(tmpfilename))
@@ -1021,47 +1154,34 @@ binary_search_loop:
 				if (copy_file(newname,tmpfilename))
 					fatal("%s, failed to create backup: %s",
 						(stdin_mode ? "stdin" : filename), tmpfilename);
-				if ((outfile=fopen(newname,"wb"))==NULL)
+				if ((outfile=create_file(newname))==NULL)
 					fatal("%s, error opening output file: %s",
 						(stdin_mode ? "stdin" : filename), newname);
-				outfname=newname;
+				outfname = newname;
 			} else {
-#ifdef HAVE_MKSTEMPS
-				/* rely on mkstemps() to create us temporary file safely... */
-				int newlen = snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.XXXXXX.tmp",
-						tmpdir, (int)getuid(), (int)getpid());
-				if (newlen >= sizeof(tmpfilename))
-					warn("temp filename too long: %s", tmpfilename);
-				int tmpfd = mkstemps(tmpfilename,4);
-				if (tmpfd < 0)
-					fatal("%s, error creating temp file %s: mkstemps() failed",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
-				if ((outfile = fdopen(tmpfd,"wb")) == NULL)
-#else
-					/* if platform is missing mkstemps(), try to create
-					   at least somewhat "safe" temp file... */
-					snprintf(tmpfilename,sizeof(tmpfilename),
-						"%sjpegoptim-%d-%d.%ld.tmp", tmpdir,
-						(int)getuid(), (int)getpid(), (long)time(NULL));
-				if ((outfile = fopen(tmpfilename,"wb")) == NULL)
-#endif
-					fatal("error opening temporary file: %s", tmpfilename);
-				outfname=tmpfilename;
+				if (!(outfile = create_temp_file(tmpdir, "jpegoptim", tmpfilename, sizeof(tmpfilename))))
+					fatal("error creating temporary file: %s", tmpfilename);
+				outfname = tmpfilename;
 			}
 
-			if (verbose_mode > 1 && !quiet_mode)
+			if (verbose_mode > 1)
 				fprintf(log_fh,"writing %lu bytes to file: %s\n",
 					(long unsigned int)outbuffersize, outfname);
-			if (fwrite(outbuffer,outbuffersize,1,outfile) != 1)
+			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1)
 				fatal("write failed to file: %s", outfname);
+			if (save_extra && extrabuffersize > 0) {
+				if (verbose_mode > 1)
+					fprintf(log_fh,"writing %lu bytes to file: %s\n", extrabuffersize, outfname);
+				if (fwrite(extrabuffer, extrabuffersize, 1, outfile) != 1)
+					fatal("write failed to file: %s", outfname);
+			}
 			fclose(outfile);
 		}
 
 		if (outfname) {
 			if (preserve_mode) {
 				/* preserve file modification time */
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"set file modification time same as in original: %s\n",
 						outfname);
 #if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
@@ -1082,7 +1202,7 @@ binary_search_loop:
 
 			if (preserve_perms && !dest) {
 				/* original file was already replaced, remove backup... */
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"removing backup file: %s\n", tmpfilename);
 				if (delete_file(tmpfilename))
 					warn("failed to remove backup file: %s", tmpfilename);
@@ -1099,7 +1219,7 @@ binary_search_loop:
 						file_stat->st_gid) != 0)
 					warn("failed to reset output file group/owner");
 
-				if (verbose_mode > 1 && !quiet_mode)
+				if (verbose_mode > 1)
 					fprintf(log_fh,"renaming: %s to %s\n", outfname, newname);
 				if (rename_file(outfname, newname))
 					fatal("cannot rename temp file");
@@ -1110,7 +1230,7 @@ binary_search_loop:
 			fprintf(log_fh,csv ? "skipped\n" : "skipped.\n");
 		if (stdout_mode) {
 			set_filemode_binary(stdout);
-			if (fwrite(inbuffer, inbufferused, 1, stdout) != 1)
+			if (fwrite(inbuffer, in_image_size, 1, stdout) != 1)
 				fatal("%s, write failed to stdout",
 					(stdin_mode ? "stdin" : filename));
 		}
@@ -1123,6 +1243,10 @@ binary_search_loop:
 		free(inbuffer);
 	if (outbuffer)
 		free(outbuffer);
+	if (tmpbuffer)
+		free(tmpbuffer);
+	if (extrabuffer)
+		free(extrabuffer);
 	jpeg_destroy_compress(&cinfo);
 	jpeg_destroy_decompress(&dinfo);
 
@@ -1226,7 +1350,7 @@ int main(int argc, char **argv)
 	char newname[MAXPATHLEN + 1], dest_path[MAXPATHLEN + 1];
 	char namebuf[MAXPATHLEN + 2];
 	const char *filename;
-	volatile int i;
+	int arg_idx;
 	int res;
 	double rate, saved;
 	FILE *log_fh;
@@ -1234,12 +1358,12 @@ int main(int argc, char **argv)
 	struct worker *w;
 	int pipe_fd[2];
 	pid_t pid;
-	int j;
+
 
 	/* Allocate table to keep track of child processes... */
-	if (!(workers = malloc(sizeof(struct worker) * MAX_WORKERS)))
+	if (!(workers = calloc(MAX_WORKERS, sizeof(struct worker))))
 		fatal("not enough memory");
-	for (i = 0; i < MAX_WORKERS; i++) {
+	for (int i = 0; i < MAX_WORKERS; i++) {
 		workers[i].pid = -1;
 		workers[i].read_pipe = -1;
 	}
@@ -1252,6 +1376,8 @@ int main(int argc, char **argv)
 	/* Parse command line parameters */
 	parse_arguments(argc, argv, dest_path, sizeof(dest_path));
 	log_fh = (stdout_mode ? stderr : stdout);
+	if (quiet_mode)
+		verbose_mode = 0;
 
 	if (verbose_mode) {
 		if (quality >= 0 && target_size == 0)
@@ -1281,8 +1407,8 @@ int main(int argc, char **argv)
 		return (res == 0 ? 0 : 1);
 	}
 
-	i=(optind > 0 ? optind : 1);
-	if (files_from == NULL && argc <= i) {
+	arg_idx = (optind > 0 ? optind : 1);
+	if (files_from == NULL && argc <= arg_idx) {
 		if (!quiet_mode)
 			fprintf(stderr, PROGRAMNAME ": file argument(s) missing\n"
 				"Try '" PROGRAMNAME " --help' for more information.\n");
@@ -1297,7 +1423,7 @@ int main(int argc, char **argv)
 				break;
 			filename = namebuf;
 		} else {
-			filename = argv[i];
+			filename = argv[arg_idx];
 		}
 
 		if (*filename == 0)
@@ -1366,6 +1492,8 @@ int main(int argc, char **argv)
 				exit(res);
 			} else {
 				/* Parent continues here... */
+				int j;
+
 				close(pipe_fd[1]);
 
 				w = NULL;
@@ -1401,7 +1529,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-	} while (files_from || ++i < argc);
+	} while (files_from || ++arg_idx < argc);
 
 
 #ifdef PARALLEL_PROCESSING

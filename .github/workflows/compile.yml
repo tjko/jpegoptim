@@ -44,7 +44,7 @@ jobs:
       # Run tests
       - name: Tests
         run: |
-          ctest --test-dir build --build-config Release
+          ctest --output-on-failure --test-dir build --build-config Release
 
       # Gather documentation and executables to a common directory
       # Ignore copying errors from only one of build/jpegoptim or build/jpegoptim.exe existing

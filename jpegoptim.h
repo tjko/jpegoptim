@@ -64,6 +64,8 @@ extern int quiet_mode;
 
 
 /* misc.c */
+FILE* create_file(const char *name);
+FILE *create_temp_file(const char *tmpdir, const char *name, char *filename, size_t filename_len);
 int delete_file(const char *name);
 long file_size(FILE *fp);
 int is_directory(const char *path);
@@ -103,6 +105,7 @@ void fuzz_set_target_size(int new_target_size);
 
 #endif /* BUILD_FOR_OSS_FUZZ */
 
+void jpeg_custom_mem_src(j_decompress_ptr dinfo, unsigned char *buf, size_t bufsize);
 
 #ifdef	__cplusplus
 }

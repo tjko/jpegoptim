@@ -70,6 +70,7 @@ endif()
 
 # Common utils
 
+include(GNUInstallDirs)
 include(CMake/Utils.cmake)
 
 
@@ -483,7 +484,7 @@ if (Python3_FOUND)
 	 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
 	 )
 
-  set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>")
+  set_property(TEST unittests PROPERTY ENVIRONMENT "JPEGOPTIM=$<TARGET_FILE:jpegoptim>" "DEBUG=1")
 endif()
 
 
@@ -491,3 +492,7 @@ if (BUILD_FUZZERS AND DEFINED ENV{LIB_FUZZING_ENGINE})
      set(CMAKE_C_FLAGS "${ORIG_C_FLAGS}")
      add_subdirectory(fuzz)
 endif()
+
+install(TARGETS ${PROJECT_NAME})
+install(FILES jpegoptim.1 TYPE MAN)
+install(FILES README COPYRIGHT LICENSE TYPE DOC)

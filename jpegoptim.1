@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "21 Jun 2023"
+.TH JPEGOPTIM 1 "28 Jan 2025"
 .UC 4
 .SH NAME
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -99,12 +99,24 @@ as jpegoptim is able to preserve file permissions when run by root in default mo
 .B -q, --quiet
 Quiet mode.
 .TP 0.6i
+.B -r, --retry
+Recursively re-try compression until output file size does not get smaller anymore.
+This can result a few bytes smaller output file, but with the expense of lot more
+computing time used.
+
+NOTE! This option is on only effective when used in compbination with -m (--max) or -S (--size) option.
+.TP 0.6i
 .B -t, --totals
 Print totals after processing all files.
 .TP 0.6i
 .B -v, --verbose
 Enables verbose mode (positively chatty).
 
+.TP 0.6i
+.B --auto-mode
+Select progressive vs non-progressive mode based on which one
+produces smaller output file. By default mode (progressive vs non-progressive)
+is preserved.
 .TP 0.6i
 .B --all-normal
 Force all output files to be non-progressive. Can be used to convert
@@ -133,6 +145,14 @@ even if decompression generates warnings. This will 'fix' some (corrupt) JPEG im
 automatically.
 If this behaviour is not desired, this option can be used to make jpegoptim to skip
 any input files that contain any errors.
+
+.TP 0.6i
+.B --save-extra
+Save extraneous data after end of the JPEG image in the input file (default is to discard any
+extraneous data after the end of image that may be present).
+This may be useful if JPEG image contains non-standard extensions that are not part of the
+JPEG image format.
+NOTE! This option does not work if input JPEG image is read from standard input (stdin).
 
 
 .TP 0.6i
@@ -268,17 +288,19 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996-2023  Timo Kokkonen
+Copyright (C) 1996-2025  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
- This program is distributed in the hope that it will be useful,
+
+This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
- You should have received a copy of the GNU General Public License
+
+You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
