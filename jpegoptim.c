@@ -1341,6 +1341,7 @@ int wait_for_worker(FILE *log_fh)
 #endif
 
 
+#ifndef BUILD_FOR_OSS_FUZZ // Libfuzzer provides its own fuzzer
 /****************************************************************************/
 int main(int argc, char **argv)
 {
@@ -1551,5 +1552,10 @@ int main(int argc, char **argv)
 
 	return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
 }
-
+#else
+void fuzz_set_target_size(const int new_target_size)
+{
+	target_size = new_target_size;
+}
+#endif /* BUILD_FOR_OSS_FUZZ */
 /* eof :-) */
