@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 project(jpegoptim C)
 
@@ -338,7 +338,7 @@ if(USE_MOZJPEG)
 
     ExternalProject_Add(mozjpeg_lib
          GIT_REPOSITORY https://github.com/mozilla/mozjpeg.git
-         GIT_TAG fd569212597dcc249752bd38ea58a4e2072da24f
+         GIT_TAG v4.1.1
          PREFIX ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
          CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mozjpeg -DPNG_SUPPORTED=0 -DWITH_TURBOJPEG=0 -DENABLE_SHARED=0 ${ARITH_FLAGS} ${MOZJPEG_EXTENDED_CMAKE_FLAGS}
     )
