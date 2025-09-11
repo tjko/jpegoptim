@@ -49,6 +49,8 @@ INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
+GROFF_FLAGS = -t -e -mandoc
+
 @SET_MAKE@
 
 # should be no reason to modify lines below this
@@ -93,8 +95,10 @@ install: all install.dirs install.man
 	$(INSTALL) -m 755 $(PKGNAME) $(DESTDIR)$(bindir)/$(PKGNAME)
 
 printable.man:
-	groff -Tps -mandoc ./$(PKGNAME).1 >$(PKGNAME).ps
-	groff -Tascii -mandoc ./$(PKGNAME).1 | tee $(PKGNAME).prn | sed 's/.//g' >$(PKGNAME).txt
+	groff $(GROFF_FLAGS) -Tps ./$(PKGNAME).1 > $(PKGNAME).ps
+	groff $(GROFF_FLAGS) -Tpdf ./$(PKGNAME).1 > $(PKGNAME).pdf
+	groff $(GROFF_FLAGS) -Tascii ./$(PKGNAME).1 | col -bx > $(PKGNAME).txt
+	groff $(GROFF_FLAGS) -Thtml ./$(PKGNAME).1 > $(PKGNAME).html
 
 install.man: install.dirs
 	$(INSTALL) -m 644 $(PKGNAME).1 $(DESTDIR)$(mandir)/man1/$(PKGNAME).1
