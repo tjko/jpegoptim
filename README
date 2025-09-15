@@ -1,97 +1,97 @@
 
-Jpegoptim v1.5.6beta - Copyright (C)  Timo Kokkonen, 1996-2025. All Rights Reserved.
+Jpegoptim v1.5.6 - Copyright (C)  Timo Kokkonen, 1996-2025. All Rights Reserved.
 
 
 REQUIREMENTS
-	Independent JPEG Group's jpeg library (libjpeg) version 6b or later.
-	(Alternatively should also work with libjpeg-turbo or mozjpeg)
+        Independent JPEG Group's jpeg library (libjpeg) version 6b or later.
+        (Alternatively should also work with libjpeg-turbo or mozjpeg)
 
 
 TESTED PLATFORMS
-	Linux
-	MacOS
-	Windows (setargv.obj "link option" is needed for wildcards expansion to work)
+        Linux
+        MacOS
+        Windows (setargv.obj "link option" is needed for wildcards expansion to work)
 
 
 INSTALLATION
-	Installation should be very straightforward, just unpack the
-	tar file, make necessary changes to the Makefile,  and then
+        Installation should be very straightforward, just unpack the
+        tar file, make necessary changes to the Makefile,  and then
         compile the program. You may wanna do something like this:
 
-		tar xzvf jpegoptim-1.5.6.tar.gz
-		cd jpegoptim-1.5.6
-		./configure
-		make
-		make strip
-		make install
+                tar xzvf jpegoptim-1.5.6.tar.gz
+                cd jpegoptim-1.5.6
+                ./configure
+                make
+                make strip
+                make install
 
 
 HISTORY
         v1.5.6 - add new option -r, --retry,
                  add new option --save-extra,
-		 add new option --auto-mode,
-	         processing image from standard input now behaves same like from a file,
-		 other minor fixes
+                 add new option --auto-mode,
+                 processing image from standard input now behaves same like from a file,
+                 other minor fixes
         v1.5.5 - improved JFIF handling (it should not longer get added
-	         in some instances if it was not present in original),
-		 new options --keep-jfif and --strip-jfif,
-		 other minor fixes
+                 in some instances if it was not present in original),
+                 new options --keep-jfif and --strip-jfif,
+                 other minor fixes
         v1.5.4 - make sure JPEG mode (progressive vs non-progressive) is
                  preserved by default,
-		 fix parallel processing when reading file list
-		 (thanks to Cubittus)
-	v1.5.3 - fix potential heap-buffer-overflow (read) when using
-	         stdin/stdout and processing corrupt JPEG
+                 fix parallel processing when reading file list
+                 (thanks to Cubittus)
+        v1.5.3 - fix potential heap-buffer-overflow (read) when using
+                 stdin/stdout and processing corrupt JPEG
         v1.5.2 - add support for reading list of files to process from a file
-	         (--files-from) or from standard input (--files-stdin),
-		 improved JPEG marker reporting,
-		 fix -d, --dest option (thanks to Almas Kunapyanov),
-	         other minor fixes
+                 (--files-from) or from standard input (--files-stdin),
+                 improved JPEG marker reporting,
+                 fix -d, --dest option (thanks to Almas Kunapyanov),
+                 other minor fixes
         v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta,
-	         improved CMake support (and Github CI stuff) *thanks to Eta,
-	         update --treshold option accept decimal numbers as parameter,
-		 fix crashes when processing certain broken JPEG images,
-		 fix memory leaks,
-		 fix (logging) output in parallel processing mode
+                 improved CMake support (and Github CI stuff) *thanks to Eta,
+                 update --treshold option accept decimal numbers as parameter,
+                 fix crashes when processing certain broken JPEG images,
+                 fix memory leaks,
+                 fix (logging) output in parallel processing mode
         v1.5.0 - add --workers=<max> option to enable parallel processing
-	         fix --stdin option,
+                 fix --stdin option,
                  other minor fixes
         v1.4.7 - experimental support for arithmetic coding (enable with
-	         configure option --with-arith),
-		 add option --nofix,
-		 add support for JFIF Extension (JFXX) markers,
-		 support for nanosecond timestamps (thanks to GerbilSoft),
-		 optimization now works same with stdin as with standard files,
-		 fixed --size (-S) option not working correctly when processing
+                 configure option --with-arith),
+                 add option --nofix,
+                 add support for JFIF Extension (JFXX) markers,
+                 support for nanosecond timestamps (thanks to GerbilSoft),
+                 optimization now works same with stdin as with standard files,
+                 fixed --size (-S) option not working correctly when processing
                  multiple files,
-		 new --keep-* options to use with --strip-all (see man page),
+                 new --keep-* options to use with --strip-all (see man page),
                  other minor fixes
-	v1.4.6 - fix double free introduced in previous release
-	v1.4.5 - fix --overwrite option,
+        v1.4.6 - fix double free introduced in previous release
+        v1.4.5 - fix --overwrite option,
                  better error reporting for -d option,
                  fix memcmp() potentially reading past end of buffer,
                  some minor fixes
-	v1.4.4 - more detailed error messages (thanks to Denis Fateyev),
+        v1.4.4 - more detailed error messages (thanks to Denis Fateyev),
                  CMake support (thanks to Ghostkeeper),
                  other minor fixes
-	v1.4.3 - fix bug that could cause jpegoptim crash when processing
-		 certain jpeg files
+        v1.4.3 - fix bug that could cause jpegoptim crash when processing
+                 certain jpeg files
         v1.4.2 - add option -P, --preserve-perms,
                  some minor fixes
         v1.4.1 - fix --stdin option (assume -f when reading from stdin),
-		 workaround to bug in libjpeg-turbo (v1.3.1) triggered
-		 when option -V or --version was used,
+                 workaround to bug in libjpeg-turbo (v1.3.1) triggered
+                 when option -V or --version was used,
                  other minor fixes
-	v1.4.0 - use memory (instead of temporary files) during optimization,
-		 support for reading input from stdin (and sending output to
+        v1.4.0 - use memory (instead of temporary files) during optimization,
+                 support for reading input from stdin (and sending output to
                  stdout),
-		 report also libjpeg version when --version option used,
-		 new option --strip-none to preserve "all" markers,
-		 other minor fixes & cleanup
-	v1.3.1 - XMP marker support and new --csv option (by Matteo Croce),
-		 use DESTDIR instead of INSTALL_ROOT (by Samuli Suominen),
-		 changes to make compiling under Win32 and Win64
-		 easier (thanks to Javier Gutiérrez),
+                 report also libjpeg version when --version option used,
+                 new option --strip-none to preserve "all" markers,
+                 other minor fixes & cleanup
+        v1.3.1 - XMP marker support and new --csv option (by Matteo Croce),
+                 use DESTDIR instead of INSTALL_ROOT (by Samuli Suominen),
+                 changes to make compiling under Win32 and Win64
+                 easier (thanks to Javier Gutiérrez),
                  preserve permissions of files being optimized,
                  skip symlinks (and other special files),
                  other minor fixes
@@ -102,41 +102,41 @@ HISTORY
                  converting jpegs to non-progressive & progressive,
                  new -S / --size option to set target size for output
                  file (enables lossy optimization),
-		 updated GPL/Copyrights language (thanks to Nicolas Vieville)
-	v1.2.5 - safer temp file handling (if mkstemps() available),
-		 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
-	v1.2.4 - new -T / --threshold option by Matteo Croce,
-		 minor fixes (potential memory leaks),
-		 merged some patches from Debian jpegoptim package (1.2.3-2)
-	v1.2.3 - IPTC marker support by Dustin Ward,
-		 ICC profile support by Dwight Kelly,
-		 minor fixes
-	v1.2.2 - Now Exif and COM markers are not discarded
+                 updated GPL/Copyrights language (thanks to Nicolas Vieville)
+        v1.2.5 - safer temp file handling (if mkstemps() available),
+                 patch to make "quiet mode" (-q) be quiet by Mathieu Malaterre
+        v1.2.4 - new -T / --threshold option by Matteo Croce,
+                 minor fixes (potential memory leaks),
+                 merged some patches from Debian jpegoptim package (1.2.3-2)
+        v1.2.3 - IPTC marker support by Dustin Ward,
+                 ICC profile support by Dwight Kelly,
+                 minor fixes
+        v1.2.2 - Now Exif and COM markers are not discarded
                  (all other markers are discarded as before).
-	         New options --strip-all, --strip-exif, and --strip-com
-	         added for controlling what markers to strip.
-	v1.2.1 - fixed buggy temp file handling
-	v1.2.0 - Added new options --overwrite and --preserve.
-		 GNU autoconf support added, also.
-	v1.1   - new -f option, and other minor changes, improved
-	 	 support for other platforms
-	v1.0a  - some changes in docs & makefile
-	v1.0   - first public release
+                 New options --strip-all, --strip-exif, and --strip-com
+                 added for controlling what markers to strip.
+        v1.2.1 - fixed buggy temp file handling
+        v1.2.0 - Added new options --overwrite and --preserve.
+                 GNU autoconf support added, also.
+        v1.1   - new -f option, and other minor changes, improved
+                 support for other platforms
+        v1.0a  - some changes in docs & makefile
+        v1.0   - first public release
 
 
 
 LATEST VERSION
 
-	Latest version is always available from:
-		http://www.iki.fi/tjko/projects.html
+        Latest version is always available from:
+                http://www.iki.fi/tjko/projects.html
 
-	Sources (GIT)
-		https://github.com/tjko/jpegoptim
+        Sources (GIT)
+                https://github.com/tjko/jpegoptim
 
 
 ACKNOWLEDGEMENT
 
-	This software is based in part on the work of the Independent JPEG Group.
+        This software is based in part on the work of the Independent JPEG Group.
 
 
 SPONSORS
@@ -148,4 +148,4 @@ Special thanks for following Github Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-04-Feb-2025
+14-Sep-2025
