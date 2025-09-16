@@ -24,16 +24,16 @@ jobs:
             triplet: x64-osx
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           persist-credentials: false
 
       # Install CMake
-      - uses: lukka/get-cmake@v4.0.1
+      - uses: lukka/get-cmake@57c20a23a6cac5b90f31864439996e5b206df9dc # v4.0.1
       # Install NASM
-      - uses: ilammy/setup-nasm@v1
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
       # Launch the MSVC Tools Command Prompt (Windows)
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
 
       # Initialize the CMake directory and build
       - name: Build
@@ -56,7 +56,7 @@ jobs:
         shell: bash
 
       # Upload the compiled binary
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: matrix.os != 'ubuntu-latest'
         with:
           name: jpegoptim-${{ matrix.triplet }}
