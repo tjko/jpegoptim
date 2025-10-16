@@ -241,9 +241,9 @@ METHODDEF(void) my_output_message (j_common_ptr cinfo)
 
 void print_usage(void)
 {
-	fprintf(stderr,PROGRAMNAME " v" VERSION "  " COPYRIGHT "\n");
+	fprintf(stdout,PROGRAMNAME " v" VERSION "  " COPYRIGHT "\n");
 
-	fprintf(stderr,
+	fprintf(stdout,
 		"Usage: " PROGRAMNAME " [options] <filenames> \n\n"
 		"  -d<path>, --dest=<path>\n"
 		"                    specify alternative destination directory for \n"
