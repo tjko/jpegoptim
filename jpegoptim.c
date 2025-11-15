@@ -64,7 +64,7 @@
 #include "jpegoptim.h"
 
 
-#define VERSION "1.5.6"
+#define VERSION "1.5.7beta"
 #define COPYRIGHT  "Copyright (C) 1996-2025, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
@@ -1089,6 +1089,7 @@ binary_search_loop:
 		} else {
 			if (verbose_mode > 1)
 				fprintf(log_fh, "(automode done: %lu) ", outsize);
+			auto_mode = 0;
 			if (outsize > last_retry_size) {
 				if (verbose_mode)
 					fprintf(log_fh, "(revert to %s) ", (!newmode ? "progressive" : "normal"));
