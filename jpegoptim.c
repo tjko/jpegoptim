@@ -1476,6 +1476,9 @@ int main(int argc, char **argv)
 			}
 			if (pipe(pipe_fd) < 0)
 				fatal("failed to open pipe");
+			/* flush any buffered output so child process does not
+			   inherit it (and print it again when exiting) ... */
+			fflush(NULL);
 			pid = fork();
 			if (pid < 0)
 				fatal("fork() failed");
