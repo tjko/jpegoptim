@@ -54,6 +54,7 @@
 #endif
 #include <signal.h>
 #include <string.h>
+#include <limits.h>
 #include <jpeglib.h>
 #include <jerror.h>
 #include <setjmp.h>
@@ -454,19 +455,25 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case 'S':
 		        {
-				int tmpvar;
-				if (sscanf(optarg,"%d", &tmpvar) == 1) {
-					if (tmpvar > 0 && tmpvar < 100 &&
-						optarg[strlen(optarg)-1] == '%' ) {
-						target_size=-tmpvar;
-					} else if (tmpvar < 0) {
-						fatal("invalid argument for -S, --size");
-					} else {
-						target_size=tmpvar;
-					}
-					quality=100;
+				char *endp = NULL;
+				long tmpvar = strtol(optarg, &endp, 10);
+
+				if (endp == optarg || tmpvar <= 0)
+					fatal("invalid argument for -S, --size: %s", optarg);
+				if (endp[0] == '%' && endp[1] == 0) {
+					/* Target size given as percentage (1% - 99%) */
+					if (tmpvar >= 100)
+						fatal("invalid percentage for -S, --size: %s", optarg);
+					target_size = -tmpvar;
+				} else if (endp[0] == 0) {
+					/* Target size given in kilobytes */
+					if (tmpvar > INT_MAX)
+						fatal("invalid argument for -S, --size: %s", optarg);
+					target_size = tmpvar;
+				} else {
+					fatal("invalid argument for -S, --size: %s", optarg);
 				}
-				else fatal("invalid argument for -S, --size");
+				quality=100;
 			}
 			break;
 
@@ -1001,7 +1008,9 @@ binary_search_loop:
 		if (verbose_mode > 1)
 			fprintf(log_fh, "(size=%ld)",outsize);
 		if (tsize < 0) {
-			tsize=((-target_size)*insize/100)/1024;
+			/* 64-bit intermediate, as target_size * insize can overflow
+			   a 32-bit long (files > ~21MB on ILP32/LLP64 platforms) */
+			tsize = (long)(((long long)(-target_size) * insize / 100) / 1024);
 			if (tsize < 1)
 				tsize = 1;
 		}
