@@ -23,7 +23,6 @@ extern "C" {
 #define lstat stat
 
 #define realpath(N,R) _fullpath((R),(N),MAXPATHLEN)
-#define ftruncate(fildes,length) open(fildes, O_TRUNC|O_WRONLY)
 
 #define set_filemode_binary(file) _setmode(_fileno(file), _O_BINARY)
 
