@@ -39,6 +39,10 @@
 
 #include "jpegoptim.h"
 
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
 
 FILE* create_file(const char *name)
 {
@@ -51,7 +55,9 @@ FILE* create_file(const char *name)
 #ifdef WIN32
 	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, _S_IREAD | _S_IWRITE);
 #else
-	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IRUSR);
+	/* O_NOFOLLOW prevents symlink attacks via planted (dangling) symlinks
+	   in world-writable directories... */
+	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, S_IWUSR | S_IRUSR);
 #endif
 	if (fd < 0)
 		return NULL;
