@@ -804,8 +804,7 @@ retry_point:
 	if (!retry) {
 		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
 		if(verbose_mode > 2)
-			fprintf(log_fh, " (input image size: %lu (%lu))",
-				in_image_size, inbufferused);
+			fprintf(log_fh, " (input image size: %ld (%ld))",	in_image_size, inbufferused);
 		if (stdin_mode) {
 			insize = in_image_size;
 		} else {
@@ -813,7 +812,7 @@ retry_point:
 				fatal("failed to stat() input file");
 			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
-					fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
+					fprintf(log_fh, " (%ld bytes extraneous data found after end of image) ",
 						insize - in_image_size);
 				if (nofix_mode)
 					global_error_counter++;
@@ -979,7 +978,7 @@ binary_search_loop:
 	jpeg_finish_compress(&cinfo);
 	outsize = outbuffersize + extrabuffersize;
 	if (verbose_mode > 2)
-		fprintf(log_fh, " (output image size: %lu (%lu))", outsize,extrabuffersize);
+		fprintf(log_fh, " (output image size: %ld (%lu))", outsize, extrabuffersize);
 
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
@@ -1056,13 +1055,13 @@ binary_search_loop:
 				last_retry_size = outsize;
 				retry = 2;
 				if (verbose_mode)
-					fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+					fprintf(log_fh, "(retry%d: %ld) ", retry_count, outsize);
 				goto retry_point;
 			}
 		}
 		if (retry == 2) {
 			if (verbose_mode)
-				fprintf(log_fh, "(retry done: %lu) ", outsize);
+				fprintf(log_fh, "(retry done: %ld) ", outsize);
 			if (outsize > last_retry_size) {
 				if (outbuffer)
 					free(outbuffer);
@@ -1094,7 +1093,7 @@ binary_search_loop:
 			goto retry_point;
 		} else {
 			if (verbose_mode > 1)
-				fprintf(log_fh, "(automode done: %lu) ", outsize);
+				fprintf(log_fh, "(automode done: %ld) ", outsize);
 			auto_mode = 0;
 			if (outsize > last_retry_size) {
 				if (verbose_mode)
@@ -1168,8 +1167,7 @@ binary_search_loop:
 			}
 
 			if (verbose_mode > 1)
-				fprintf(log_fh,"writing %lu bytes to file: %s\n",
-					(long unsigned int)outbuffersize, outfname);
+				fprintf(log_fh,"writing %lu bytes to file: %s\n", outbuffersize, outfname);
 			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1) {
 				write_error = 1;
 			} else if (save_extra && extrabuffersize > 0) {
