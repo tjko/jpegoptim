@@ -654,6 +654,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	size_t tmpbuffersize = 0;
 	unsigned char *extrabuffer = NULL;
 	size_t extrabuffersize = 0;
+	int write_error = 0;
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
@@ -1171,15 +1172,38 @@ binary_search_loop:
 			if (verbose_mode > 1)
 				fprintf(log_fh,"writing %lu bytes to file: %s\n",
 					(long unsigned int)outbuffersize, outfname);
-			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1)
-				fatal("write failed to file: %s", outfname);
-			if (save_extra && extrabuffersize > 0) {
+			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1) {
+				write_error = 1;
+			} else if (save_extra && extrabuffersize > 0) {
 				if (verbose_mode > 1)
 					fprintf(log_fh,"writing %lu bytes to file: %s\n", extrabuffersize, outfname);
 				if (fwrite(extrabuffer, extrabuffersize, 1, outfile) != 1)
-					fatal("write failed to file: %s", outfname);
+					write_error = 1;
 			}
-			fclose(outfile);
+			if (fclose(outfile) != 0)
+				write_error = 1;
+
+			if (write_error) {
+				if (preserve_perms && !dest) {
+					/* original file was truncated already, so restore it from the backup... */
+					warn("%s, write failed, restoring from backup: %s",
+						(stdin_mode ? "stdin" : filename), tmpfilename);
+					if (rename_file(tmpfilename, newname))
+						fatal("write failed to file: %s (failed to restore backup: %s)",
+							newname, tmpfilename);
+					if (chmod(newname, (file_stat->st_mode & 0777)) != 0)
+						warn("failed to restore file mode: %s", newname);
+					if (chown(newname,
+							(geteuid()==0 ? file_stat->st_uid : -1),
+							file_stat->st_gid) != 0)
+						warn("failed to restore file group/owner: %s", newname);
+					fatal("write failed to file: %s (original restored)", newname);
+				} else {
+					/* remove the incomplete temporary file... */
+					delete_file(outfname);
+					fatal("write failed to file: %s", outfname);
+				}
+			}
 		}
 
 		if (outfname) {
@@ -1471,7 +1495,9 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		if (!noaction) {
+		if (noaction) {
+			newname[0] = 0;
+		} else {
 			/* generate tmp dir & new filename */
 			if (dest) {
 				strncopy(tmpdir, dest_path, sizeof(tmpdir));
