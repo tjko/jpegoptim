@@ -373,6 +373,8 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
+			if (strlen(dest_path) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
+				fatal("destination directory path too long: %s", optarg);
 			strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
@@ -1529,6 +1531,13 @@ int main(int argc, char **argv)
 				strncopy(newname, dest_path, sizeof(newname));
 				if (!splitname(filename, tmpfilename, sizeof(tmpfilename)))
 					fatal("splitname() failed for: %s", filename);
+				/* Check that the destination path fits in the buffer, as
+				   silent truncation could write to a wrong destination file... */
+				if (strlen(dest_path) + strlen(tmpfilename) >= sizeof(newname)) {
+					warn("skipping, destination path too long: %s%s",
+						dest_path, tmpfilename);
+					continue;
+				}
 				strncatenate(newname, tmpfilename, sizeof(newname));
 			} else {
 				if (!splitdir(filename, tmpdir, sizeof(tmpdir)))
