@@ -83,7 +83,7 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0 + 4,	"FPXR",		5,	"FPXR\0" },
 	{ JPEG_APP0 + 5,	"RMETA",	6,	"RMETA\0" },
 	{ JPEG_APP0 + 6,	"EPPIM",	6,	"EPPIM\0" },
-	{ JPEG_APP0 + 6,	"NITF",		5,	"NTIF\0" },
+	{ JPEG_APP0 + 6,	"NITF",		5,	"NITF\0" },
 	{ JPEG_APP0 + 6,	"GoPro",	6,	"GoPro\0" },
 	{ JPEG_APP0 + 8,	"SPIFF",	6,	"SPIFF\0" },
 	{ JPEG_APP0 + 10,	"AROT",		6,	"AROT\0\0" },
