@@ -1151,17 +1151,13 @@ binary_search_loop:
 					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1)
-					fprintf(log_fh,"%s, creating backup as: %s\n",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
+					fprintf(log_fh,"%s, creating backup as: %s\n", filename, tmpfilename);
 				if (file_exists(tmpfilename))
-					fatal("%s, backup file already exists: %s",
-						(stdin_mode ?" stdin" : filename), tmpfilename);
+					fatal("%s, backup file already exists: %s", filename, tmpfilename);
 				if (copy_file(newname,tmpfilename))
-					fatal("%s, failed to create backup: %s",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
+					fatal("%s, failed to create backup: %s", filename, tmpfilename);
 				if ((outfile=create_file(newname))==NULL)
-					fatal("%s, error opening output file: %s",
-						(stdin_mode ? "stdin" : filename), newname);
+					fatal("%s, error opening output file: %s", filename, newname);
 				outfname = newname;
 			} else {
 				if (!(outfile = create_temp_file(tmpdir, "jpegoptim", tmpfilename, sizeof(tmpfilename))))
@@ -1186,8 +1182,7 @@ binary_search_loop:
 			if (write_error) {
 				if (preserve_perms && !dest) {
 					/* original file was truncated already, so restore it from the backup... */
-					warn("%s, write failed, restoring from backup: %s",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
+					warn("%s, write failed, restoring from backup: %s", filename, tmpfilename);
 					if (rename_file(tmpfilename, newname))
 						fatal("write failed to file: %s (failed to restore backup: %s)",
 							newname, tmpfilename);
