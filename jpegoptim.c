@@ -54,6 +54,7 @@
 #endif
 #include <signal.h>
 #include <string.h>
+#include <limits.h>
 #include <jpeglib.h>
 #include <jerror.h>
 #include <setjmp.h>
@@ -70,6 +71,8 @@
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING 1
 #define MAX_WORKERS 256
+#include <poll.h>
+#include <errno.h>
 #endif
 
 #define IN_BUF_SIZE (256 * 1024)
@@ -169,7 +172,7 @@ const struct option long_options[] = {
 	{ "preserve",           0, 0,                    'p' },
 	{ "preserve-perms",     0, 0,                    'P' },
 	{ "quiet",              0, 0,                    'q' },
-	{ "retry",              0, &retry_mode,          'r' },
+	{ "retry",              0, 0,                    'r' },
 	{ "save-extra",         0, &save_extra,          1 },
 	{ "size",               1, 0,                    'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
@@ -189,7 +192,7 @@ const struct option long_options[] = {
 	{ "verbose",            0, 0,                    'v' },
 	{ "version",            0, 0,                    'V' },
 #ifdef PARALLEL_PROCESSING
-	{ "workers",            1, &max_workers,         'w' },
+	{ "workers",            1, 0,                    'w' },
 #endif
 	{ 0, 0, 0, 0 }
 };
@@ -198,7 +201,7 @@ const struct option long_options[] = {
 /*****************************************************************/
 
 
-void free_line_buf(JSAMPARRAY *buf, unsigned int lines)
+void free_line_buf(JSAMPARRAY volatile *buf, unsigned int lines)
 {
 	if (*buf == NULL)
 		return;
@@ -370,6 +373,8 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 				fatal("invalid destination directory: %s", optarg);
 			if (!is_directory(dest_path))
 				fatal("destination not a directory: %s", dest_path);
+			if (strlen(dest_path) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
+				fatal("destination directory path too long: %s", optarg);
 			strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
 			if (verbose_mode)
 				fprintf(stderr,"Destination directory: %s\n",dest_path);
@@ -452,17 +457,25 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case 'S':
 		        {
-				unsigned int tmpvar;
-				if (sscanf(optarg,"%u", &tmpvar) == 1) {
-					if (tmpvar > 0 && tmpvar < 100 &&
-						optarg[strlen(optarg)-1] == '%' ) {
-						target_size=-tmpvar;
-					} else {
-						target_size=tmpvar;
-					}
-					quality=100;
+				char *endp = NULL;
+				long tmpvar = strtol(optarg, &endp, 10);
+
+				if (endp == optarg || tmpvar <= 0)
+					fatal("invalid argument for -S, --size: %s", optarg);
+				if (endp[0] == '%' && endp[1] == 0) {
+					/* Target size given as percentage (1% - 99%) */
+					if (tmpvar >= 100)
+						fatal("invalid percentage for -S, --size: %s", optarg);
+					target_size = -tmpvar;
+				} else if (endp[0] == 0) {
+					/* Target size given in kilobytes */
+					if (tmpvar > INT_MAX)
+						fatal("invalid argument for -S, --size: %s", optarg);
+					target_size = tmpvar;
+				} else {
+					fatal("invalid argument for -S, --size: %s", optarg);
 				}
-				else fatal("invalid argument for -S, --size");
+				quality=100;
 			}
 			break;
 
@@ -513,6 +526,14 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		files_from = stdin;
 	if (stdin_mode && files_from == stdin)
 		fatal("cannot specify both --stdin and --files-stdin");
+#ifdef PARALLEL_PROCESSING
+	if (stdout_mode && max_workers > 1) {
+		/* Parallel workers would write to stdout concurrently,
+		   interleaving (corrupting) the output stream... */
+		warn("--stdout is incompatible with parallel workers, using only one worker");
+		max_workers = 1;
+	}
+#endif
 	if (all_normal && all_progressive)
 		fatal("cannot specify both --all-normal and --all-progressive");
 	if (auto_mode && (all_normal || all_progressive))
@@ -631,7 +652,8 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
-	double *rate, double *saved)
+	double *rate, double *saved,
+	int auto_mode, int all_normal, int all_progressive)
 {
 	FILE *infile = NULL;
 	FILE *outfile = NULL;
@@ -640,17 +662,24 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	struct jpeg_decompress_struct dinfo;
 	struct jpeg_compress_struct cinfo;
 	struct my_error_mgr jcerr, jderr;
-	JSAMPARRAY buf = NULL;
 
-	unsigned char *outbuffer = NULL;
+	/* These buffers are (re)allocated between setjmp() and a possible
+	   longjmp() from the libjpeg error handlers, and then freed at
+	   exit_point after the jump. They must be volatile-qualified, as
+	   otherwise their values are indeterminate after longjmp()
+	   (C11 7.13.2.1), risking double-free or leak. */
+	JSAMPARRAY volatile buf = NULL;
+	unsigned char * volatile outbuffer = NULL;
+	unsigned char * volatile inbuffer = NULL;
+	unsigned char * volatile tmpbuffer = NULL;
+	unsigned char * volatile extrabuffer = NULL;
+
 	size_t outbuffersize = 0;
-	unsigned char *inbuffer = NULL;
 	size_t inbuffersize = 0;
 	size_t inbufferused = 0;
-	unsigned char *tmpbuffer = NULL;
 	size_t tmpbuffersize = 0;
-	unsigned char *extrabuffer = NULL;
 	size_t extrabuffersize = 0;
+	int write_error = 0;
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
@@ -725,8 +754,10 @@ retry_point:
 		if (stdin_mode || stdout_mode) {
 			inbuffersize = IN_BUF_SIZE;
 		} else {
-			if ((inbuffersize = file_size(infile)) < IN_BUF_SIZE)
-				inbuffersize = IN_BUF_SIZE;
+			long fsize = file_size(infile);
+			if (fsize < 0)
+				fatal("failed to stat() input file: %s", filename);
+			inbuffersize = (fsize < IN_BUF_SIZE ? IN_BUF_SIZE : (size_t)fsize);
 		}
 		if (inbuffer)
 			free(inbuffer);
@@ -741,10 +772,15 @@ retry_point:
 	if (!retry) {
 		jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, IN_BUF_SIZE);
 	} else {
-		if (retry == 1)
-			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
-		else
+		/* Only the --retry shrink loop (retry == 2) deliberately re-compresses
+		   its own previous output. The lossless fallback (retry == 1) and the
+		   auto-mode alternate pass (retry == 3) must start from the original
+		   image, as recompressing already lossy-compressed data would cause
+		   generation loss. */
+		if (retry == 2)
 			jpeg_custom_mem_src(&dinfo, tmpbuffer, tmpbuffersize);
+		else
+			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
 	}
 	jpeg_read_header(&dinfo, TRUE);
 
@@ -798,16 +834,15 @@ retry_point:
 	if (!retry) {
 		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
 		if(verbose_mode > 2)
-			fprintf(log_fh, " (input image size: %lu (%lu))",
-				in_image_size, inbufferused);
+			fprintf(log_fh, " (input image size: %ld (%ld))",	in_image_size, inbufferused);
 		if (stdin_mode) {
 			insize = in_image_size;
 		} else {
 			if ((insize = file_size(infile)) < 0)
-				fatal("failed to stat() input file");
+				fatal("failed to stat() input file: %s", filename);
 			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
-					fprintf(log_fh, " (%lu bytes extraneous data found after end of image) ",
+					fprintf(log_fh, " (%ld bytes extraneous data found after end of image) ",
 						insize - in_image_size);
 				if (nofix_mode)
 					global_error_counter++;
@@ -928,7 +963,7 @@ binary_search_loop:
 		/* Write image */
 		while (cinfo.next_scanline < cinfo.image_height) {
 			jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
-					dinfo.output_height);
+					cinfo.image_height - cinfo.next_scanline);
 		}
 
 	} else {
@@ -973,7 +1008,7 @@ binary_search_loop:
 	jpeg_finish_compress(&cinfo);
 	outsize = outbuffersize + extrabuffersize;
 	if (verbose_mode > 2)
-		fprintf(log_fh, " (output image size: %lu (%lu))", outsize,extrabuffersize);
+		fprintf(log_fh, " (output image size: %ld (%lu))", outsize, extrabuffersize);
 
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
@@ -985,7 +1020,9 @@ binary_search_loop:
 		if (verbose_mode > 1)
 			fprintf(log_fh, "(size=%ld)",outsize);
 		if (tsize < 0) {
-			tsize=((-target_size)*insize/100)/1024;
+			/* 64-bit intermediate, as target_size * insize can overflow
+			   a 32-bit long (files > ~21MB on ILP32/LLP64 platforms) */
+			tsize = (long)(((long long)(-target_size) * insize / 100) / 1024);
 			if (tsize < 1)
 				tsize = 1;
 		}
@@ -1050,13 +1087,13 @@ binary_search_loop:
 				last_retry_size = outsize;
 				retry = 2;
 				if (verbose_mode)
-					fprintf(log_fh, "(retry%d: %lu) ", retry_count, outsize);
+					fprintf(log_fh, "(retry%d: %ld) ", retry_count, outsize);
 				goto retry_point;
 			}
 		}
 		if (retry == 2) {
 			if (verbose_mode)
-				fprintf(log_fh, "(retry done: %lu) ", outsize);
+				fprintf(log_fh, "(retry done: %ld) ", outsize);
 			if (outsize > last_retry_size) {
 				if (outbuffer)
 					free(outbuffer);
@@ -1088,7 +1125,7 @@ binary_search_loop:
 			goto retry_point;
 		} else {
 			if (verbose_mode > 1)
-				fprintf(log_fh, "(automode done: %lu) ", outsize);
+				fprintf(log_fh, "(automode done: %ld) ", outsize);
 			auto_mode = 0;
 			if (outsize > last_retry_size) {
 				if (verbose_mode)
@@ -1147,17 +1184,13 @@ binary_search_loop:
 					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1)
-					fprintf(log_fh,"%s, creating backup as: %s\n",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
+					fprintf(log_fh,"%s, creating backup as: %s\n", filename, tmpfilename);
 				if (file_exists(tmpfilename))
-					fatal("%s, backup file already exists: %s",
-						(stdin_mode ?" stdin" : filename), tmpfilename);
+					fatal("%s, backup file already exists: %s", filename, tmpfilename);
 				if (copy_file(newname,tmpfilename))
-					fatal("%s, failed to create backup: %s",
-						(stdin_mode ? "stdin" : filename), tmpfilename);
+					fatal("%s, failed to create backup: %s", filename, tmpfilename);
 				if ((outfile=create_file(newname))==NULL)
-					fatal("%s, error opening output file: %s",
-						(stdin_mode ? "stdin" : filename), newname);
+					fatal("%s, error opening output file: %s", filename, newname);
 				outfname = newname;
 			} else {
 				if (!(outfile = create_temp_file(tmpdir, "jpegoptim", tmpfilename, sizeof(tmpfilename))))
@@ -1166,17 +1199,38 @@ binary_search_loop:
 			}
 
 			if (verbose_mode > 1)
-				fprintf(log_fh,"writing %lu bytes to file: %s\n",
-					(long unsigned int)outbuffersize, outfname);
-			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1)
-				fatal("write failed to file: %s", outfname);
-			if (save_extra && extrabuffersize > 0) {
+				fprintf(log_fh,"writing %lu bytes to file: %s\n", outbuffersize, outfname);
+			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1) {
+				write_error = 1;
+			} else if (save_extra && extrabuffersize > 0) {
 				if (verbose_mode > 1)
 					fprintf(log_fh,"writing %lu bytes to file: %s\n", extrabuffersize, outfname);
 				if (fwrite(extrabuffer, extrabuffersize, 1, outfile) != 1)
-					fatal("write failed to file: %s", outfname);
+					write_error = 1;
 			}
-			fclose(outfile);
+			if (fclose(outfile) != 0)
+				write_error = 1;
+
+			if (write_error) {
+				if (preserve_perms && !dest) {
+					/* original file was truncated already, so restore it from the backup... */
+					warn("%s, write failed, restoring from backup: %s", filename, tmpfilename);
+					if (rename_file(tmpfilename, newname))
+						fatal("write failed to file: %s (failed to restore backup: %s)",
+							newname, tmpfilename);
+					if (chmod(newname, (file_stat->st_mode & 0777)) != 0)
+						warn("failed to restore file mode: %s", newname);
+					if (chown(newname,
+							(geteuid()==0 ? file_stat->st_uid : -1),
+							file_stat->st_gid) != 0)
+						warn("failed to restore file group/owner: %s", newname);
+					fatal("write failed to file: %s (original restored)", newname);
+				} else {
+					/* remove the incomplete temporary file... */
+					delete_file(outfname);
+					fatal("write failed to file: %s", outfname);
+				}
+			}
 		}
 
 		if (outfname) {
@@ -1260,46 +1314,59 @@ int wait_for_worker(FILE *log_fh)
 {
 	FILE *p;
 	struct worker *w;
+	struct pollfd pfds[MAX_WORKERS];
+	int pfd_slot[MAX_WORKERS];
 	char buf[1024];
 	int wstatus;
 	pid_t pid;
-	int j, e;
+	int nfds, i, j, e;
 	int state = 0;
 	double val;
 	double rate = 0.0;
 	double saved = 0.0;
 
 
-	if ((pid = wait(&wstatus)) < 0)
-		return pid;
-
-	w = NULL;
+	/* Wait for activity on worker pipes. Pipe must be drained before
+	   calling wait(), as worker cannot exit if it is blocked writing
+	   to a full pipe... */
+	nfds = 0;
 	for (j = 0; j < MAX_WORKERS; j++) {
-		if (workers[j].pid == pid) {
+		if (workers[j].pid < 0)
+			continue;
+		pfds[nfds].fd = workers[j].read_pipe;
+		pfds[nfds].events = POLLIN;
+		pfd_slot[nfds] = j;
+		nfds++;
+	}
+	if (nfds < 1)
+		return -1;
+
+	while (poll(pfds, nfds, -1) < 0) {
+		if (errno != EINTR)
+			fatal("poll() failed");
+	}
+
+	/* Prefer a worker that has already exited (closed its pipe)... */
+	w = NULL;
+	for (i = 0; i < nfds; i++) {
+		if (pfds[i].revents & POLLHUP) {
+			j = pfd_slot[i];
 			w = &workers[j];
 			break;
 		}
 	}
-	if (!w)
-		fatal("Unknown worker[%d] process found\n", pid);
-
-	if (WIFEXITED(wstatus)) {
-		e = WEXITSTATUS(wstatus);
-		if (verbose_mode)
-			fprintf(log_fh, "worker[%d] [slot=%d] exited: %d\n",
-				pid, j, e);
-		if (e == 0) {
-			//average_count++;
-			//average_rate += rate;
-			//total_save += saved;
-		} else if (e == 1) {
-			decompress_err_count++;
-		} else if (e == 2) {
-			compress_err_count++;
+	if (!w) {
+		for (i = 0; i < nfds; i++) {
+			if (pfds[i].revents & (POLLIN | POLLERR)) {
+				j = pfd_slot[i];
+				w = &workers[j];
+				break;
+			}
 		}
-	} else {
-		fatal("worker[%d] killed", pid);
 	}
+	if (!w)
+		fatal("poll() returned no active worker");
+	pid = w->pid;
 
 	p = fdopen(w->read_pipe, "r");
 	if (!p) fatal("fdopen failed()");
@@ -1332,7 +1399,25 @@ int wait_for_worker(FILE *log_fh)
 		if (state == 0)
 			fprintf(log_fh, "%s", buf);
 	}
-	close(w->read_pipe);
+	fclose(p);
+
+	if (waitpid(pid, &wstatus, 0) < 0)
+		fatal("waitpid() failed for worker[%d]", pid);
+
+	if (WIFEXITED(wstatus)) {
+		e = WEXITSTATUS(wstatus);
+		if (verbose_mode)
+			fprintf(log_fh, "worker[%d] [slot=%d] exited: %d\n",
+				pid, j, e);
+		if (e == 1) {
+			decompress_err_count++;
+		} else if (e == 2) {
+			compress_err_count++;
+		}
+	} else {
+		fatal("worker[%d] killed", pid);
+	}
+
 	w->pid = -1;
 	w->read_pipe = -1;
 	worker_count --;
@@ -1404,7 +1489,8 @@ int main(int argc, char **argv)
 
 	if (stdin_mode) {
 		/* Process just one file, if source is stdin... */
-		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL);
+		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL,
+			auto_mode, all_normal, all_progressive);
 		return (res == 0 ? 0 : 1);
 	}
 
@@ -1436,13 +1522,22 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		if (!noaction) {
+		if (noaction) {
+			newname[0] = 0;
+		} else {
 			/* generate tmp dir & new filename */
 			if (dest) {
 				strncopy(tmpdir, dest_path, sizeof(tmpdir));
 				strncopy(newname, dest_path, sizeof(newname));
 				if (!splitname(filename, tmpfilename, sizeof(tmpfilename)))
 					fatal("splitname() failed for: %s", filename);
+				/* Check that the destination path fits in the buffer, as
+				   silent truncation could write to a wrong destination file... */
+				if (strlen(dest_path) + strlen(tmpfilename) >= sizeof(newname)) {
+					warn("skipping, destination path too long: %s%s",
+						dest_path, tmpfilename);
+					continue;
+				}
 				strncatenate(newname, tmpfilename, sizeof(newname));
 			} else {
 				if (!splitdir(filename, tmpdir, sizeof(tmpdir)))
@@ -1474,6 +1569,9 @@ int main(int argc, char **argv)
 			}
 			if (pipe(pipe_fd) < 0)
 				fatal("failed to open pipe");
+			/* flush any buffered output so child process does not
+			   inherit it (and print it again when exiting) ... */
+			fflush(NULL);
 			pid = fork();
 			if (pid < 0)
 				fatal("fork() failed");
@@ -1487,7 +1585,8 @@ int main(int argc, char **argv)
 				if (!(p = fdopen(pipe_fd[1],"w")))
 					fatal("worker: fdopen failed");
 
-				res = optimize(p, filename, newname, tmpdir, &file_stat, &rate, &saved);
+				res = optimize(p, filename, newname, tmpdir, &file_stat, &rate, &saved,
+					auto_mode, all_normal, all_progressive);
 				if (res == 0)
 					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
 				exit(res);
@@ -1518,7 +1617,8 @@ int main(int argc, char **argv)
 		{
 			/* Single process mode, process one file at a time... */
 
-			res = optimize(log_fh, filename, newname, tmpdir, &file_stat, &rate, &saved);
+			res = optimize(log_fh, filename, newname, tmpdir, &file_stat, &rate, &saved,
+				auto_mode, all_normal, all_progressive);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;
@@ -1548,7 +1648,7 @@ int main(int argc, char **argv)
 
 	if (totals_mode && !quiet_mode)
 		fprintf(log_fh, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
-			average_count, average_rate/average_count, total_save);
+			average_count, (average_count == 0 ? 0.0 : average_rate/average_count), total_save);
 
 
 	return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;

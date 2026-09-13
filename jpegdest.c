@@ -39,7 +39,7 @@
 typedef struct {
 	struct jpeg_destination_mgr pub; /* public fields */
 
-	unsigned char **buf_ptr;
+	unsigned char * volatile *buf_ptr;
 	size_t *bufsize_ptr;
 	size_t incsize;
 
@@ -97,7 +97,7 @@ static void jpeg_memory_term_destination (j_compress_ptr cinfo)
 
 
 
-void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr, size_t *bufsizeptr, size_t incsize)
+void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr, size_t *bufsizeptr, size_t incsize)
 {
 	jpeg_memory_destination_ptr dest;
 

@@ -41,7 +41,7 @@
 typedef struct {
 	struct jpeg_source_mgr pub; /* public fields */
 
-	unsigned char **buf_ptr;
+	unsigned char * volatile *buf_ptr;
 	size_t *bufsize_ptr;
 	size_t *bufused_ptr;
 	size_t incsize;
@@ -156,7 +156,8 @@ static void custom_term_source (j_decompress_ptr dinfo)
 
 
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
-		unsigned char **bufptr,	size_t *bufsizeptr, size_t *bufusedptr, size_t incsize)
+		unsigned char * volatile *bufptr, size_t *bufsizeptr, size_t *bufusedptr,
+		size_t incsize)
 {
 	jpeg_custom_source_mgr_ptr src;
 

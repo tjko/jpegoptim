@@ -84,19 +84,21 @@ void warn(const char *format, ...);
 
 
 /* jpegdest.c */
-void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char **bufptr,
+void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr,
 		size_t *bufsizeptr, size_t incsize);
 
 /* jpegsrc.c */
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
-		unsigned char **bufptr,	size_t *bufsizeptr, size_t *bufusedptr, size_t incsize);
+		unsigned char * volatile *bufptr, size_t *bufsizeptr, size_t *bufusedptr,
+		size_t incsize);
 void jpeg_custom_mem_src(j_decompress_ptr dinfo, unsigned char *buf, size_t bufsize);
 
 #ifdef BUILD_FOR_OSS_FUZZ
 // Forward declare the main function to allow access from the harness
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
-	double *rate, double *saved);
+	double *rate, double *saved,
+	int auto_mode, int all_normal, int all_progressive);
 
 /**
  * Fuzzing utility function to set the target size global value
