@@ -169,7 +169,7 @@ const struct option long_options[] = {
 	{ "preserve",           0, 0,                    'p' },
 	{ "preserve-perms",     0, 0,                    'P' },
 	{ "quiet",              0, 0,                    'q' },
-	{ "retry",              0, &retry_mode,          'r' },
+	{ "retry",              0, 0,                    'r' },
 	{ "save-extra",         0, &save_extra,          1 },
 	{ "size",               1, 0,                    'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
@@ -189,7 +189,7 @@ const struct option long_options[] = {
 	{ "verbose",            0, 0,                    'v' },
 	{ "version",            0, 0,                    'V' },
 #ifdef PARALLEL_PROCESSING
-	{ "workers",            1, &max_workers,         'w' },
+	{ "workers",            1, 0,                    'w' },
 #endif
 	{ 0, 0, 0, 0 }
 };
