@@ -524,6 +524,14 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		files_from = stdin;
 	if (stdin_mode && files_from == stdin)
 		fatal("cannot specify both --stdin and --files-stdin");
+#ifdef PARALLEL_PROCESSING
+	if (stdout_mode && max_workers > 1) {
+		/* Parallel workers would write to stdout concurrently,
+		   interleaving (corrupting) the output stream... */
+		warn("--stdout is incompatible with parallel workers, using only one worker");
+		max_workers = 1;
+	}
+#endif
 	if (all_normal && all_progressive)
 		fatal("cannot specify both --all-normal and --all-progressive");
 	if (auto_mode && (all_normal || all_progressive))
