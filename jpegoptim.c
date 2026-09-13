@@ -752,8 +752,10 @@ retry_point:
 		if (stdin_mode || stdout_mode) {
 			inbuffersize = IN_BUF_SIZE;
 		} else {
-			if ((inbuffersize = file_size(infile)) < IN_BUF_SIZE)
-				inbuffersize = IN_BUF_SIZE;
+			long fsize = file_size(infile);
+			if (fsize < 0)
+				fatal("failed to stat() input file: %s", filename);
+			inbuffersize = (fsize < IN_BUF_SIZE ? IN_BUF_SIZE : (size_t)fsize);
 		}
 		if (inbuffer)
 			free(inbuffer);
@@ -835,7 +837,7 @@ retry_point:
 			insize = in_image_size;
 		} else {
 			if ((insize = file_size(infile)) < 0)
-				fatal("failed to stat() input file");
+				fatal("failed to stat() input file: %s", filename);
 			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
 					fprintf(log_fh, " (%ld bytes extraneous data found after end of image) ",
