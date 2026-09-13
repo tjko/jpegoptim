@@ -1609,7 +1609,7 @@ int main(int argc, char **argv)
 
 	if (totals_mode && !quiet_mode)
 		fprintf(log_fh, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
-			average_count, average_rate/average_count, total_save);
+			average_count, (average_count == 0 ? 0.0 : average_rate/average_count), total_save);
 
 
 	return (decompress_err_count > 0 || compress_err_count > 0 ? 1 : 0);;
