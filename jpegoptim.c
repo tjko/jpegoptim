@@ -1,6 +1,6 @@
 /*******************************************************************
  * JPEGoptim
- * Copyright (c) Timo Kokkonen, 1996-2025.
+ * Copyright (c) Timo Kokkonen, 1996-2026.
  * All Rights Reserved.
  *
  * requires libjpeg (Independent JPEG Group's JPEG software
@@ -65,7 +65,7 @@
 
 
 #define VERSION "1.5.7beta"
-#define COPYRIGHT  "Copyright (C) 1996-2025, Timo Kokkonen"
+#define COPYRIGHT  "Copyright (C) 1996-2026, Timo Kokkonen"
 
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING 1

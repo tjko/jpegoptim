@@ -1,22 +1,22 @@
 
-Jpegoptim v1.5.7beta - Copyright (C)  Timo Kokkonen, 1996-2025. All Rights Reserved.
+Jpegoptim v1.5.7beta - Copyright (C)  Timo Kokkonen, 1996-2026. All Rights Reserved.
 
 
 REQUIREMENTS
         Independent JPEG Group's jpeg library (libjpeg) version 6b or later.
-        (Alternatively should also work with libjpeg-turbo or mozjpeg)
+        (Alternatively, it should also work with libjpeg-turbo or mozjpeg)
 
 
 TESTED PLATFORMS
         Linux
-        MacOS
+        macOS
         Windows (setargv.obj "link option" is needed for wildcards expansion to work)
 
 
 INSTALLATION
         Installation should be very straightforward, just unpack the
         tar file, make necessary changes to the Makefile,  and then
-        compile the program. You may wanna do something like this:
+        compile the program. You may want to do something like this:
 
                 tar xzvf jpegoptim-1.5.7.tar.gz
                 cd jpegoptim-1.5.7
@@ -31,9 +31,9 @@ HISTORY
         v1.5.6 - add new option -r, --retry,
                  add new option --save-extra,
                  add new option --auto-mode,
-                 processing image from standard input now behaves same like from a file,
+                 processing image from standard input now behaves the same as from a file,
                  other minor fixes
-        v1.5.5 - improved JFIF handling (it should not longer get added
+        v1.5.5 - improved JFIF handling (it should no longer get added
                  in some instances if it was not present in original),
                  new options --keep-jfif and --strip-jfif,
                  other minor fixes
@@ -48,9 +48,9 @@ HISTORY
                  improved JPEG marker reporting,
                  fix -d, --dest option (thanks to Almas Kunapyanov),
                  other minor fixes
-        v1.5.1 - fix logging to stdout when --stdout is used *thanks to Eta,
-                 improved CMake support (and Github CI stuff) *thanks to Eta,
-                 update --treshold option accept decimal numbers as parameter,
+        v1.5.1 - fix logging to stdout when --stdout is used (thanks to Eta),
+                 improved CMake support (and GitHub CI stuff) (thanks to Eta),
+                 update --threshold option to accept decimal numbers as parameter,
                  fix crashes when processing certain broken JPEG images,
                  fix memory leaks,
                  fix (logging) output in parallel processing mode
@@ -129,7 +129,7 @@ HISTORY
 LATEST VERSION
 
         Latest version is always available from:
-                http://www.iki.fi/tjko/projects.html
+                https://www.iki.fi/tjko/projects.html
 
         Sources (GIT)
                 https://github.com/tjko/jpegoptim
@@ -142,11 +142,11 @@ ACKNOWLEDGEMENT
 
 SPONSORS
 
-Special thanks for following Github Sponsors that have supported jpegoptim:
+Special thanks to the following GitHub Sponsors that have supported jpegoptim:
 
  - midir99
 
 
 
 Timo <tjko@iki.fi>
-15-Nov-2025
+12-Sep-2026

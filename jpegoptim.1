@@ -1,4 +1,4 @@
-.TH JPEGOPTIM 1 "28 Jan 2025"
+.TH JPEGOPTIM 1 "12 Sep 2026"
 .UC 4
 .SH NAME
 jpegoptim \- utility to optimize/compress JPEG/JFIF files.
@@ -104,13 +104,16 @@ Recursively re-try compression until output file size does not get smaller anymo
 This can result a few bytes smaller output file, but with the expense of lot more
 computing time used.
 
-NOTE! This option is on only effective when used in compbination with -m (--max) or -S (--size) option.
+NOTE! This option is only effective when used in combination with -m (--max) or -S (--size) option.
 .TP 0.6i
 .B -t, --totals
 Print totals after processing all files.
 .TP 0.6i
 .B -v, --verbose
 Enables verbose mode (positively chatty).
+.TP 0.6i
+.B -V, --version
+Print program version and exit.
 
 .TP 0.6i
 .B --auto-mode
@@ -176,6 +179,7 @@ Read names of files to process from standard input. One filename per line.
 .TP 0.6i
 .B --files-from=<filename>
 Read names of files to process from a file. One filename per line.
+If <filename> is '-' then names are read from standard input (same as --files-stdin).
 
 
 .SH METADATA OPTIONS
@@ -288,7 +292,7 @@ jpeginfo(1)
 Timo Kokkonen <tjko@iki.fi>
 
 .SH COPYING
-Copyright (C) 1996-2025  Timo Kokkonen
+Copyright (C) 1996-2026  Timo Kokkonen
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
