@@ -70,6 +70,8 @@
 #if HAVE_WAIT && HAVE_FORK
 #define PARALLEL_PROCESSING 1
 #define MAX_WORKERS 256
+#include <poll.h>
+#include <errno.h>
 #endif
 
 #define IN_BUF_SIZE (256 * 1024)
@@ -1261,46 +1263,59 @@ int wait_for_worker(FILE *log_fh)
 {
 	FILE *p;
 	struct worker *w;
+	struct pollfd pfds[MAX_WORKERS];
+	int pfd_slot[MAX_WORKERS];
 	char buf[1024];
 	int wstatus;
 	pid_t pid;
-	int j, e;
+	int nfds, i, j, e;
 	int state = 0;
 	double val;
 	double rate = 0.0;
 	double saved = 0.0;
 
 
-	if ((pid = wait(&wstatus)) < 0)
-		return pid;
-
-	w = NULL;
+	/* Wait for activity on worker pipes. Pipe must be drained before
+	   calling wait(), as worker cannot exit if it is blocked writing
+	   to a full pipe... */
+	nfds = 0;
 	for (j = 0; j < MAX_WORKERS; j++) {
-		if (workers[j].pid == pid) {
+		if (workers[j].pid < 0)
+			continue;
+		pfds[nfds].fd = workers[j].read_pipe;
+		pfds[nfds].events = POLLIN;
+		pfd_slot[nfds] = j;
+		nfds++;
+	}
+	if (nfds < 1)
+		return -1;
+
+	while (poll(pfds, nfds, -1) < 0) {
+		if (errno != EINTR)
+			fatal("poll() failed");
+	}
+
+	/* Prefer a worker that has already exited (closed its pipe)... */
+	w = NULL;
+	for (i = 0; i < nfds; i++) {
+		if (pfds[i].revents & POLLHUP) {
+			j = pfd_slot[i];
 			w = &workers[j];
 			break;
 		}
 	}
-	if (!w)
-		fatal("Unknown worker[%d] process found\n", pid);
-
-	if (WIFEXITED(wstatus)) {
-		e = WEXITSTATUS(wstatus);
-		if (verbose_mode)
-			fprintf(log_fh, "worker[%d] [slot=%d] exited: %d\n",
-				pid, j, e);
-		if (e == 0) {
-			//average_count++;
-			//average_rate += rate;
-			//total_save += saved;
-		} else if (e == 1) {
-			decompress_err_count++;
-		} else if (e == 2) {
-			compress_err_count++;
+	if (!w) {
+		for (i = 0; i < nfds; i++) {
+			if (pfds[i].revents & (POLLIN | POLLERR)) {
+				j = pfd_slot[i];
+				w = &workers[j];
+				break;
+			}
 		}
-	} else {
-		fatal("worker[%d] killed", pid);
 	}
+	if (!w)
+		fatal("poll() returned no active worker");
+	pid = w->pid;
 
 	p = fdopen(w->read_pipe, "r");
 	if (!p) fatal("fdopen failed()");
@@ -1333,7 +1348,25 @@ int wait_for_worker(FILE *log_fh)
 		if (state == 0)
 			fprintf(log_fh, "%s", buf);
 	}
-	close(w->read_pipe);
+	fclose(p);
+
+	if (waitpid(pid, &wstatus, 0) < 0)
+		fatal("waitpid() failed for worker[%d]", pid);
+
+	if (WIFEXITED(wstatus)) {
+		e = WEXITSTATUS(wstatus);
+		if (verbose_mode)
+			fprintf(log_fh, "worker[%d] [slot=%d] exited: %d\n",
+				pid, j, e);
+		if (e == 1) {
+			decompress_err_count++;
+		} else if (e == 2) {
+			compress_err_count++;
+		}
+	} else {
+		fatal("worker[%d] killed", pid);
+	}
+
 	w->pid = -1;
 	w->read_pipe = -1;
 	worker_count --;
