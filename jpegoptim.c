@@ -200,7 +200,7 @@ const struct option long_options[] = {
 /*****************************************************************/
 
 
-void free_line_buf(JSAMPARRAY *buf, unsigned int lines)
+void free_line_buf(JSAMPARRAY volatile *buf, unsigned int lines)
 {
 	if (*buf == NULL)
 		return;
@@ -645,16 +645,22 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	struct jpeg_decompress_struct dinfo;
 	struct jpeg_compress_struct cinfo;
 	struct my_error_mgr jcerr, jderr;
-	JSAMPARRAY buf = NULL;
 
-	unsigned char *outbuffer = NULL;
+	/* These buffers are (re)allocated between setjmp() and a possible
+	   longjmp() from the libjpeg error handlers, and then freed at
+	   exit_point after the jump. They must be volatile-qualified, as
+	   otherwise their values are indeterminate after longjmp()
+	   (C11 7.13.2.1), risking double-free or leak. */
+	JSAMPARRAY volatile buf = NULL;
+	unsigned char * volatile outbuffer = NULL;
+	unsigned char * volatile inbuffer = NULL;
+	unsigned char * volatile tmpbuffer = NULL;
+	unsigned char * volatile extrabuffer = NULL;
+
 	size_t outbuffersize = 0;
-	unsigned char *inbuffer = NULL;
 	size_t inbuffersize = 0;
 	size_t inbufferused = 0;
-	unsigned char *tmpbuffer = NULL;
 	size_t tmpbuffersize = 0;
-	unsigned char *extrabuffer = NULL;
 	size_t extrabuffersize = 0;
 	int write_error = 0;
 
