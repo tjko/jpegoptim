@@ -631,7 +631,8 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
-	double *rate, double *saved)
+	double *rate, double *saved,
+	int auto_mode, int all_normal, int all_progressive)
 {
 	FILE *infile = NULL;
 	FILE *outfile = NULL;
@@ -1404,7 +1405,8 @@ int main(int argc, char **argv)
 
 	if (stdin_mode) {
 		/* Process just one file, if source is stdin... */
-		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL);
+		res = optimize(stderr, NULL, NULL, NULL, &file_stat, NULL, NULL,
+			auto_mode, all_normal, all_progressive);
 		return (res == 0 ? 0 : 1);
 	}
 
@@ -1487,7 +1489,8 @@ int main(int argc, char **argv)
 				if (!(p = fdopen(pipe_fd[1],"w")))
 					fatal("worker: fdopen failed");
 
-				res = optimize(p, filename, newname, tmpdir, &file_stat, &rate, &saved);
+				res = optimize(p, filename, newname, tmpdir, &file_stat, &rate, &saved,
+					auto_mode, all_normal, all_progressive);
 				if (res == 0)
 					fprintf(p, "\n\nSTATS\n%lf\n%lf\n", rate, saved);
 				exit(res);
@@ -1518,7 +1521,8 @@ int main(int argc, char **argv)
 		{
 			/* Single process mode, process one file at a time... */
 
-			res = optimize(log_fh, filename, newname, tmpdir, &file_stat, &rate, &saved);
+			res = optimize(log_fh, filename, newname, tmpdir, &file_stat, &rate, &saved,
+				auto_mode, all_normal, all_progressive);
 			if (res == 0) {
 				average_count++;
 				average_rate += rate;

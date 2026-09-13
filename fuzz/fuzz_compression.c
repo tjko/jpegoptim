@@ -33,7 +33,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
     fuzz_manager.tmp_dir,
     &file_stat,
     &fuzz_manager.rate,
-    &fuzz_manager.saved
+    &fuzz_manager.saved,
+    0,
+    0,
+    0
   );
 
   rc = 0;

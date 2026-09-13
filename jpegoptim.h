@@ -96,7 +96,8 @@ void jpeg_custom_mem_src(j_decompress_ptr dinfo, unsigned char *buf, size_t bufs
 // Forward declare the main function to allow access from the harness
 int optimize(FILE *log_fh, const char *filename, const char *newname,
 	const char *tmpdir, struct stat *file_stat,
-	double *rate, double *saved);
+	double *rate, double *saved,
+	int auto_mode, int all_normal, int all_progressive);
 
 /**
  * Fuzzing utility function to set the target size global value
