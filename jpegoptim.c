@@ -454,11 +454,13 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case 'S':
 		        {
-				unsigned int tmpvar;
-				if (sscanf(optarg,"%u", &tmpvar) == 1) {
+				int tmpvar;
+				if (sscanf(optarg,"%d", &tmpvar) == 1) {
 					if (tmpvar > 0 && tmpvar < 100 &&
 						optarg[strlen(optarg)-1] == '%' ) {
 						target_size=-tmpvar;
+					} else if (tmpvar < 0) {
+						fatal("invalid argument for -S, --size");
 					} else {
 						target_size=tmpvar;
 					}
