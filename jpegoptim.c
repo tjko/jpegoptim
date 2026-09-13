@@ -753,10 +753,15 @@ retry_point:
 	if (!retry) {
 		jpeg_custom_src(&dinfo, infile, &inbuffer, &inbuffersize, &inbufferused, IN_BUF_SIZE);
 	} else {
-		if (retry == 1)
-			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
-		else
+		/* Only the --retry shrink loop (retry == 2) deliberately re-compresses
+		   its own previous output. The lossless fallback (retry == 1) and the
+		   auto-mode alternate pass (retry == 3) must start from the original
+		   image, as recompressing already lossy-compressed data would cause
+		   generation loss. */
+		if (retry == 2)
 			jpeg_custom_mem_src(&dinfo, tmpbuffer, tmpbuffersize);
+		else
+			jpeg_custom_mem_src(&dinfo, inbuffer, inbufferused);
 	}
 	jpeg_read_header(&dinfo, TRUE);
 
