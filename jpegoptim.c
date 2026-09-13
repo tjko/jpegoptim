@@ -961,7 +961,7 @@ binary_search_loop:
 		/* Write image */
 		while (cinfo.next_scanline < cinfo.image_height) {
 			jpeg_write_scanlines(&cinfo,&buf[cinfo.next_scanline],
-					dinfo.output_height);
+					cinfo.image_height - cinfo.next_scanline);
 		}
 
 	} else {
