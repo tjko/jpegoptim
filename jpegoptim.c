@@ -1184,7 +1184,7 @@ binary_search_loop:
 				/* make backup of the original file */
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
-				if (newlen >= sizeof(tmpfilename))
+				if (newlen < 0 || (size_t)newlen >= sizeof(tmpfilename))
 					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1)

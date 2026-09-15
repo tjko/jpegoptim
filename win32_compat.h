@@ -19,7 +19,14 @@ extern "C" {
 #include <fcntl.h>
 #include <sys/utime.h>
 
-#define snprintf _snprintf
+/* Only old MSVC versions (before VS2015) lack C99 snprintf(). Do not use
+   _snprintf() as substitute, since it does not null-terminate the buffer on
+   truncation and returns -1 (instead of the needed length), which would
+   defeat truncation checks. _snprintf_s() with _TRUNCATE always
+   null-terminates and returns -1 on truncation... */
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define snprintf(buf, size, ...) _snprintf_s((buf), (size), _TRUNCATE, __VA_ARGS__)
+#endif
 #define lstat stat
 
 #define realpath(N,R) _fullpath((R),(N),MAXPATHLEN)
