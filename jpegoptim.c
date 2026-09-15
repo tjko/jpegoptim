@@ -1175,6 +1175,10 @@ binary_search_loop:
 			set_filemode_binary(stdout);
 			if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
 				fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
+			if (save_extra && extrabuffersize > 0) {
+				if (fwrite(extrabuffer,extrabuffersize,1,stdout) != 1)
+					fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
+			}
 		} else {
 			if (preserve_perms && !dest) {
 				/* make backup of the original file */
