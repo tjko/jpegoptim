@@ -1413,6 +1413,11 @@ int wait_for_worker(FILE *log_fh)
 			decompress_err_count++;
 		} else if (e == 2) {
 			compress_err_count++;
+		} else if (e != 0) {
+			/* worker died via fatal() or other unexpected error,
+			   count it so program exit status reflects the failure... */
+			compress_err_count++;
+			warn("worker[%d] failed with status: %d", pid, e);
 		}
 	} else {
 		fatal("worker[%d] killed", pid);
