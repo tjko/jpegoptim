@@ -369,16 +369,25 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			break;
 
 		case 'd':
-			if (realpath(optarg,dest_path)==NULL)
-				fatal("invalid destination directory: %s", optarg);
-			if (!is_directory(dest_path))
-				fatal("destination not a directory: %s", dest_path);
-			if (strlen(dest_path) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
-				fatal("destination directory path too long: %s", optarg);
-			strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
-			if (verbose_mode)
-				fprintf(stderr,"Destination directory: %s\n",dest_path);
-			dest=1;
+		        {
+				/* Use the allocating form of realpath(), as a caller
+				   supplied buffer would need to be at least PATH_MAX
+				   bytes, which can be larger than MAXPATHLEN... */
+				char *dpath = realpath(optarg, NULL);
+
+				if (!dpath)
+					fatal("invalid destination directory: %s", optarg);
+				if (!is_directory(dpath))
+					fatal("destination not a directory: %s", dpath);
+				if (strlen(dpath) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
+					fatal("destination directory path too long: %s", optarg);
+				strncopy(dest_path, dpath, dest_path_len);
+				free(dpath);
+				strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
+				if (verbose_mode)
+					fprintf(stderr,"Destination directory: %s\n",dest_path);
+				dest=1;
+			}
 			break;
 
 		case 'v':
