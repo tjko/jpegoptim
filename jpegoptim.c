@@ -756,7 +756,12 @@ retry_point:
 	/* Prepare to decompress */
 	if (!retry) {
 		if (!quiet_mode || csv) {
-			fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
+			if (csv) {
+				fprint_csv_field(log_fh, (filename ? filename : "stdin"));
+				fputc(',', log_fh);
+			} else {
+				fprintf(log_fh, "%s ", (filename ? filename : "stdin"));
+			}
 			fflush(log_fh);
 		}
 

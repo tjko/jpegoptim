@@ -350,6 +350,28 @@ char *strncatenate(char *dst, const char *src, size_t size)
 }
 
 
+void fprint_csv_field(FILE *fp, const char *str)
+{
+	if (!fp || !str)
+		return;
+
+	/* Don't quote the field if does not contain characters that
+	   need quoting (RFC 4180) */
+	if (strpbrk(str, "\",\r\n") == NULL) {
+		fputs(str, fp);
+		return;
+	}
+
+	fputc('"', fp);
+	while (*str) {
+		if (*str == '"')
+			fputc('"', fp);
+		fputc(*str++, fp);
+	}
+	fputc('"', fp);
+}
+
+
 char *str_add_list(char *dst, size_t size, const char *src, const char *delim)
 {
 	if (!dst || !src || !delim || size < 1)
