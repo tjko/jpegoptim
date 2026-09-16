@@ -41,7 +41,12 @@ HISTORY
                   - fix --auto-mode combined with -m recomressing isw own lossy output
                   - fix NITF marker processing
                   - safer temp file cretation on platforms withouth mkstemps()
-		  - output --help output to stdout (thanks to diimdeep)
+                  - output --help output to stdout (thanks to diimdeep)
+                  - count unexpected worker process exit codes as errors in parallel mode
+                  - honor --save-extra topsion als in --stdout mode
+                  - fix snprintf macro fo old MSVC versions
+                  - fix calling realpath() with potentially too small buffer
+		  - add CSV output escaping (RFC 4180)
                   - other minor fixes
         v1.5.6 - add new option -r, --retry,
                  add new option --save-extra,
@@ -164,4 +169,4 @@ Special thanks to the following GitHub Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-13-Sep-2026
+15-Sep-2026
