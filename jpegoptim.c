@@ -369,16 +369,25 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			break;
 
 		case 'd':
-			if (realpath(optarg,dest_path)==NULL)
-				fatal("invalid destination directory: %s", optarg);
-			if (!is_directory(dest_path))
-				fatal("destination not a directory: %s", dest_path);
-			if (strlen(dest_path) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
-				fatal("destination directory path too long: %s", optarg);
-			strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
-			if (verbose_mode)
-				fprintf(stderr,"Destination directory: %s\n",dest_path);
-			dest=1;
+		        {
+				/* Use the allocating form of realpath(), as a caller
+				   supplied buffer would need to be at least PATH_MAX
+				   bytes, which can be larger than MAXPATHLEN... */
+				char *dpath = realpath(optarg, NULL);
+
+				if (!dpath)
+					fatal("invalid destination directory: %s", optarg);
+				if (!is_directory(dpath))
+					fatal("destination not a directory: %s", dpath);
+				if (strlen(dpath) + strlen(DIR_SEPARATOR_S) >= dest_path_len)
+					fatal("destination directory path too long: %s", optarg);
+				strncopy(dest_path, dpath, dest_path_len);
+				free(dpath);
+				strncatenate(dest_path, DIR_SEPARATOR_S, dest_path_len);
+				if (verbose_mode)
+					fprintf(stderr,"Destination directory: %s\n",dest_path);
+				dest=1;
+			}
 			break;
 
 		case 'v':
@@ -747,7 +756,12 @@ retry_point:
 	/* Prepare to decompress */
 	if (!retry) {
 		if (!quiet_mode || csv) {
-			fprintf(log_fh,csv ? "%s," : "%s ",(filename ? filename:"stdin"));
+			if (csv) {
+				fprint_csv_field(log_fh, (filename ? filename : "stdin"));
+				fputc(',', log_fh);
+			} else {
+				fprintf(log_fh, "%s ", (filename ? filename : "stdin"));
+			}
 			fflush(log_fh);
 		}
 
@@ -1175,12 +1189,16 @@ binary_search_loop:
 			set_filemode_binary(stdout);
 			if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
 				fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
+			if (save_extra && extrabuffersize > 0) {
+				if (fwrite(extrabuffer,extrabuffersize,1,stdout) != 1)
+					fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
+			}
 		} else {
 			if (preserve_perms && !dest) {
 				/* make backup of the original file */
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
-				if (newlen >= sizeof(tmpfilename))
+				if (newlen < 0 || (size_t)newlen >= sizeof(tmpfilename))
 					fatal("temp filename too long: %s", tmpfilename);
 
 				if (verbose_mode > 1)
@@ -1413,6 +1431,11 @@ int wait_for_worker(FILE *log_fh)
 			decompress_err_count++;
 		} else if (e == 2) {
 			compress_err_count++;
+		} else if (e != 0) {
+			/* worker died via fatal() or other unexpected error,
+			   count it so program exit status reflects the failure... */
+			compress_err_count++;
+			warn("worker[%d] failed with status: %d", pid, e);
 		}
 	} else {
 		fatal("worker[%d] killed", pid);

@@ -78,6 +78,7 @@ char *splitdir(const char *pathname, char *buf, size_t size);
 char *splitname(const char *pathname, char *buf, size_t size);
 char *strncopy(char *dst, const char *src, size_t size);
 char *strncatenate(char *dst, const char *src, size_t size);
+void fprint_csv_field(FILE *fp, const char *str);
 char *str_add_list(char *dst, size_t size, const char *src, const char *delim);
 void fatal(const char *format, ...);
 void warn(const char *format, ...);

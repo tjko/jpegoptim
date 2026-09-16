@@ -81,7 +81,7 @@ FILE *create_temp_file(const char *tmpdir, const char *name, char *filename, siz
 	/* Rely on mkstemps() to create us temporary file safely... */
 	newlen = snprintf(filename, filename_len, "%s%s-%u-%u.XXXXXX.tmp",
 			tmpdir, name, getuid(), getpid());
-	if (newlen >= filename_len) {
+	if (newlen < 0 || (size_t)newlen >= filename_len) {
 		warn("temp filename too long: %s", filename);
 		return NULL;
 	}
@@ -99,7 +99,7 @@ FILE *create_temp_file(const char *tmpdir, const char *name, char *filename, siz
 		newlen = snprintf(filename, filename_len, "%s%s-%u-%u.%lx%04x.tmp",
 				tmpdir, name, getuid(), getpid(),
 				(unsigned long)time(NULL), rand() & 0xffff);
-		if (newlen >= filename_len) {
+		if (newlen < 0 || (size_t)newlen >= filename_len) {
 			warn("temp filename too long: %s", filename);
 			return NULL;
 		}
@@ -347,6 +347,28 @@ char *strncatenate(char *dst, const char *src, size_t size)
 		return dst;
 
 	return strncat(dst + used, src, free - 1);
+}
+
+
+void fprint_csv_field(FILE *fp, const char *str)
+{
+	if (!fp || !str)
+		return;
+
+	/* Don't quote the field if does not contain characters that
+	   need quoting (RFC 4180) */
+	if (strpbrk(str, "\",\r\n") == NULL) {
+		fputs(str, fp);
+		return;
+	}
+
+	fputc('"', fp);
+	while (*str) {
+		if (*str == '"')
+			fputc('"', fp);
+		fputc(*str++, fp);
+	}
+	fputc('"', fp);
 }
 
 

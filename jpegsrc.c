@@ -97,6 +97,8 @@ static boolean custom_fill_input_buffer (j_decompress_ptr dinfo)
 			if (!newbuf) ERREXIT1(dinfo, JERR_OUT_OF_MEMORY, 42);
 			src->buf = newbuf;
 			*src->buf_ptr = newbuf;
+			if (src->bufsize_ptr)
+				*src->bufsize_ptr = src->bufsize;
 			src->incsize *= 2;
 		}
 		memcpy(&src->buf[src->bufused], src->stdio_buffer, bytes_read);
