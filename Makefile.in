@@ -59,7 +59,7 @@ GROFF_FLAGS = -t -e -mandoc
 DIRNAME = $(shell basename `pwd`)
 DISTNAME  = $(PKGNAME)-$(Version)
 
-OBJS = $(PKGNAME).o jpegdest.o jpegsrc.o jpegmarker.o misc.o @GNUGETOPT@
+OBJS = $(PKGNAME).o jpegdest.o jpegsrc.o jpegmarker.o misc.o stripai.o @GNUGETOPT@
 
 .PHONY: test
 

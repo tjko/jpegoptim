@@ -251,6 +251,16 @@ Strip JFXX (JFIF Extensions) markers from output file.
 .TP 0.6i
 .B --strip-adobe
 Strip Adobe markers from output file.
+.TP 0.6i
+.B --strip-ai
+Strip the metadata telling that the image was generated or edited with AI:
+C2PA manifests (Content Credentials), the AI IPTC digital source types and the
+references to C2PA manifests in XMP, and the generation parameters (prompt, seed, etc.)
+in the Exif UserComment. The rest of the XMP and Exif data is preserved.
+Files where any of this metadata was found are always written, regardless of
+the threshold (-T) option.
+
+NOTE! Watermarks embedded in the image data itself cannot be removed.
 
 
 .TP 0.6i

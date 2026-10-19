@@ -84,6 +84,9 @@ void fatal(const char *format, ...);
 void warn(const char *format, ...);
 
 
+/* stripai.c */
+int strip_ai_markers(struct jpeg_decompress_struct *dinfo);
+
 /* jpegdest.c */
 void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr,
 		size_t *bufsizeptr, size_t incsize);

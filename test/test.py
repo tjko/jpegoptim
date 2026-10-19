@@ -21,8 +21,52 @@
 """jpegoptim unit tester"""
 
 import os
+import struct
 import subprocess
 import unittest
+
+
+def jpeg_segment(marker, data):
+    """build a JPEG marker segment"""
+    return struct.pack('>BBH', 0xFF, marker, len(data) + 2) + data
+
+
+def xmp_segment(properties, attributes=''):
+    """build an XMP (APP1) segment"""
+    packet = ('<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+              '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+              '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+              '<rdf:Description rdf:about=""'
+              ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
+              ' xmlns:dcterms="http://purl.org/dc/terms/"'
+              ' xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"'
+              f'{attributes}>{properties}</rdf:Description>'
+              '</rdf:RDF></x:xmpmeta><?xpacket end="w"?>')
+    return jpeg_segment(0xE1, b'http://ns.adobe.com/xap/1.0/\0' + packet.encode())
+
+
+def exif_segment(user_comment):
+    """build an Exif (APP1) segment with Orientation and UserComment tags"""
+    comment = b'ASCII\0\0\0' + user_comment.encode()
+    tiff = b'MM\0\x2a' + struct.pack('>I', 8)
+    # IFD0 at offset 8: Orientation and Exif IFD pointer
+    tiff += struct.pack('>H', 2)
+    tiff += struct.pack('>HHIHH', 0x0112, 3, 1, 6, 0)
+    tiff += struct.pack('>HHII', 0x8769, 4, 1, 8 + 2 + 2 * 12 + 4)
+    tiff += struct.pack('>I', 0)
+    # Exif IFD: UserComment, with its value right after
+    tiff += struct.pack('>H', 1)
+    tiff += struct.pack('>HHII', 0x9286, 7, len(comment), len(tiff) + 12 + 4)
+    tiff += struct.pack('>I', 0)
+    tiff += comment
+    return jpeg_segment(0xE1, b'Exif\0\0' + tiff)
+
+
+AI_TYPE = 'http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia'
+CAMERA_TYPE = 'http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture'
+C2PA_REF = 'self#jumbf=/c2pa/urn:uuid:5f5bba8c-9184-44c6-b9a7-62cfda37b343/c2pa.claim'
+A1111_PARAMS = ('a cat\nNegative prompt: blurry\nSteps: 20, Sampler: Euler a, '
+                'CFG scale: 7, Seed: 1234, Model hash: abcdef1234')
 
 
 class JpegoptimTests(unittest.TestCase):
@@ -105,6 +149,81 @@ class JpegoptimTests(unittest.TestCase):
         output, _ = self.run_test(['jpegoptim_test2-broken.jpg'],
                                     directory='tmp/broken', check=False)
         self.assertRegex(output, r'\s\[WARNING\]\s.*\sskipped\.\s*$')
+
+    def make_image(self, name, *segments):
+        """create an already optimized test image with the given markers"""
+        with open('jpegoptim_test2.jpg', 'rb') as f:
+            data = f.read()
+        os.makedirs('tmp', exist_ok=True)
+        path = os.path.join('tmp', name)
+        with open(path, 'wb') as f:
+            f.write(data[:2] + b''.join(segments) + data[2:])
+        return path
+
+    def run_strip_ai(self, path, args, directory):
+        """optimize an image with --strip-ai, returning the output and the result file"""
+        output, _ = self.run_test(['--strip-ai'] + args + [path], directory=directory)
+        with open(os.path.join(directory, os.path.basename(path)), 'rb') as f:
+            return output, f.read()
+
+    def test_strip_ai_c2pa(self):
+        """test removal of C2PA manifests"""
+        self.run_test(['--strip-none', 'jpegoptim_test1.jpg'], directory='tmp/c2pa_keep')
+        with open('tmp/c2pa_keep/jpegoptim_test1.jpg', 'rb') as f:
+            self.assertIn(b'jumdc2pa', f.read())
+        _, data = self.run_strip_ai('jpegoptim_test1.jpg', ['--strip-none'],
+                                    'tmp/c2pa_strip')
+        self.assertNotIn(b'jumdc2pa', data)
+        self.assertIn(b'http://ns.adobe.com/xap/1.0/', data)
+
+    def test_strip_ai_xmp(self):
+        """test removal of AI digital source type and C2PA references from XMP"""
+        path = self.make_image('xmp_ai.jpg', xmp_segment(
+            f'<dc:title>Holiday</dc:title><dcterms:provenance>{C2PA_REF}</dcterms:provenance>',
+            f' Iptc4xmpExt:DigitalSourceType="{AI_TYPE}"'))
+        output, data = self.run_strip_ai(path, [], 'tmp/xmp_ai')
+        self.assertRegex(output, r'\soptimized\.\s*$')
+        self.assertNotIn(b'trainedAlgorithmicMedia', data)
+        self.assertNotIn(b'c2pa', data)
+        self.assertIn(b'<dc:title>Holiday</dc:title>', data)
+        self.assertIn(b'xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/">', data)
+
+        path = self.make_image('xmp_ai_element.jpg', xmp_segment(
+            f'<Iptc4xmpExt:DigitalSourceType>{AI_TYPE}</Iptc4xmpExt:DigitalSourceType>'
+            '<dc:title>Holiday</dc:title>'))
+        _, data = self.run_strip_ai(path, [], 'tmp/xmp_ai')
+        self.assertNotIn(b'DigitalSourceType', data)
+        self.assertIn(b'"><dc:title>Holiday</dc:title></rdf:Description>', data)
+
+    def test_strip_ai_exif(self):
+        """test removal of generation parameters from Exif"""
+        path = self.make_image('exif_ai.jpg', exif_segment(A1111_PARAMS))
+        _, data = self.run_strip_ai(path, [], 'tmp/exif_ai')
+        self.assertNotIn(b'Negative prompt', data)
+        # the comment is blanked in place, the rest of Exif is untouched
+        exif = exif_segment(A1111_PARAMS)
+        blank = exif.replace(A1111_PARAMS.encode(), bytes(len(A1111_PARAMS)))
+        self.assertIn(blank, data)
+
+    def test_strip_ai_none(self):
+        """test that --strip-ai does not touch images without AI metadata"""
+        segments = (exif_segment('Holiday'),
+                    xmp_segment('<dc:title>Holiday</dc:title>',
+                                f' Iptc4xmpExt:DigitalSourceType="{CAMERA_TYPE}"'))
+        path = self.make_image('camera.jpg', *segments)
+        output, _ = self.run_test(['--strip-ai', path], directory='tmp/camera')
+        self.assertRegex(output, r'\sskipped\.\s*$')
+        output, data = self.run_strip_ai(path, ['-f'], 'tmp/camera')
+        self.assertIn(b''.join(segments), data)
+
+    def test_strip_ai_threshold(self):
+        """test that images with AI metadata are written regardless of threshold"""
+        path = self.make_image('threshold.jpg', exif_segment(A1111_PARAMS))
+        output, _ = self.run_test(['-T', '99', path], directory='tmp/threshold')
+        self.assertRegex(output, r'\sskipped\.\s*$')
+        output, data = self.run_strip_ai(path, ['-T', '99'], 'tmp/threshold')
+        self.assertRegex(output, r'\soptimized\.\s*$')
+        self.assertNotIn(b'Negative prompt', data)
 
 
 if __name__ == '__main__':

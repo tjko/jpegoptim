@@ -119,6 +119,7 @@ int save_adobe = 0;
 int save_jfxx = 0;
 int save_jfif = 1;
 int strip_none = 0;
+int strip_ai = 0;
 double threshold = -1.0;
 int csv = 0;
 int auto_mode = 0;
@@ -187,6 +188,7 @@ const struct option long_options[] = {
 	{ "strip-jfif",         0, &save_jfif,           0 },
 	{ "strip-jfxx",         0, &save_jfxx,           0 },
 	{ "strip-adobe",        0, &save_adobe,          0 },
+	{ "strip-ai",           0, &strip_ai,            1 },
 	{ "threshold",          1, 0,                    'T' },
 	{ "totals",             0, 0,                    't' },
 	{ "verbose",            0, 0,                    'v' },
@@ -289,6 +291,9 @@ void print_usage(void)
 		"  --strip-jfif      strip JFIF markers from output file\n"
 		"  --strip-jfxx      strip JFXX (JFIF Extension) markers from output file\n"
 		"  --strip-xmp       strip XMP markers markers from output file\n"
+		"  --strip-ai        strip metadata telling the image was generated or edited\n"
+		"                    with AI: C2PA manifests (Content Credentials), IPTC\n"
+		"                    digital source type and generation parameters\n"
 		"\n"
 		"  --keep-all        do not strip any markers (same as --strip-none)\n"
 		"  --keep-adobe      preserve any Adobe (APP14) markers\n"
@@ -701,6 +706,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	size_t last_retry_size = 0;
 	int retry_count = 0;
 	int retry = 0;
+	int ai_stripped = 0;
 	int res = -1;
 
 	jpeg_log_fh = log_fh;
@@ -843,6 +849,16 @@ retry_point:
 			if (!quiet_mode)
 				fprintf(log_fh, " (failed to read coefficients) ");
 			goto abort_decompress;
+		}
+	}
+	if (strip_ai) {
+		/* All the markers are known only after reading the whole image */
+		int n = strip_ai_markers(&dinfo);
+
+		if (n > 0) {
+			if (verbose_mode && !retry)
+				fprintf(log_fh, " (%d AI metadata removed) ", n);
+			ai_stripped = 1;
 		}
 	}
 	if (!retry) {
@@ -1173,7 +1189,8 @@ binary_search_loop:
 		*rate = (ratio < 0 ? 0.0 : ratio);
 	}
 
-	if ((outsize < insize && ratio >= threshold) || force) {
+	/* Removed AI metadata must not survive in the original file */
+	if ((outsize < insize && ratio >= threshold) || force || ai_stripped) {
 		if (saved) {
 			*saved = (insize - outsize) / 1024.0;
 		}
