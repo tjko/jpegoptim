@@ -254,6 +254,7 @@ check_include_file(math.h HAVE_MATH_H)
 check_include_file(fcntl.h HAVE_FCNTL_H)
 check_include_file(dirent.h HAVE_DIRENT_H)
 check_include_file(sys/stat.h HAVE_SYS_STAT_H)
+check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 
@@ -261,7 +262,10 @@ include(CheckSymbolExists)
 check_symbol_exists(mkstemps "stdlib.h" HAVE_MKSTEMPS)
 check_symbol_exists(labs "stdlib.h" HAVE_LABS)
 check_symbol_exists(fileno "stdio.h" HAVE_FILENO)
-check_symbol_exists(utimensat "sys/stat.h" HAVE_UTIMENSAT)
+check_symbol_exists(futimens "sys/stat.h" HAVE_FUTIMENS)
+check_symbol_exists(futimes "sys/time.h" HAVE_FUTIMES)
+check_symbol_exists(fchmod "unistd.h" HAVE_FCHMOD)
+check_symbol_exists(fchown "unistd.h" HAVE_FCHOWN)
 check_symbol_exists(fork "unistd.h" HAVE_FORK)
 check_symbol_exists(wait "sys/wait.h" HAVE_WAIT)
 check_symbol_exists(getopt "unistd.h" HAVE_GETOPT)
@@ -290,7 +294,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_MKSTEMPS}>:HAVE_MKSTEMPS>
     $<$<BOOL:${HAVE_LABS}>:HAVE_LABS>
     $<$<BOOL:${HAVE_FILENO}>:HAVE_FILENO>
-    $<$<BOOL:${HAVE_UTIMENSAT}>:HAVE_UTIMENSAT>
+    $<$<BOOL:${HAVE_FUTIMENS}>:HAVE_FUTIMENS>
+    $<$<BOOL:${HAVE_FUTIMES}>:HAVE_FUTIMES>
+    $<$<BOOL:${HAVE_FCHMOD}>:HAVE_FCHMOD>
+    $<$<BOOL:${HAVE_FCHOWN}>:HAVE_FCHOWN>
     $<$<BOOL:${HAVE_FORK}>:HAVE_FORK>
     $<$<BOOL:${HAVE_WAIT}>:HAVE_WAIT>
     $<$<BOOL:${HAVE_GETOPT}>:HAVE_GETOPT>

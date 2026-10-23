@@ -287,8 +287,8 @@ int set_file_times(int fd, const char *filename, const struct stat *stat)
 #else
 	struct utimbuf time_save;
 
-	time_save.actime=file_stat->st_atime;
-	time_save.modtime=file_stat->st_mtime;
+	time_save.actime=stat->st_atime;
+	time_save.modtime=stat->st_mtime;
 	ret = utime(filename, &time_save);
 #endif
 
