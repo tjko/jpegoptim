@@ -74,6 +74,7 @@ AC_CHECK_FUNCS(labs)
 AC_CHECK_FUNCS(fileno)
 AC_CHECK_FUNCS(futimens)
 AC_CHECK_FUNCS(futimes)
+AC_CHECK_FUNCS(fchown)
 AC_CHECK_FUNCS(fork)
 AC_CHECK_FUNCS(wait)
 

@@ -41,9 +41,6 @@
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#if HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -1258,11 +1255,11 @@ binary_search_loop:
 					if (rename_file(tmpfilename, newname))
 						fatal("write failed to file: %s (failed to restore backup: %s)",
 							newname, tmpfilename);
-					if (chmod(newname, (file_stat->st_mode & 0777)) != 0)
+					if (set_file_mode(-1, newname, (file_stat->st_mode & 0777)) != 0)
 						warn("failed to restore file mode: %s", newname);
-					if (chown(newname,
-							(geteuid()==0 ? file_stat->st_uid : -1),
-							file_stat->st_gid) != 0)
+					if (set_file_owner(-1, newname,
+							   (geteuid()==0 ? file_stat->st_uid : -1),
+							   file_stat->st_gid) != 0)
 						warn("failed to restore file group/owner: %s", newname);
 					fatal("write failed to file: %s (original restored)", newname);
 				}
@@ -1276,25 +1273,7 @@ binary_search_loop:
 				if (verbose_mode > 1)
 					fprintf(log_fh,"set file modification time same as in original: %s\n",
 						outfname);
-#if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
-				struct timespec time_save[2];
-				time_save[0].tv_sec = 0;
-				time_save[0].tv_nsec = UTIME_OMIT;	/* omit atime */
-				time_save[1] = file_stat->st_mtim;
-				if (futimens(outfd, outfname, time_save, 0) != 0)
-#elif defined(HAVE_FUTIMES)
-				struct timeval time_save[2];
-				time_save[0].tv_sec=file_stat->st_atime;
-				time_save[0].tv_usec = 0;
-				time_save[1].tv_sec=file_stat->st_mtime;
-				time_save[1].tv_usec = 0;
-				if (futimes(outfd, time_save) != 0)
-#else
-				struct utimbuf time_save;
-				time_save.actime=file_stat->st_atime;
-				time_save.modtime=file_stat->st_mtime;
-				if (utime(outfname,&time_save) != 0)
-#endif
+				if (set_file_times(outfd, outfname, file_stat) != 0)
 					warn("failed to reset output file time/date");
 			}
 
@@ -1309,11 +1288,11 @@ binary_search_loop:
 				/* make temp file to be the original file... */
 
 				/* preserve file mode */
-				if (fchmod(outfd, (file_stat->st_mode & 0777)) != 0)
+				if (set_file_mode(outfd, outfname, (file_stat->st_mode & 0777)) != 0)
 					warn("failed to set output file mode");
 
 				/* preserve file group (and owner if run by root) */
-				if (fchown(outfd, (geteuid()==0 ? file_stat->st_uid : -1),
+				if (set_file_owner(outfd, outfname, (geteuid()==0 ? file_stat->st_uid : -1),
 					   file_stat->st_gid) != 0)
 					warn("failed to reset output file group/owner");
 

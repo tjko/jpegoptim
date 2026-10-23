@@ -30,6 +30,9 @@
 /* Define if you have the futimes function. */
 #undef HAVE_FUTIMES
 
+/* Define if you have the fchown function. */
+#undef HAVE_FCHOWN
+
 /* Define if you have the fork function. */
 #undef HAVE_FORK
 

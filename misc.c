@@ -31,6 +31,12 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#if HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -259,6 +265,69 @@ int copy_file(const char *srcfile, const char *dstfile)
 	return err;
 }
 
+int set_file_times(int fd, const char *filename, const struct stat *stat)
+{
+	int ret;
+
+#if defined(HAVE_UTIMENSAT) && defined(HAVE_STRUCT_STAT_ST_MTIM)
+	struct timespec time_save[2];
+
+	time_save[0].tv_sec = 0;
+	time_save[0].tv_nsec = UTIME_OMIT;	/* omit atime */
+	time_save[1] = stat->st_mtim;
+	ret = futimens(fd, time_save);
+#elif defined(HAVE_FUTIMES)
+	struct timeval time_save[2];
+
+	time_save[0].tv_sec=stat->st_atime;
+	time_save[0].tv_usec = 0;
+	time_save[1].tv_sec=stat->st_mtime;
+	time_save[1].tv_usec = 0;
+	ret = futimes(fd, time_save);
+#else
+	struct utimbuf time_save;
+
+	time_save.actime=file_stat->st_atime;
+	time_save.modtime=file_stat->st_mtime;
+	ret = utime(filename, &time_save);
+#endif
+
+	return ret;
+}
+
+int set_file_mode(int fd, const char *filename, mode_t mode)
+{
+	int ret;
+
+#if defined(HAVE_FCHMOD)
+	if (fd < 0) {
+		ret = chmod(filename, mode);
+	} else {
+		ret = fchmod(fd, mode);
+	}
+#else
+	ret = chmod(filename, mode);
+#endif
+
+	return ret;
+}
+
+int set_file_owner(int fd, const char *filename, uid_t owner, gid_t group)
+{
+	int ret;
+
+#if defined(HAVE_FCHOWN)
+	if (fd < 0) {
+		ret = chown(filename, owner, group);
+	} else {
+		ret = fchown(fd, owner, group);
+	}
+#else
+	ret = chown(filename, owner, group);
+#endif
+
+	return ret;
+}
 
 char *fgetstr(char *s, size_t size, FILE *stream)
 {
