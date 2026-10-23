@@ -168,7 +168,8 @@ class JpegoptimTests(unittest.TestCase):
 
     def test_strip_ai_c2pa(self):
         """test removal of C2PA manifests"""
-        self.run_test(['--strip-none', 'jpegoptim_test1.jpg'], directory='tmp/c2pa_keep')
+        self.run_test(['-f', '--strip-none', 'jpegoptim_test1.jpg'],
+                      directory='tmp/c2pa_keep')
         with open('tmp/c2pa_keep/jpegoptim_test1.jpg', 'rb') as f:
             self.assertIn(b'jumdc2pa', f.read())
         _, data = self.run_strip_ai('jpegoptim_test1.jpg', ['--strip-none'],
