@@ -34,9 +34,6 @@
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#if HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>

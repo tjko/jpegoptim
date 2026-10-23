@@ -264,7 +264,7 @@ check_symbol_exists(labs "stdlib.h" HAVE_LABS)
 check_symbol_exists(fileno "stdio.h" HAVE_FILENO)
 check_symbol_exists(futimens "sys/stat.h" HAVE_FUTIMENS)
 check_symbol_exists(futimes "sys/time.h" HAVE_FUTIMES)
-check_symbol_exists(fchmod "unistd.h" HAVE_FCHMOD)
+check_symbol_exists(fchmod "sys/stat.h" HAVE_FCHMOD)
 check_symbol_exists(fchown "unistd.h" HAVE_FCHOWN)
 check_symbol_exists(fork "unistd.h" HAVE_FORK)
 check_symbol_exists(wait "sys/wait.h" HAVE_WAIT)
@@ -289,6 +289,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_FCNTL_H}>:HAVE_FCNTL_H>
     $<$<BOOL:${HAVE_DIRENT_H}>:HAVE_DIRENT_H>
     $<$<BOOL:${HAVE_SYS_STAT_H}>:HAVE_SYS_STAT_H>
+    $<$<BOOL:${HAVE_SYS_TIME_H}>:HAVE_SYS_TIME_H>
     $<$<BOOL:${HAVE_SYS_TYPES_H}>:HAVE_SYS_TYPES_H>
     $<$<BOOL:${HAVE_SYS_WAIT_H}>:HAVE_SYS_WAIT_H>
     $<$<BOOL:${HAVE_MKSTEMPS}>:HAVE_MKSTEMPS>
