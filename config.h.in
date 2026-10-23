@@ -24,8 +24,11 @@
 /* Define if you have the fileno function. */
 #undef HAVE_FILENO
 
-/* Define if you have the utimensat function. */
-#undef HAVE_UTIMENSAT
+/* Define if you have the futimens function. */
+#undef HAVE_FUTIMENS
+
+/* Define if you have the futimes function. */
+#undef HAVE_FUTIMES
 
 /* Define if you have the fork function. */
 #undef HAVE_FORK
@@ -50,6 +53,9 @@
 
 /* Define if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
 
 /* Define if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
