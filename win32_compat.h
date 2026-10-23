@@ -46,6 +46,10 @@ extern "C" {
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef unsigned int mode_t;
+
 #ifndef HOST_TYPE
 #if _WIN64
 #define HOST_TYPE "Win64"

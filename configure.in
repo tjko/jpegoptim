@@ -51,7 +51,7 @@ AC_CHECK_LIB(m, floor)
 dnl Checks for header files.
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h getopt.h string.h libgen.h math.h fcntl.h sys/wait.h)
+AC_CHECK_HEADERS(unistd.h getopt.h string.h libgen.h math.h fcntl.h sys/stat.h sys/time.h sys/wait.h)
 AC_CHECK_HEADERS(jpeglib.h,,[
 echo "Cannot find jpeglib.h  You need libjpeg v6 (or later)."
 exit 1
@@ -72,7 +72,10 @@ AC_SUBST(GNUGETOPT)
 AC_CHECK_FUNCS(mkstemps)
 AC_CHECK_FUNCS(labs)
 AC_CHECK_FUNCS(fileno)
-AC_CHECK_FUNCS(utimensat)
+AC_CHECK_FUNCS(futimens)
+AC_CHECK_FUNCS(futimes)
+AC_CHECK_FUNCS(fchmod)
+AC_CHECK_FUNCS(fchown)
 AC_CHECK_FUNCS(fork)
 AC_CHECK_FUNCS(wait)
 
