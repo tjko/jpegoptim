@@ -91,6 +91,7 @@ set(SOURCE_FILES
     jpegdest.c
     jpegmarker.c
     misc.c
+    stripai.c
     )
 source_group("Source Files" FILES ${SOURCE_FILES})
 
