@@ -262,6 +262,7 @@ int copy_file(const char *srcfile, const char *dstfile)
 	return err;
 }
 
+
 int set_file_times(int fd, const char *filename, const struct stat *stat)
 {
 	int ret;
@@ -292,6 +293,7 @@ int set_file_times(int fd, const char *filename, const struct stat *stat)
 	return ret;
 }
 
+
 int set_file_mode(int fd, const char *filename, mode_t mode)
 {
 	int ret;
@@ -308,6 +310,7 @@ int set_file_mode(int fd, const char *filename, mode_t mode)
 
 	return ret;
 }
+
 
 int set_file_owner(int fd, const char *filename, uid_t owner, gid_t group)
 {
@@ -326,18 +329,28 @@ int set_file_owner(int fd, const char *filename, uid_t owner, gid_t group)
 	return ret;
 }
 
+
 char *fgetstr(char *s, size_t size, FILE *stream)
 {
-	char *p;
-
 	if (!s || size < 1 || !stream)
 		return NULL;
 
 	if (!fgets(s, size, stream))
 		return NULL;
 
-	p = s + strnlen(s, size) - 1;
-	while ((p >= s) && ((*p == 10) || (*p == 13)))
+	/* Check if the entire line didn't fit in the buffer */
+	size_t len = strnlen(s, size);
+	if (len == size - 1 && s[len - 1] != '\n' && !feof(stream)) {
+		int c;
+		/* Discard remaining characters from the line */
+		do {
+			c = getc(stream);
+		} while (c != '\n' && c != EOF);
+	}
+
+	/* Remove any trailing CR/LF characters... */
+	char *p = s + len - 1;
+	while ((p >= s) && ((*p == '\r') || (*p == '\n')))
 		*p--=0;
 
 	return s;
