@@ -27,7 +27,11 @@ INSTALLATION
 
 
 HISTORY
-        v1.5.7 - 30th Aniversary (bug fix) release:
+        v1.5.7 - 30th Aniversary release:
+                  - new option --strip-ai (thanks to Matteo Croce)
+                  - fix handling of too long filenames when reading them from
+                    a file (--files-from)
+                  - fix potential race condition when restoring file permissions
                   - fix to --auto-mode sometimes getting stuck in a loop
                   - fix --workers (and --retry) option processing
                   - fix --auto-mode only applying to first file (regression)
