@@ -98,7 +98,7 @@ int worker_count = 0;
 
 int verbose_mode = 0;
 int quiet_mode = 0;
-int preserve_mode = 0;
+int preserve_mtime = 0;
 int preserve_perms = 0;
 int overwrite_mode = 0;
 int retry_mode = 0;
@@ -439,7 +439,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			break;
 
 		case 'p':
-			preserve_mode=1;
+			preserve_mtime=1;
 			break;
 
 		case 'P':
@@ -1212,7 +1212,7 @@ binary_search_loop:
 			}
 		} else {
 			if (preserve_perms && !dest) {
-				/* make backup of the original file */
+				/* make backup of the original file before overwriting it... */
 				int newlen = snprintf(tmpfilename, sizeof(tmpfilename),
 						"%s.jpegoptim.bak", newname);
 				if (newlen < 0 || (size_t)newlen >= sizeof(tmpfilename))
@@ -1248,21 +1248,20 @@ binary_search_loop:
 			if (fflush(outfile) != 0)
 				write_error = 1;
 
-			if (preserve_perms && dest && !write_error) {
+			if (!(preserve_perms && !dest) && !write_error) {
+				/* set file mode */
 				if (verbose_mode > 1)
 					fprintf(log_fh,"set file permissions same as in original: %s\n", outfname);
-
-				/* preserve file mode */
-				if (set_file_mode(outfd, outfname, (file_stat->st_mode & 0777)) != 0)
+				if (set_file_mode(outfd, outfname, file_stat->st_mode & 0777) != 0)
 					warn("failed to set output file mode");
 
 				/* preserve file group (and owner if run by root) */
 				if (set_file_owner(outfd, outfname, (geteuid()==0 ? file_stat->st_uid : -1),
-					   file_stat->st_gid) != 0)
+						   file_stat->st_gid) != 0)
 					warn("failed to reset output file group/owner");
 			}
 
-			if (preserve_mode && !write_error) {
+			if (preserve_mtime && !write_error) {
 				/* preserve file modification time */
 				if (verbose_mode > 1)
 					fprintf(log_fh,"set file modification time same as in original: %s\n",
