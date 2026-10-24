@@ -1234,6 +1234,7 @@ binary_search_loop:
 			}
 			int outfd = fileno(outfile);
 
+			/* write "new" image to a file... */
 			if (verbose_mode > 1)
 				fprintf(log_fh,"writing %lu bytes to file: %s\n", outbuffersize, outfname);
 			if (fwrite(outbuffer, outbuffersize, 1, outfile) != 1) {
@@ -1247,8 +1248,33 @@ binary_search_loop:
 			if (fflush(outfile) != 0)
 				write_error = 1;
 
+			if (preserve_perms && dest && !write_error) {
+				if (verbose_mode > 1)
+					fprintf(log_fh,"set file permissions same as in original: %s\n", outfname);
+
+				/* preserve file mode */
+				if (set_file_mode(outfd, outfname, (file_stat->st_mode & 0777)) != 0)
+					warn("failed to set output file mode");
+
+				/* preserve file group (and owner if run by root) */
+				if (set_file_owner(outfd, outfname, (geteuid()==0 ? file_stat->st_uid : -1),
+					   file_stat->st_gid) != 0)
+					warn("failed to reset output file group/owner");
+			}
+
+			if (preserve_mode && !write_error) {
+				/* preserve file modification time */
+				if (verbose_mode > 1)
+					fprintf(log_fh,"set file modification time same as in original: %s\n",
+						outfname);
+				if (set_file_times(outfd, outfname, file_stat) != 0)
+					warn("failed to reset output file time/date");
+			}
+
+			if (fclose(outfile) != 0)
+				write_error = 1;
+
 			if (write_error) {
-				fclose(outfile);
 				if (preserve_perms && !dest) {
 					/* original file was truncated already, so restore it from the backup... */
 					warn("%s, write failed, restoring from backup: %s", filename, tmpfilename);
@@ -1265,20 +1291,11 @@ binary_search_loop:
 				}
 				/* remove the incomplete temporary file... */
 				delete_file(outfname);
-				fatal("write failed to file: %s", outfname);
+				fatal("write failed to temporary file: %s", outfname);
 			}
 
-			if (preserve_mode) {
-				/* preserve file modification time */
-				if (verbose_mode > 1)
-					fprintf(log_fh,"set file modification time same as in original: %s\n",
-						outfname);
-				if (set_file_times(outfd, outfname, file_stat) != 0)
-					warn("failed to reset output file time/date");
-			}
 
 			if (preserve_perms && !dest) {
-				fclose(outfile);
 				/* original file was already replaced, remove backup... */
 				if (verbose_mode > 1)
 					fprintf(log_fh,"removing backup file: %s\n", tmpfilename);
@@ -1286,17 +1303,6 @@ binary_search_loop:
 					warn("failed to remove backup file: %s", tmpfilename);
 			} else {
 				/* make temp file to be the original file... */
-
-				/* preserve file mode */
-				if (set_file_mode(outfd, outfname, (file_stat->st_mode & 0777)) != 0)
-					warn("failed to set output file mode");
-
-				/* preserve file group (and owner if run by root) */
-				if (set_file_owner(outfd, outfname, (geteuid()==0 ? file_stat->st_uid : -1),
-					   file_stat->st_gid) != 0)
-					warn("failed to reset output file group/owner");
-
-				fclose(outfile);
 				if (verbose_mode > 1)
 					fprintf(log_fh,"renaming: %s to %s\n", outfname, newname);
 				if (rename_file(outfname, newname))
