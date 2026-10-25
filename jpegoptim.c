@@ -77,6 +77,14 @@
 
 #define IN_BUF_SIZE (256 * 1024)
 
+/* Check for libjpeg-turbo or MozJPEG */
+#if defined(HAVE_MOZJPEG)
+#define JPEG_LIB_VARIANT "(MozJPEG)"
+#elif defined(LIBJPEG_TURBO_VERSION)
+#define JPEG_LIB_VARIANT "(libjpeg-turbo)"
+#else
+#define JPEG_LIB_VARIANT ""
+#endif
 
 struct my_error_mgr {
 	struct jpeg_error_mgr pub;
@@ -340,9 +348,9 @@ void print_version()
 	if (!jpeg_std_error(&jerr))
 		fatal("jpeg_std_error() failed");
 
-	printf("\nlibjpeg version: %s\n%s\n",
-		jerr.jpeg_message_table[JMSG_VERSION],
-		jerr.jpeg_message_table[JMSG_COPYRIGHT]);
+	printf("\nlibjpeg version: %s %s\n%s\n",
+	       jerr.jpeg_message_table[JMSG_VERSION], JPEG_LIB_VARIANT,
+	       jerr.jpeg_message_table[JMSG_COPYRIGHT]);
 }
 
 

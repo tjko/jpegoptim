@@ -81,6 +81,9 @@
 /* Define if jpeg library supports the MozJPEG extension setting JINT_DC_SCAN_OPT_MODE */
 #undef HAVE_JINT_DC_SCAN_OPT_MODE
 
+/* Define if jpeg library is MozJPEG */
+#undef HAVE_MOZJPEG
+
 
 /* Define if you have broken jmorecfg.h (SGI's usually have this problem) */
 #undef BROKEN_METHODDEF
