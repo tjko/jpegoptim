@@ -156,15 +156,15 @@ const struct option long_options[] = {
 	{ "all-arith",          0, &arith_mode,          1 },
 	{ "all-huffman",        0, &arith_mode,          0 },
 #endif
-	{ "auto-mode",          0, &auto_mode,          1 },
+	{ "auto-mode",          0, &auto_mode,           1 },
 	{ "all-normal",         0, &all_normal,          1 },
 	{ "all-progressive",    0, &all_progressive,     1 },
-	{ "csv",                0, 0,                    'b' },
-	{ "dest",               1, 0,                    'd' },
+	{ "csv",                0, 0,                   'b' },
+	{ "dest",               1, 0,                   'd' },
 	{ "files-stdin",        0, &files_stdin,         1 },
-	{ "files-from",         1, 0,                    'F' },
-	{ "force",              0, 0,                    'f' },
-	{ "help",               0, 0,                    'h' },
+	{ "files-from",         1, 0,                   'F' },
+	{ "force",              0, 0,                   'f' },
+	{ "help",               0, 0,                   'h' },
 	{ "keep-adobe",         0, &save_adobe,          1 },
 	{ "keep-all",           0, &strip_none,          1 },
 	{ "keep-com",           0, &save_com,            1 },
@@ -174,19 +174,19 @@ const struct option long_options[] = {
 	{ "keep-jfif",          0, &save_jfif,           1 },
 	{ "keep-jfxx",          0, &save_jfxx,           1 },
 	{ "keep-xmp",           0, &save_xmp,            1 },
-	{ "max",                1, 0,                    'm' },
-	{ "noaction",           0, 0,                    'n' },
+	{ "max",                1, 0,                   'm' },
+	{ "noaction",           0, 0,                   'n' },
 	{ "nofix",              0, &nofix_mode,          1 },
-	{ "overwrite",          0, 0,                    'o' },
-	{ "preserve",           0, 0,                    'p' },
-	{ "preserve-perms",     0, 0,                    'P' },
-	{ "quiet",              0, 0,                    'q' },
-	{ "retry",              0, 0,                    'r' },
+	{ "overwrite",          0, 0,                   'o' },
+	{ "preserve",           0, 0,                   'p' },
+	{ "preserve-perms",     0, 0,                   'P' },
+	{ "quiet",              0, 0,                   'q' },
+	{ "retry",              0, 0,                   'r' },
 	{ "save-extra",         0, &save_extra,          1 },
-	{ "size",               1, 0,                    'S' },
+	{ "size",               1, 0,                   'S' },
 	{ "stdin",              0, &stdin_mode,          1 },
 	{ "stdout",             0, &stdout_mode,         1 },
-	{ "strip-all",          0, 0,                    's' },
+	{ "strip-all",          0, 0,                   's' },
 	{ "strip-none",         0, &strip_none,          1 },
 	{ "strip-com",          0, &save_com,            0 },
 	{ "strip-exif",         0, &save_exif,           0 },
@@ -197,12 +197,12 @@ const struct option long_options[] = {
 	{ "strip-jfxx",         0, &save_jfxx,           0 },
 	{ "strip-adobe",        0, &save_adobe,          0 },
 	{ "strip-ai",           0, &strip_ai,            1 },
-	{ "threshold",          1, 0,                    'T' },
-	{ "totals",             0, 0,                    't' },
-	{ "verbose",            0, 0,                    'v' },
-	{ "version",            0, 0,                    'V' },
+	{ "threshold",          1, 0,                   'T' },
+	{ "totals",             0, 0,                   't' },
+	{ "verbose",            0, 0,                   'v' },
+	{ "version",            0, 0,                   'V' },
 #ifdef PARALLEL_PROCESSING
-	{ "workers",            1, 0,                    'w' },
+	{ "workers",            1, 0,                   'w' },
 #endif
 	{ 0, 0, 0, 0 }
 };
@@ -708,6 +708,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	unsigned int marker_in_count, marker_in_size;
 
 	long in_image_size = 0;
+	long infilesize = 0;
 	long insize = 0, outsize = 0, lastsize = 0;
 	int oldquality, searchdone;
 	double ratio;
@@ -741,6 +742,11 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	if (filename) {
 		if ((infile = fopen(filename, "rb")) == NULL) {
 			warn("cannot open file: %s", filename);
+			res = 1;
+			goto exit_point;
+		}
+		if ((infilesize = file_size(infile)) < 0) {
+			warn("failed to stat() input file: %s", filename);
 			res = 1;
 			goto exit_point;
 		}
@@ -782,15 +788,14 @@ retry_point:
 		if (stdin_mode || stdout_mode) {
 			inbuffersize = IN_BUF_SIZE;
 		} else {
-			long fsize = file_size(infile);
-			if (fsize < 0)
-				fatal("failed to stat() input file: %s", filename);
-			inbuffersize = (fsize < IN_BUF_SIZE ? IN_BUF_SIZE : (size_t)fsize);
+			inbuffersize = (infilesize < IN_BUF_SIZE ? IN_BUF_SIZE : (size_t)infilesize);
 		}
 		if (inbuffer)
 			free(inbuffer);
-		if (!(inbuffer=calloc(inbuffersize, 1)))
-			fatal("not enough memory");
+		if (!(inbuffer=calloc(inbuffersize, 1))) {
+			warn("not enough memory");
+			goto abort_decompress;
+		}
 	}
 	global_error_counter=0;
 	jpeg_save_markers(&dinfo, JPEG_COM, 0xffff);
@@ -839,12 +844,16 @@ retry_point:
 		jpeg_start_decompress(&dinfo);
 
 		/* Allocate line buffer to store the decompressed image */
-		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW))))
-			fatal("not enough memory");
+		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW)))) {
+			warn("not enough memory");
+			goto abort_decompress;
+		}
 		for (int i = 0; i < dinfo.output_height; i++) {
 			if (!(buf[i]=calloc((size_t)dinfo.output_width * dinfo.out_color_components,
-							sizeof(JSAMPLE))))
-				fatal("not enough memory");
+					    sizeof(JSAMPLE)))) {
+				warn("not enough memory");
+				goto abort_decompress;
+			}
 		}
 
 		while (dinfo.output_scanline < dinfo.output_height) {
@@ -872,12 +881,11 @@ retry_point:
 	if (!retry) {
 		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
 		if(verbose_mode > 2)
-			fprintf(log_fh, " (input image size: %ld (%ld))",	in_image_size, inbufferused);
+			fprintf(log_fh, " (input image size: %ld (%ld))", in_image_size, inbufferused);
 		if (stdin_mode) {
 			insize = in_image_size;
 		} else {
-			if ((insize = file_size(infile)) < 0)
-				fatal("failed to stat() input file: %s", filename);
+			insize = infilesize;
 			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
 					fprintf(log_fh, " (%ld bytes extraneous data found after end of image) ",
@@ -888,12 +896,18 @@ retry_point:
 					extrabuffersize = insize - in_image_size;
 					if (extrabuffer)
 						free(extrabuffer);
-					if (!(extrabuffer = calloc(extrabuffersize, 1)))
-						fatal("not enough memory");
-					if (fseek(infile, in_image_size, SEEK_SET))
-						fatal("failed to seek input file");
-					if (fread(extrabuffer, extrabuffersize, 1, infile) != 1)
-						fatal("failed to read inputfile");
+					if (!(extrabuffer = calloc(extrabuffersize, 1))) {
+						warn("not enough memory");
+						goto abort_decompress;
+					}
+					if (fseek(infile, in_image_size, SEEK_SET)) {
+						warn("failed to seek input file");
+						goto abort_decompress;
+					}
+					if (fread(extrabuffer, extrabuffersize, 1, infile) != 1) {
+						warn("failed to read inputfile");
+						goto abort_decompress;
+					}
 				}
 			}
 		}
@@ -919,6 +933,7 @@ retry_point:
 
 	/* Prepare to compress... */
 	if (setjmp(jcerr.setjmp_buffer)) {
+	abort_compress:
 		/* Error handler for compress failures */
 		if (!quiet_mode)
 			fprintf(log_fh," [Compress ERROR: %s]\n",last_error);
@@ -950,8 +965,10 @@ binary_search_loop:
 	if (outbuffer)
 		free(outbuffer);
 	outbuffersize = insize + 32768;
-	if (!(outbuffer=calloc(outbuffersize, 1)))
-		fatal("not enough memory");
+	if (!(outbuffer=calloc(outbuffersize, 1))) {
+		warn("not enough memory");
+		goto abort_compress;
+	}
 
 	/* setup custom "destination manager" for libjpeg to write to our buffer */
 	jpeg_memory_dest(&cinfo, &outbuffer, &outbuffersize, 65536);
