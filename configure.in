@@ -17,17 +17,40 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
 
+AC_ARG_ENABLE([static-libjpeg],
+  [AS_HELP_STRING([--enable-static-libjpeg], [Link libjpeg statically instead of dynamically])],
+  [static_libjpeg=yes],
+  [static_libjpeg=no])
+
+
 AC_ARG_WITH(libjpeg, [  --with-libjpeg=DIR	  libjpeg is installed in ],
 	[if test $withval != yes; then
 	   	jpeginfo_cv_libjpeg=$withval
 	fi
 	if test -d "${jpeginfo_cv_libjpeg}/lib"; then
 		LDFLAGS="-L${jpeginfo_cv_libjpeg}/lib $LDFLAGS"
+		if test -e "${jpeginfo_cv_libjpeg}/lib/libjpeg.a"; then
+		  static_libjpeg_lib="${jpeginfo_cv_libjpeg}/lib/libjpeg.a"
+		fi
 		CPPFLAGS="$CPPFLAGS -I${jpeginfo_cv_libjpeg}/include"
 	else
 		LDFLAGS="-L${jpeginfo_cv_libjpeg} $LDFLAGS"
+		if test -e "${jpeginfo_cv_libjpeg}/libjpeg.a"; then
+		  static_libjpeg_lib="${jpeginfo_cv_libjpeg}/libjpeg.a"
+		fi
+		if test -e "${jpeginfo_cv_libjpeg}/.libs/libjpeg.a"; then
+		  static_libjpeg_lib="${jpeginfo_cv_libjpeg}/.libs/libjpeg.a"
+		fi
 		CPPFLAGS="$CPPFLAGS -I${jpeginfo_cv_libjpeg}"
-	fi])
+	fi
+	if test -d "${jpeginfo_cv_libjpeg}/build"; then
+		LDFLAGS="-L${jpeginfo_cv_libjpeg}/build $LDFLAGS"
+		if test -e "${jpeginfo_cv_libjpeg}/build/libjpeg.a"; then
+		  static_libjpeg_lib="${jpeginfo_cv_libjpeg}/build/libjpeg.a"
+		fi
+		CPPFLAGS="-I${jpeginfo_cv_libjpeg}/build $CPPFLAGS"
+	fi
+	])
 
 arith_code=0
 AC_ARG_WITH(arith, [  --with-arith		  Enable arithmetic coding support ],
@@ -39,11 +62,18 @@ AC_ARG_WITH(arith, [  --with-arith		  Enable arithmetic coding support ],
 
 
 dnl Checks for libraries.
-
-AC_CHECK_LIB(jpeg, jpeg_read_header, ,[
-echo "Cannot find libjpeg or you have too old version (v6 or later required)."
-exit 1
+AS_IF([test "x$static_libjpeg" = "xyes"], [
+   # Search for static library
+   AC_CHECK_FILE([$static_libjpeg_lib],
+     [JPEG_LIBS="$static_libjpeg_lib"],
+     [AC_MSG_ERROR([Static libjpeg.a not found ($static_libjpeg_lib)])])
+  ], [
+   AC_CHECK_LIB(jpeg, jpeg_read_header, [JPEG_LIBS="-ljpeg"] ,[
+     echo "Cannot find libjpeg or you have too old version (v6 or later required)."
+     exit 1
+   ])
 ])
+LIBS="$LIBS $JPEG_LIBS"
 
 dnl AC_CHECK_LIB(m, round)
 AC_CHECK_LIB(m, floor)
@@ -81,64 +111,80 @@ AC_CHECK_FUNCS(wait)
 
 AC_CHECK_MEMBERS([struct stat.st_mtim])
 
+
 dnl own tests
 
-AC_MSG_CHECKING([for broken jmorecfg.h (METHODDEF)])
-AC_CACHE_VAL(jpeginfo_cv_broken_methoddef,
-[AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#include <stdio.h>
-#include <jpeglib.h>
-METHODDEF(void) foo(void) { };
-int main(void)
-{
-  return 0;
-}]])],[jpeginfo_cv_broken_methoddef=no],[jpeginfo_cv_broken_methoddef=yes],[jpeginfo_cv_broken_methoddef=no])])
-if test $jpeginfo_cv_broken_methoddef = yes; then
+AC_CACHE_CHECK([for broken jmorecfg.h (METHODDEF)], [jpegoptim_cv_broken_methoddef], [
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <stdio.h>
+      #include <jpeglib.h>
+      METHODDEF(void) foo(void) { };
+    ]], [[
+	return 0;
+    ]])],
+    [jpegoptim_cv_broken_methoddef=no],
+    [jpegoptim_cv_broken_methoddef=yes])
+  ])
+
+if test $jpegoptim_cv_broken_methoddef = yes; then
   AC_DEFINE(BROKEN_METHODDEF)
 fi
-AC_MSG_RESULT($jpeginfo_cv_broken_methoddef)
 
-AC_MSG_CHECKING([Arithmetic Coding support in JPEG library])
-AC_CACHE_VAL(jpegoptim_cv_arith_code_support,
-[AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#include <stdio.h>
-#include <jpeglib.h>
-int main(void)
-{
+AC_CACHE_CHECK([Arithmetic Coding support in JPEG library], [jpegoptim_cv_arith_code_support], [
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <stdio.h>
+      #include <jpeglib.h>
+    ]], [[
 	struct jpeg_compress_struct cinfo;
 	cinfo.arith_code=TRUE;
 	return 0;
-}
-]])],[jpegoptim_cv_arith_code_support=yes],[jpegoptim_cv_arith_code_support=no],[jpegoptim_cv_arith_code_support=no])])
+    ]])],
+    [jpegoptim_cv_arith_code_support=yes],
+    [jpegoptim_cv_arith_code_support=no])
+  ])
+
 if test $arith_code == 1 -a $jpegoptim_cv_arith_code_support = yes; then
   arith_code_status="Enabled"
   AC_DEFINE(HAVE_ARITH_CODE)
 else
   arith_code_status="Disabled"
 fi
-AC_MSG_RESULT($jpegoptim_cv_arith_code_support)
 
 
-AC_MSG_CHECKING([Extension settings in JPEG library])
-AC_CACHE_VAL(jpegoptim_cv_extension_settings,
-[AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#include <stdio.h>
-#include <jpeglib.h>
-int main(void)
-{
-	struct jpeg_compress_struct cinfo;
-	if (jpeg_c_int_param_supported(&cinfo, JINT_DC_SCAN_OPT_MODE))
-		jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
-	return 0;
-}
-]])],[jpegoptim_cv_extension_settings=yes],[jpegoptim_cv_extension_settings=no],[jpegoptim_cv_extension_settings=no])])
+AC_CACHE_CHECK([Extension settings in JPEG library], [jpegoptim_cv_extension_settings], [
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <stdio.h>
+      #include <jpeglib.h>
+    ]], [[
+      struct jpeg_compress_struct cinfo;
+      jpeg_c_set_int_param(&cinfo, JINT_DC_SCAN_OPT_MODE, 1);
+    ]])],
+    [jpegoptim_cv_extension_settings=yes],
+    [jpegoptim_cv_extension_settings=no])
+  ])
+
 if test $jpegoptim_cv_extension_settings = yes; then
   extension_settings_status="Present"
   AC_DEFINE(HAVE_JINT_DC_SCAN_OPT_MODE)
 else
   extension_settings_status="Absent"
 fi
-AC_MSG_RESULT($jpegoptim_cv_extension_settings)
+
+AC_CACHE_CHECK([whether libjpeg is MozJPEG], [ax_cv_have_mozjpeg], [
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <stdio.h>
+      #include <jpeglib.h>
+    ]], [[
+      struct jpeg_compress_struct cinfo;
+      jpeg_c_set_int_param(&cinfo, JINT_COMPRESS_PROFILE, JCP_MAX_COMPRESSION);
+    ]])],
+    [ax_cv_have_mozjpeg=yes],
+    [ax_cv_have_mozjpeg=no])
+  ])
+
+if test $ax_cv_have_mozjpeg = yes; then
+  AC_DEFINE(HAVE_MOZJPEG)
+fi
 
 
 echo "--------------------------------------------------"
