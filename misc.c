@@ -475,12 +475,14 @@ int str_to_int(const char *str, int *val, int base)
 	lval = strtol(str, &endptr, base);
 	if (errno != 0)
 		return 0;
-
 	if (lval < INT_MIN || lval > INT_MAX)
 		return 0;
+	if (str == endptr || *endptr != 0)
+		return 0;
+
 	*val = (int)lval;
 
-	return (str == endptr ? 0 : 1);
+	return 1;
 }
 
 

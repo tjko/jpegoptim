@@ -29,6 +29,7 @@
 #endif
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -911,14 +912,14 @@ retry_point:
 	if (!retry) {
 		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
 		if(verbose_mode > 2)
-			fprintf(log_fh, " (input image size: %ld (%ld))", in_image_size, inbufferused);
+			fprintf(log_fh, " (input image size: %"PRId64" (%ld))", in_image_size, inbufferused);
 		if (stdin_mode) {
 			insize = in_image_size;
 		} else {
 			insize = infilesize;
 			if (in_image_size > 0 && in_image_size < insize) {
 				if (!quiet_mode)
-					fprintf(log_fh, " (%ld bytes extraneous data found after end of image) ",
+					fprintf(log_fh, " (%"PRId64" bytes extraneous data found after end of image) ",
 						insize - in_image_size);
 				if (nofix_mode)
 					global_error_counter++;
@@ -1093,7 +1094,7 @@ binary_search_loop:
 	jpeg_finish_compress(&cinfo);
 	outsize = outbuffersize + extrabuffersize;
 	if (verbose_mode > 2)
-		fprintf(log_fh, " (output image size: %ld (%lu))", outsize, extrabuffersize);
+		fprintf(log_fh, " (output image size: %"PRId64" (%lu))", outsize, extrabuffersize);
 
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
@@ -1103,7 +1104,7 @@ binary_search_loop:
 		int64_t tsize = target_size;
 
 		if (verbose_mode > 1)
-			fprintf(log_fh, "(size=%ld)",outsize);
+			fprintf(log_fh, "(size=%"PRId64")",outsize);
 		if (tsize < 0) {
 			/* 64-bit intermediate, as target_size * insize can overflow
 			   a 32-bit long (files > ~21MB on ILP32/LLP64 platforms) */
@@ -1172,13 +1173,13 @@ binary_search_loop:
 				last_retry_size = outsize;
 				retry = 2;
 				if (verbose_mode)
-					fprintf(log_fh, "(retry%d: %ld) ", retry_count, outsize);
+					fprintf(log_fh, "(retry%d: %"PRId64") ", retry_count, outsize);
 				goto retry_point;
 			}
 		}
 		if (retry == 2) {
 			if (verbose_mode)
-				fprintf(log_fh, "(retry done: %ld) ", outsize);
+				fprintf(log_fh, "(retry done: %"PRId64") ", outsize);
 			if (outsize > last_retry_size) {
 				if (outbuffer)
 					free(outbuffer);
@@ -1210,7 +1211,7 @@ binary_search_loop:
 			goto retry_point;
 		} else {
 			if (verbose_mode > 1)
-				fprintf(log_fh, "(automode done: %ld) ", outsize);
+				fprintf(log_fh, "(automode done: %"PRId64") ", outsize);
 			auto_mode = 0;
 			if (outsize > last_retry_size) {
 				if (verbose_mode)
@@ -1239,7 +1240,7 @@ binary_search_loop:
 
 	ratio = (insize - outsize) * 100.0 / insize;
 	if (!quiet_mode || csv)
-		fprintf(log_fh,csv ? "%ld,%ld,%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+		fprintf(log_fh,csv ? "%"PRId64",%"PRId64",%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
 	if (rate) {
 		*rate = (ratio < 0 ? 0.0 : ratio);
 	}
@@ -1735,7 +1736,7 @@ int main(int argc, char **argv)
 #endif
 
 	if (totals_mode && !quiet_mode)
-		fprintf(log_fh, "Average ""compression"" (%ld files): %0.2f%% (total saved %0.0fk)\n",
+		fprintf(log_fh, "Average ""compression"" (%"PRId64" files): %0.2f%% (total saved %0.0fk)\n",
 			average_count, (average_count == 0 ? 0.0 : average_rate/average_count), total_save);
 
 
