@@ -480,7 +480,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 				double tmpvar;
 				if (str_to_double(optarg, &tmpvar)) {
 					if (tmpvar < 0.0 || tmpvar > 100.0)
-						fatal("invalid value for -T, --treshold specified (valid range 0..100)");
+						fatal("invalid value for -T, --threshold specified (valid range 0..100)");
 					threshold=tmpvar;
 				}
 				else fatal("invalid argument for -T, --threshold");
@@ -864,7 +864,7 @@ retry_point:
 	}
 
 	if (max_pixels > 0) {
-		if ((uint64_t)dinfo.image_width * dinfo.image_height > (uint64_t)max_pixels * (1024 * 1024)) {
+		if (((uint64_t)dinfo.image_width * dinfo.image_height) > ((uint64_t)max_pixels * 1000000)) {
 			warn("too large input image");
 			goto abort_decompress;
 		}
