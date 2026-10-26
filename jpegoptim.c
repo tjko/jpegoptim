@@ -140,7 +140,7 @@ int target_size = 0;
 int arith_mode = -1;
 #endif
 int max_workers = 1;
-int max_pixels = 0;
+uint64_t max_pixels = 0;
 int nofix_mode = 0;
 int files_stdin = 0;
 FILE *files_from = NULL;
@@ -544,7 +544,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 				if (str_to_int(optarg, &tmpvar, 10)) {
 					if (tmpvar < 0)
 						fatal("invalid value for --max-pixels specified");
-					max_pixels = tmpvar;
+					max_pixels = (uint64_t)tmpvar * 1000000;
 				}
 				else fatal("invalid argument for --max-pixels");
 			}
@@ -864,7 +864,7 @@ retry_point:
 	}
 
 	if (max_pixels > 0) {
-		if (((uint64_t)dinfo.image_width * dinfo.image_height) > ((uint64_t)max_pixels * 1000000)) {
+		if ((uint64_t)dinfo.image_width * dinfo.image_height > max_pixels) {
 			warn("too large input image");
 			goto abort_decompress;
 		}
