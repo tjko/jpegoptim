@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
-
+#include <limits.h>
 
 #include "jpegoptim.h"
 

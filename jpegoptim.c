@@ -28,6 +28,7 @@
 #include "config.h"
 #endif
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -148,7 +149,7 @@ int decompress_err_count = 0;
 int global_error_counter = 0;
 char last_error[JMSG_LENGTH_MAX+1];
 FILE *jpeg_log_fh;
-long average_count = 0;
+uint64_t average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
 
@@ -728,9 +729,9 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	char marker_str[256];
 	unsigned int marker_in_count, marker_in_size;
 
-	long in_image_size = 0;
-	long infilesize = 0;
-	long insize = 0, outsize = 0, lastsize = 0;
+	int64_t in_image_size = 0;
+	int64_t infilesize = 0;
+	int64_t insize = 0, outsize = 0, lastsize = 0;
 	int oldquality, searchdone;
 	double ratio;
 	size_t last_retry_size = 0;
@@ -862,7 +863,7 @@ retry_point:
 	}
 
 	if (max_pixels > 0) {
-		if (dinfo.image_width * dinfo.image_height > max_pixels * (1024 * 1024)) {
+		if ((uint64_t)dinfo.image_width * dinfo.image_height > (uint64_t)max_pixels * (1024 * 1024)) {
 			warn("too large input image");
 			goto abort_decompress;
 		}
@@ -1097,23 +1098,23 @@ binary_search_loop:
 	if (target_size != 0 && !retry) {
 		/* Perform (binary) search to try to reach target file size... */
 
-		long osize = outsize/1024;
-		long isize = insize/1024;
-		long tsize = target_size;
+		int64_t osize = outsize/1024;
+		int64_t isize = insize/1024;
+		int64_t tsize = target_size;
 
 		if (verbose_mode > 1)
 			fprintf(log_fh, "(size=%ld)",outsize);
 		if (tsize < 0) {
 			/* 64-bit intermediate, as target_size * insize can overflow
 			   a 32-bit long (files > ~21MB on ILP32/LLP64 platforms) */
-			tsize = (long)(((long long)(-target_size) * insize / 100) / 1024);
+			tsize = ((int64_t)(-target_size) * insize / 100) / 1024;
 			if (tsize < 1)
 				tsize = 1;
 		}
 
 		if (osize == tsize || searchdone || tsize > isize) {
 			if (searchdone < 42 && lastsize > 0) {
-				if (labs(osize-tsize) > labs(lastsize-tsize)) {
+				if (llabs(osize-tsize) > llabs(lastsize-tsize)) {
 					if (verbose_mode)
 						fprintf(log_fh,"(revert to %d)",oldquality);
 					searchdone = 42;
