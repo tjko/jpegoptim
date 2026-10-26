@@ -767,6 +767,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 			goto exit_point;
 		}
 		if ((infilesize = file_size(infile)) < 0) {
+			fclose(infile);
 			warn("failed to stat() input file: %s", filename);
 			res = 1;
 			goto exit_point;
@@ -861,8 +862,7 @@ retry_point:
 	}
 
 	if (max_pixels > 0) {
-		int isize = dinfo.image_width * dinfo.image_height / (1024*1024);
-		if (isize > max_pixels) {
+		if (dinfo.image_width * dinfo.image_height > max_pixels * (1024 * 1024)) {
 			warn("too large input image");
 			goto abort_decompress;
 		}

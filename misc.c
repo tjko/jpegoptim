@@ -465,12 +465,20 @@ char *str_add_list(char *dst, size_t size, const char *src, const char *delim)
 
 int str_to_int(const char *str, int *val, int base)
 {
-	char *endptr;
+	char *endptr = NULL;
+	long lval = 0;
 
 	if (!str || !val)
 		return 0;
 
-	*val = strtol(str, &endptr, base);
+	errno = 0;
+	lval = strtol(str, &endptr, base);
+	if (errno != 0)
+		return 0;
+
+	if (lval < INT_MIN || lval > INT_MAX)
+		return 0;
+	*val = (int)lval;
 
 	return (str == endptr ? 0 : 1);
 }
