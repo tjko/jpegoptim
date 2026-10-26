@@ -1240,7 +1240,8 @@ binary_search_loop:
 
 	ratio = (insize - outsize) * 100.0 / insize;
 	if (!quiet_mode || csv)
-		fprintf(log_fh,csv ? "%"PRId64",%"PRId64",%0.2f," : "%ld --> %ld bytes (%0.2f%%), ",insize,outsize,ratio);
+		fprintf(log_fh,csv ? "%"PRId64",%"PRId64",%0.2f," : "%"PRId64" --> %"PRId64" bytes (%0.2f%%), ",
+			insize, outsize, ratio);
 	if (rate) {
 		*rate = (ratio < 0 ? 0.0 : ratio);
 	}
