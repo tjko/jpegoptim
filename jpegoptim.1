@@ -141,6 +141,12 @@ This option is experimental and only available if jpegoptim was compiled with
 Arithmetic Coding support enabled.
 
 .TP 0.6i
+.B --max-pixels=<megapixels>
+Set maximum allowed input image size (in megapixels).This can be used to prevent
+jpegoptim using poentially very large amounts of memory on the host system.
+Default for this is 0 (no limit).
+
+.TP 0.6i
 .B --nofix
 Skip processing of any input files that have any errors/warnings during decompression.
 By default jpegoptim will attempt to optimize any file that it is able to decompress,

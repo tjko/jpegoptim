@@ -138,6 +138,7 @@ int target_size = 0;
 int arith_mode = -1;
 #endif
 int max_workers = 1;
+int max_pixels = 0;
 int nofix_mode = 0;
 int files_stdin = 0;
 FILE *files_from = NULL;
@@ -150,6 +151,10 @@ FILE *jpeg_log_fh;
 long average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
+
+
+/* Codes for long arguments that need parsing */
+#define MAX_PIXELS 0xf001
 
 const struct option long_options[] = {
 #ifdef HAVE_ARITH_CODE
@@ -175,6 +180,7 @@ const struct option long_options[] = {
 	{ "keep-jfxx",          0, &save_jfxx,           1 },
 	{ "keep-xmp",           0, &save_xmp,            1 },
 	{ "max",                1, 0,                   'm' },
+	{ "max-pixels",         1, 0,                    MAX_PIXELS },
 	{ "noaction",           0, 0,                   'n' },
 	{ "nofix",              0, &nofix_mode,          1 },
 	{ "overwrite",          0, 0,                   'o' },
@@ -323,8 +329,10 @@ void print_usage(void)
 #endif
 		"  --stdout          send output to standard output (instead of a file)\n"
 		"  --stdin           read input from standard input (instead of a file)\n"
-		"  --files-stdin     Read names of files to process from stdin\n"
-		"  --files-from=FILE Read names of files to process from a file\n"
+		"  --files-stdin     read names of files to process from stdin\n"
+		"  --files-from=FILE read names of files to process from a file\n"
+		"  --max-pixels=<megapixels>\n"
+		"                    set maximum allowed input image size (in megapixels)\n"
 		"  --nofix           skip processing of input files if they contain any errors\n"
 		"  --save-extra      preserve extraneous data after the end of image\n"
 		"\n\n");
@@ -371,10 +379,10 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		        {
 				int tmpvar;
 
-				if (sscanf(optarg,"%d",&tmpvar) == 1) {
+				if (str_to_int(optarg, &tmpvar, 10)) {
+					if (tmpvar < 0 || tmpvar > 100)
+						fatal("invalid value for -m, --max specified (valid range 0..100)");
 					quality=tmpvar;
-					if (quality < 0) quality=0;
-					if (quality > 100) quality=100;
 				}
 				else
 					fatal("invalid argument for -m, --max");
@@ -468,10 +476,10 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		case 'T':
 		        {
 				double tmpvar;
-				if (sscanf(optarg,"%lf", &tmpvar) == 1) {
+				if (str_to_double(optarg, &tmpvar)) {
+					if (tmpvar < 0.0 || tmpvar > 100.0)
+						fatal("invalid value for -T, --treshold specified (valid range 0..100)");
 					threshold=tmpvar;
-					if (threshold < 0) threshold=0;
-					if (threshold > 100) threshold=100;
 				}
 				else fatal("invalid argument for -T, --threshold");
 			}
@@ -505,9 +513,10 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		case 'w':
 		        {
 				int tmpvar;
-				if (sscanf(optarg, "%d", &tmpvar) == 1) {
-					if (tmpvar > 0 && tmpvar <= MAX_WORKERS)
-						max_workers = tmpvar;
+				if (str_to_int(optarg, &tmpvar, 10)) {
+					if (tmpvar <= 0 || tmpvar > MAX_WORKERS)
+						fatal("invalid value for -w, --workers specified");
+					max_workers = tmpvar;
 				}
 				else fatal("invalid argument for -w, --workers");
 			}
@@ -524,6 +533,18 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 					fatal("argument for --files-from must be a file");
 				if ((files_from = fopen(optarg, "r")) == NULL)
 					fatal("cannot open file: '%s'", optarg);
+			}
+			break;
+
+		case MAX_PIXELS:
+		        {
+				int tmpvar;
+				if (str_to_int(optarg, &tmpvar, 10)) {
+					if (tmpvar < 0)
+						fatal("invalid value for --max-pixels specified");
+					max_pixels = tmpvar;
+				}
+				else fatal("invalid argument for --max-pixels");
 			}
 			break;
 
@@ -836,6 +857,14 @@ retry_point:
 			if (!csv)
 				fprintf(log_fh,"%s",marker_str);
 			fflush(log_fh);
+		}
+	}
+
+	if (max_pixels > 0) {
+		int isize = dinfo.image_width * dinfo.image_height / (1024*1024);
+		if (isize > max_pixels) {
+			warn("too large input image");
+			goto abort_decompress;
 		}
 	}
 

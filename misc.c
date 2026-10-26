@@ -463,6 +463,32 @@ char *str_add_list(char *dst, size_t size, const char *src, const char *delim)
 }
 
 
+int str_to_int(const char *str, int *val, int base)
+{
+	char *endptr;
+
+	if (!str || !val)
+		return 0;
+
+	*val = strtol(str, &endptr, base);
+
+	return (str == endptr ? 0 : 1);
+}
+
+
+int str_to_double(const char *str, double *val)
+{
+	char *endptr;
+
+	if (!str || !val)
+		return 0;
+
+	*val = strtod(str, &endptr);
+
+	return (str == endptr ? 0 : 1);
+}
+
+
 void fatal(const char *format, ...)
 {
 	va_list args;
