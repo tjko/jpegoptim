@@ -267,76 +267,76 @@ void print_usage(void)
 	fprintf(stdout,
 		"Usage: " PROGRAMNAME " [options] <filenames> \n\n"
 		"  -d<path>, --dest=<path>\n"
-		"                    specify alternative destination directory for \n"
+		"                    Specify alternative destination directory for \n"
 		"                    optimized files (default is to overwrite originals)\n"
-		"  -f, --force       force optimization\n"
-		"  -h, --help        display this help and exit\n"
+		"  -f, --force       Force optimization\n"
+		"  -h, --help        Display this help and exit\n"
 		"  -m<quality>, --max=<quality>\n"
-		"                    set maximum image quality factor (disables lossless\n"
+		"                    Set maximum image quality factor (disables lossless\n"
 		"                    optimization mode, which is by default on)\n"
 		"                    Valid quality values: 0 - 100\n"
-		"  -n, --noaction    don't really optimize files, just print results\n"
+		"  -n, --noaction    Don't really optimize files, just print results\n"
 		"  -S<size>, --size=<size>\n"
 		"                    Try to optimize file to given size (disables lossless\n"
 		"                    optimization mode). Target size is specified either in\n"
 		"                    kilo bytes (1 - n) or as percentage (1%% - 99%%)\n"
 		"  -T<threshold>, --threshold=<threshold>\n"
-		"                    keep old file if the gain is below a threshold (%%)\n"
+		"                    Keep old file if the gain is below a threshold (%%)\n"
 #ifdef PARALLEL_PROCESSING
 		"  -w<max>, --workers=<max>\n"
-		"                    set maximum number of parallel threads (default is 1)\n"
+		"                    Set maximum number of parallel threads (default is 1)\n"
 #endif
-		"  -b, --csv         print progress info in CSV format\n"
-		"  -o, --overwrite   overwrite target file even if it exists (meaningful\n"
+		"  -b, --csv         Print progress info in CSV format\n"
+		"  -o, --overwrite   Overwrite target file even if it exists (meaningful\n"
 		"                    only when used with -d, --dest option)\n"
-		"  -p, --preserve    preserve file timestamps\n"
+		"  -p, --preserve    Preserve file timestamps\n"
 		"  -P, --preserve-perms\n"
-		"                    preserve original file permissions by overwriting it\n"
-		"  -q, --quiet       quiet mode\n"
-		"  -r, --retry       try (recursively) optimize until file size does not change anymore\n"
-		"  -t, --totals      print totals after processing all files\n"
-		"  -v, --verbose     enable verbose mode (positively chatty)\n"
-		"  -V, --version     print program version\n\n"
-		"  -s, --strip-all   strip all markers from output file\n"
-		"  --strip-none      do not strip any markers\n"
-		"  --strip-adobe     strip Adobe (APP14) markers from output file\n"
-		"  --strip-com       strip Comment markers from output file\n"
-		"  --strip-exif      strip Exif markers from output file\n"
-		"  --strip-iptc      strip IPTC/Photoshop (APP13) markers from output file\n"
-		"  --strip-icc       strip ICC profile markers from output file\n"
-		"  --strip-jfif      strip JFIF markers from output file\n"
-		"  --strip-jfxx      strip JFXX (JFIF Extension) markers from output file\n"
-		"  --strip-xmp       strip XMP markers markers from output file\n"
-		"  --strip-ai        strip metadata telling the image was generated or edited\n"
+		"                    Preserve original file permissions by overwriting it\n"
+		"  -q, --quiet       Quiet mode\n"
+		"  -r, --retry       Try (recursively) optimize until file size does not change anymore\n"
+		"  -t, --totals      Print totals after processing all files\n"
+		"  -v, --verbose     Enable verbose mode (positively chatty)\n"
+		"  -V, --version     Print program version\n\n"
+		"  -s, --strip-all   Strip all markers from output file\n"
+		"  --strip-none      Do not strip any markers\n"
+		"  --strip-adobe     Strip Adobe (APP14) markers from output file\n"
+		"  --strip-com       Strip Comment markers from output file\n"
+		"  --strip-exif      Strip Exif markers from output file\n"
+		"  --strip-iptc      Strip IPTC/Photoshop (APP13) markers from output file\n"
+		"  --strip-icc       Strip ICC profile markers from output file\n"
+		"  --strip-jfif      Strip JFIF markers from output file\n"
+		"  --strip-jfxx      Strip JFXX (JFIF Extension) markers from output file\n"
+		"  --strip-xmp       Strip XMP markers markers from output file\n"
+		"  --strip-ai        Strip metadata telling the image was generated or edited\n"
 		"                    with AI: C2PA manifests (Content Credentials), IPTC\n"
 		"                    digital source type and generation parameters\n"
 		"\n"
-		"  --keep-all        do not strip any markers (same as --strip-none)\n"
-		"  --keep-adobe      preserve any Adobe (APP14) markers\n"
-		"  --keep-com        preserve any Comment markers\n"
-		"  --keep-exif       preserve any Exif markers\n"
-		"  --keep-iptc       preserve any IPTC/Photoshop (APP13) markers\n"
-		"  --keep-icc        preserve any ICC profile markers\n"
-		"  --keep-jfif       preserve any JFIF markers\n"
-		"  --keep-jfxx       preserve any JFXX (JFIF Extension) markers\n"
-		"  --keep-xmp        preserve any XMP markers markers\n"
+		"  --keep-all        Do not strip any markers (same as --strip-none)\n"
+		"  --keep-adobe      Preserve any Adobe (APP14) markers\n"
+		"  --keep-com        Preserve any Comment markers\n"
+		"  --keep-exif       Preserve any Exif markers\n"
+		"  --keep-iptc       Preserve any IPTC/Photoshop (APP13) markers\n"
+		"  --keep-icc        Preserve any ICC profile markers\n"
+		"  --keep-jfif       Preserve any JFIF markers\n"
+		"  --keep-jfxx       Preserve any JFXX (JFIF Extension) markers\n"
+		"  --keep-xmp        Preserve any XMP markers markers\n"
 		"\n"
-		"  --all-normal      force all output files to be non-progressive\n"
-		"  --all-progressive force all output files to be progressive\n"
-		"  --auto-mode       select normal or progressive based on which produces\n"
+		"  --all-normal      Force all output files to be non-progressive\n"
+		"  --all-progressive Force all output files to be progressive\n"
+		"  --auto-mode       Select normal or progressive based on which produces\n"
 		"                    smaller output file\n"
 #ifdef HAVE_ARITH_CODE
-		"  --all-arith       force all output files to use arithmetic coding\n"
-		"  --all-huffman     force all output files to use Huffman coding\n"
+		"  --all-arith       Force all output files to use arithmetic coding\n"
+		"  --all-huffman     Force all output files to use Huffman coding\n"
 #endif
-		"  --stdout          send output to standard output (instead of a file)\n"
-		"  --stdin           read input from standard input (instead of a file)\n"
-		"  --files-stdin     read names of files to process from stdin\n"
-		"  --files-from=FILE read names of files to process from a file\n"
+		"  --stdout          Send output to standard output (instead of a file)\n"
+		"  --stdin           Read input from standard input (instead of a file)\n"
+		"  --files-stdin     Read names of files to process from stdin\n"
+		"  --files-from=FILE Read names of files to process from a file\n"
 		"  --max-pixels=<megapixels>\n"
-		"                    set maximum allowed input image size (in megapixels)\n"
-		"  --nofix           skip processing of input files if they contain any errors\n"
-		"  --save-extra      preserve extraneous data after the end of image\n"
+		"                    Set maximum allowed input image size (in megapixels)\n"
+		"  --nofix           Skip processing of input files if they contain any errors\n"
+		"  --save-extra      Preserve extraneous data after the end of image\n"
 		"\n\n");
 }
 
@@ -742,6 +742,7 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	int res = -1;
 
 	jpeg_log_fh = log_fh;
+	last_error[0] = 0;
 
 	/* Initialize decompression object */
 	dinfo.err = jpeg_std_error(&jderr.pub);
@@ -788,7 +789,7 @@ retry_point:
 		fclose(infile);
 		free_line_buf(&buf, dinfo.output_height);
 		if (!quiet_mode || csv)
-			fprintf(log_fh,csv ? ",,,,,error\n" : " [ERROR]\n");
+			fprintf(log_fh,csv ? ",,,,,\"error: %s\"\n" : " [ERROR: %s]\n", last_error);
 		jderr.jump_set=0;
 		res = 1;
 		goto exit_point;
@@ -817,7 +818,7 @@ retry_point:
 		if (inbuffer)
 			free(inbuffer);
 		if (!(inbuffer=calloc(inbuffersize, 1))) {
-			warn("not enough memory");
+			strncopy(last_error, "not enough memory", sizeof(last_error));
 			goto abort_decompress;
 		}
 	}
@@ -865,7 +866,7 @@ retry_point:
 
 	if (max_pixels > 0) {
 		if ((uint64_t)dinfo.image_width * dinfo.image_height > max_pixels) {
-			warn("too large input image");
+			strncopy(last_error, "too large input image", sizeof(last_error));
 			goto abort_decompress;
 		}
 	}
@@ -876,13 +877,13 @@ retry_point:
 
 		/* Allocate line buffer to store the decompressed image */
 		if (!(buf = calloc(dinfo.output_height, sizeof(JSAMPROW)))) {
-			warn("not enough memory");
+			strncopy(last_error, "not enough memory", sizeof(last_error));
 			goto abort_decompress;
 		}
 		for (int i = 0; i < dinfo.output_height; i++) {
 			if (!(buf[i]=calloc((size_t)dinfo.output_width * dinfo.out_color_components,
 					    sizeof(JSAMPLE)))) {
-				warn("not enough memory");
+				strncopy(last_error, "not enough memory", sizeof(last_error));
 				goto abort_decompress;
 			}
 		}
@@ -894,8 +895,7 @@ retry_point:
 	} else {
 		coef_arrays = jpeg_read_coefficients(&dinfo);
 		if (!coef_arrays) {
-			if (!quiet_mode)
-				fprintf(log_fh, " (failed to read coefficients) ");
+			strncopy(last_error, "failed to read coefficients", sizeof(last_error));
 			goto abort_decompress;
 		}
 	}
@@ -928,15 +928,15 @@ retry_point:
 					if (extrabuffer)
 						free(extrabuffer);
 					if (!(extrabuffer = calloc(extrabuffersize, 1))) {
-						warn("not enough memory");
+						strncopy(last_error, "not enough memory", sizeof(last_error));
 						goto abort_decompress;
 					}
 					if (fseek(infile, in_image_size, SEEK_SET)) {
-						warn("failed to seek input file");
+						strncopy(last_error, "failed to seek input file", sizeof(last_error));
 						goto abort_decompress;
 					}
 					if (fread(extrabuffer, extrabuffersize, 1, infile) != 1) {
-						warn("failed to read inputfile");
+						strncopy(last_error, "failed to read input file", sizeof(last_error));
 						goto abort_decompress;
 					}
 				}
@@ -949,13 +949,13 @@ retry_point:
 
 		if (nofix_mode && global_error_counter != 0) {
 			/* Skip files containing any errors (or warnings) */
+			strncopy(last_error, "skipped due to decoding errors", sizeof(last_error));
 			goto abort_decompress;
 		}
 
 		if (dest && !noaction) {
 			if (file_exists(newname) && !overwrite_mode) {
-				if (!quiet_mode)
-					fprintf(log_fh, " (target file already exists) ");
+				strncopy(last_error, "target file already exists", sizeof(last_error));
 				goto abort_decompress;
 			}
 		}
@@ -998,6 +998,7 @@ binary_search_loop:
 	outbuffersize = insize + 32768;
 	if (!(outbuffer=calloc(outbuffersize, 1))) {
 		warn("not enough memory");
+		strncopy(last_error, "not enough memory", sizeof(last_error));
 		goto abort_compress;
 	}
 
