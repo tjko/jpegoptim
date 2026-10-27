@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
-
+#include <limits.h>
 
 #include "jpegoptim.h"
 
@@ -460,6 +460,42 @@ char *str_add_list(char *dst, size_t size, const char *src, const char *delim)
 		strncatenate(dst, delim, size);
 
 	return strncatenate(dst, src, size);
+}
+
+
+int str_to_int(const char *str, int *val, int base)
+{
+	char *endptr = NULL;
+	long lval = 0;
+
+	if (!str || !val)
+		return 0;
+
+	errno = 0;
+	lval = strtol(str, &endptr, base);
+	if (errno != 0)
+		return 0;
+	if (lval < INT_MIN || lval > INT_MAX)
+		return 0;
+	if (str == endptr || *endptr != 0)
+		return 0;
+
+	*val = (int)lval;
+
+	return 1;
+}
+
+
+int str_to_double(const char *str, double *val)
+{
+	char *endptr;
+
+	if (!str || !val)
+		return 0;
+
+	*val = strtod(str, &endptr);
+
+	return (str == endptr ? 0 : 1);
 }
 
 
