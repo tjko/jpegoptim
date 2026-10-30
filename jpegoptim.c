@@ -128,6 +128,8 @@ int save_xmp = 1;
 int save_adobe = 0;
 int save_jfxx = 0;
 int save_jfif = 1;
+int save_mpf = 0;
+int save_iso21496 = 0;
 int strip_none = 0;
 int strip_ai = 0;
 double threshold = -1.0;
@@ -153,6 +155,7 @@ FILE *jpeg_log_fh;
 uint64_t average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
+size_t mpf_marker_offset = 0;
 
 
 /* Codes for long arguments that need parsing */
@@ -172,14 +175,16 @@ const struct option long_options[] = {
 	{ "files-from",         1, 0,                   'F' },
 	{ "force",              0, 0,                   'f' },
 	{ "help",               0, 0,                   'h' },
-	{ "keep-adobe",         0, &save_adobe,          1 },
 	{ "keep-all",           0, &strip_none,          1 },
+	{ "keep-adobe",         0, &save_adobe,          1 },
 	{ "keep-com",           0, &save_com,            1 },
 	{ "keep-exif",          0, &save_exif,           1 },
 	{ "keep-iptc",          0, &save_iptc,           1 },
 	{ "keep-icc",           0, &save_icc,            1 },
 	{ "keep-jfif",          0, &save_jfif,           1 },
 	{ "keep-jfxx",          0, &save_jfxx,           1 },
+	{ "keep-mpf",           0, &save_mpf,            1 },
+	{ "keep-iso21496",      0, &save_iso21496,       1 },
 	{ "keep-xmp",           0, &save_xmp,            1 },
 	{ "max",                1, 0,                   'm' },
 	{ "max-pixels",         1, 0,                    MAX_PIXELS },
@@ -196,14 +201,16 @@ const struct option long_options[] = {
 	{ "stdout",             0, &stdout_mode,         1 },
 	{ "strip-all",          0, 0,                   's' },
 	{ "strip-none",         0, &strip_none,          1 },
+	{ "strip-adobe",        0, &save_adobe,          0 },
 	{ "strip-com",          0, &save_com,            0 },
 	{ "strip-exif",         0, &save_exif,           0 },
 	{ "strip-iptc",         0, &save_iptc,           0 },
 	{ "strip-icc",          0, &save_icc,            0 },
-	{ "strip-xmp",          0, &save_xmp,            0 },
 	{ "strip-jfif",         0, &save_jfif,           0 },
 	{ "strip-jfxx",         0, &save_jfxx,           0 },
-	{ "strip-adobe",        0, &save_adobe,          0 },
+	{ "strip-mpf",          0, &save_mpf,            0 },
+	{ "strip-iso21496",     0, &save_iso21496,       0 },
+	{ "strip-xmp",          0, &save_xmp,            0 },
 	{ "strip-ai",           0, &strip_ai,            1 },
 	{ "threshold",          1, 0,                   'T' },
 	{ "totals",             0, 0,                   't' },
@@ -473,6 +480,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			save_adobe=0;
 			save_jfif=0;
 			save_jfxx=0;
+			save_mpf=0;
 			break;
 
 		case 'T':
@@ -621,6 +629,16 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 			write_marker++;
 
 		if (save_icc && !strncmp(s_name, "ICC", 4))
+			write_marker++;
+
+		if (save_mpf && !strncmp(s_name, "MPF", 4)) {
+			write_marker++;
+			mpf_marker_offset = jpeg_memory_dest_offset(cinfo);
+			if (verbose_mode > 3)
+				fprintf(jpeg_log_fh, " (MPF offset: 0x%04lx)", mpf_marker_offset);
+		}
+
+		if (save_iso21496 && !strncmp(s_name, "ISO21496-1", 10))
 			write_marker++;
 
 		if (save_xmp && !strncmp(s_name, "XMP", 4))
