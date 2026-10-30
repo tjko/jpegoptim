@@ -95,6 +95,7 @@ int strip_ai_markers(struct jpeg_decompress_struct *dinfo);
 /* jpegdest.c */
 void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr,
 		size_t *bufsizeptr, size_t incsize);
+size_t jpeg_memory_dest_offset(j_compress_ptr cinfo);
 
 /* jpegsrc.c */
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
