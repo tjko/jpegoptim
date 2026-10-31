@@ -90,6 +90,7 @@ set(SOURCE_FILES
     jpegsrc.c
     jpegdest.c
     jpegmarker.c
+    jpegmpf.c
     misc.c
     stripai.c
     )

@@ -1,7 +1,7 @@
 /*
  * jpegdest.c
  *
- * Copyright (C) 2014-2022 Timo Kokkonen
+ * Copyright (C) 2014-2026 Timo Kokkonen
  * All Rights Reserved.
  *
  * custom libjpeg "Destination Manager" for saving into RAM
@@ -128,5 +128,12 @@ void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr, s
 	dest->pub.term_destination = jpeg_memory_term_destination;
 }
 
+
+size_t jpeg_memory_dest_offset(j_compress_ptr cinfo)
+{
+	jpeg_memory_destination_ptr dest = (jpeg_memory_destination_ptr) cinfo->dest;
+
+	return (dest->pub.next_output_byte > dest->buf ? dest->pub.next_output_byte - dest->buf : 0);
+}
 
 /* eof :-) */

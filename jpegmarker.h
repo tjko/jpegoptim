@@ -7,6 +7,8 @@
 #ifndef JPEGMARKER_H
 #define JPEGMARKER_H 1
 
+#include <jpeglib.h>
+
 struct jpeg_special_marker_type {
 	unsigned int marker;
 	char *name;
