@@ -28,9 +28,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <endian.h>
 #include <jpeglib.h>
-
+#include "easy-endian.h"
 #include "jpegmpf.h"
 
 #define DEBUG 1
