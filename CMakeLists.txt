@@ -258,6 +258,8 @@ check_include_file(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
+check_include_file(endian.h HAVE_ENDIAN_H)
+check_include_file(sys/endian.h HAVE_SYS_ENDIAN_H)
 
 include(CheckSymbolExists)
 check_symbol_exists(mkstemps "stdlib.h" HAVE_MKSTEMPS)
@@ -293,6 +295,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_SYS_TIME_H}>:HAVE_SYS_TIME_H>
     $<$<BOOL:${HAVE_SYS_TYPES_H}>:HAVE_SYS_TYPES_H>
     $<$<BOOL:${HAVE_SYS_WAIT_H}>:HAVE_SYS_WAIT_H>
+    $<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
+    $<$<BOOL:${HAVE_SYS_ENDIAN_H}>:HAVE_SYS_ENDIAN_H>
     $<$<BOOL:${HAVE_MKSTEMPS}>:HAVE_MKSTEMPS>
     $<$<BOOL:${HAVE_LABS}>:HAVE_LABS>
     $<$<BOOL:${HAVE_FILENO}>:HAVE_FILENO>
