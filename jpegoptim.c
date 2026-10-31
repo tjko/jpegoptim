@@ -64,6 +64,7 @@
 #include <math.h>
 
 #include "jpegmarker.h"
+#include "jpegmpf.h"
 #include "jpegoptim.h"
 
 
@@ -671,18 +672,20 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 }
 
 
-unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
-			char *str, unsigned int str_size, unsigned int *markers_total_size)
+int parse_markers(const struct jpeg_decompress_struct *dinfo,
+		char *str, unsigned int str_size, unsigned int *markers_total_size)
 {
 	jpeg_saved_marker_ptr m;
-	unsigned int count = 0;
+	int count = 0;
 	char *seen;
 	size_t marker_types = jpeg_special_marker_types_count();
 	int com_seen = 0;
 	int special;
 
-	if ((seen = calloc(marker_types, 1)) == NULL)
-		fatal("not enough of memory");
+	if ((seen = calloc(marker_types, 1)) == NULL) {
+		strncopy(last_error, "not enough memory", sizeof(last_error));
+		return -1;
+	}
 
 	str[0] = 0;
 	*markers_total_size = 0;
@@ -693,9 +696,18 @@ unsigned int parse_markers(const struct jpeg_decompress_struct *dinfo,
 		*markers_total_size += m->data_length;
 
 		if ((special = jpeg_special_marker(m)) >= 0) {
+			const char *marker_name = jpeg_special_marker_types[special].name;
+
 			if (!seen[special])
-				str_add_list(str, str_size, jpeg_special_marker_types[special].name, ",");
+				str_add_list(str, str_size, marker_name, ",");
 			seen[special]++;
+
+			if (save_mpf && !strncmp(marker_name, "MPF", 4)) {
+				if (!valid_mpf_marker(m)) {
+					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
+					return -2;
+				}
+			}
 		}
 
 		if (m->marker == JPEG_COM && !com_seen) {
@@ -862,8 +874,10 @@ retry_point:
 
 
 	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
-	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),
-					&marker_in_size);
+	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size);
+	if (marker_in_count < 0)
+		goto abort_decompress;
+
 
 	if (!retry) {
 		if (verbose_mode > 1) {
