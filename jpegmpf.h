@@ -29,6 +29,11 @@
 #include <jpeglib.h>
 
 typedef struct mpf_marker_t {
+	const void* data;    /* ptr to marker contents */
+	uint32_t data_len;   /* marker length */
+
+	uint32_t marker_offset; /* marker offset from beginning of the image */
+
 	bool big_endian;
 	uint32_t first_ifd_offset;
 	char version[4 + 1];
@@ -39,7 +44,9 @@ typedef struct mpf_marker_t {
 } mpf_marker_t;
 
 
-int valid_mpf_marker(const jpeg_saved_marker_ptr marker);
+int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf);
+int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, size_t new_offset, size_t in_image_size);
+
 
 #endif /* JPEGMPF_H */
 

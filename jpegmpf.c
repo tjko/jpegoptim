@@ -32,7 +32,7 @@
 #include "easy-endian.h"
 #include "jpegmpf.h"
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #if DEBUG > 0
 #define DEBUG_PRINT(fmt, ...) {						                 \
@@ -117,6 +117,20 @@ static uint32_t read16(const void *ptr, mpf_marker_t *mpf)
 }
 
 
+static void write32(void *ptr, uint32_t val, mpf_marker_t *mpf)
+{
+	uint32_t n_val;
+
+	if (mpf->big_endian)
+		n_val = htobe32(val);
+	else
+		n_val = htole32(val);
+
+	*((uint32_t*)ptr) = n_val;
+}
+
+
+
 static int parse_idf(const char *marker, unsigned int len, int offset, mpf_marker_t *mpf)
 {
 	if (!marker || len <= 0 || offset < 0 || !mpf)
@@ -167,6 +181,7 @@ static int parse_idf(const char *marker, unsigned int len, int offset, mpf_marke
 				return -5;
 			mpf->mpentry_list_offset = val;
 			DEBUG_PRINT(" MPEntry list offset: %d (len=%u)\n", mpf->mpentry_list_offset, len);
+#if DEBUG > 0
 			for(int img = 0; img < mpf->number_of_images; img++) {
 				const char *e = marker + mpf->mpentry_list_offset + (img * 16);
 				uint32_t attr = read32(e, mpf);
@@ -174,9 +189,12 @@ static int parse_idf(const char *marker, unsigned int len, int offset, mpf_marke
 				uint32_t imgoffset = read32(e + 8, mpf);
 				uint16_t dep1 = read16(e + 12, mpf);
 				uint16_t dep2 = read16(e + 14, mpf);
-				DEBUG_PRINT("  MPentry%d: attr=%08x, imgsize=%u, imgoffset=%u, dep1=%u, dep2=%u\n",
-					img, attr, imgsize, imgoffset, dep1, dep2);
+				uint32_t imgoffset2 = imgoffset > 0 ? imgoffset + mpf->marker_offset + 4 : 0;
+
+				DEBUG_PRINT("  MPentry%d: attr=%08x, imgsize=%u, imgoffset=%u (%u), dep1=%u, dep2=%u\n",
+					img, attr, imgsize, imgoffset, imgoffset2, dep1, dep2);
 			}
+#endif
 			break;
 
 		case ImageUIDList:
@@ -210,14 +228,19 @@ static int parse_idf(const char *marker, unsigned int len, int offset, mpf_marke
 }
 
 
-static int read_mpf_marker(const char *marker, unsigned int len, mpf_marker_t *mpf)
+static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf, size_t marker_offset)
 {
-	const char *m = marker;
+	const char *m = data;
 
-	if (!marker || len <= 0 || !mpf)
+	if (!data || len <= 0 || !mpf)
 		return -1;
 
+	DEBUG_PRINT("MPF Maker offset: %lu\n", marker_offset);
+
 	memset(mpf, 0, sizeof(mpf_marker_t));
+	mpf->marker_offset = marker_offset;
+	mpf->data = data;
+	mpf->data_len = len;
 
 	if (len < 12)
 		return 1;
@@ -252,7 +275,7 @@ static int read_mpf_marker(const char *marker, unsigned int len, mpf_marker_t *m
 	int offset = mpf->first_ifd_offset;
 	do {
 		DEBUG_PRINT("Parse IFD at %d\n", offset);
-		offset = parse_idf(marker, len, offset + 4, mpf);
+		offset = parse_idf(data, len, offset + 4, mpf);
 	} while (offset > 0);
 	if (offset < 0)
 		return 5;
@@ -262,16 +285,72 @@ static int read_mpf_marker(const char *marker, unsigned int len, mpf_marker_t *m
 }
 
 
-int valid_mpf_marker(const jpeg_saved_marker_ptr marker)
+int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf)
 {
-	mpf_marker_t mpf;
-
-	if (!marker)
+	if (!marker || !mpf)
 		return -1;
 
-	return (read_mpf_marker((const char*)marker->data, marker->data_length, &mpf) == 0);
+	return (read_mpf_marker((const char*)marker->data, marker->data_length, mpf, offset) == 0);
 }
 
+
+int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, size_t new_offset, size_t in_image_size)
+{
+	if (!image || image_len <= 0 || !mpf || new_offset <= 0 || in_image_size <= 0)
+		return -1;
+
+	DEBUG_PRINT("New MPF offset: %lu (new image size: %lu)\n", new_offset, image_len);
+
+	/* Check that the new MPF marker is actually at 'new_offset' */
+	if (memcmp(image + new_offset, mpf->data, mpf->data_len))
+		return -2;
+
+
+	DEBUG_PRINT("Checking %u records in MP Entry list\n", mpf->number_of_images);
+	for(int img = 0; img < mpf->number_of_images; img++) {
+		unsigned char *e = image + new_offset + mpf->mpentry_list_offset + (img * 16);
+		uint32_t imgsize = read32(e + 4, mpf);
+		uint32_t imgoffset = read32(e + 8, mpf);
+#if DEBUG >0
+		uint32_t attr = read32(e, mpf);
+		uint16_t dep1 = read16(e + 12, mpf);
+		uint16_t dep2 = read16(e + 14, mpf);
+#endif
+
+		DEBUG_PRINT(" MPentry%d: attr=%08x, imgsize=%u, imgoffset=%u, dep1=%u, dep2=%u\n",
+			img, attr, imgsize, imgoffset, dep1, dep2);
+
+		if (imgoffset > 0) {
+			/* Update offset of additional image(s) */
+
+			/* Calculate relative offset from end of original image */
+			int64_t rel_o  = (int64_t)imgoffset + (mpf->marker_offset + 4) - in_image_size;
+			if (rel_o < 0) {
+				DEBUG_PRINT("Invalid relative offset!\n");
+				return -3;
+			}
+			/* Calculate new offset (as MPF marker may have moved and image size may have changed) */
+			int64_t new_o = (int64_t)image_len - (new_offset + 4) + rel_o;
+			if (new_o < 0) {
+				DEBUG_PRINT("Invalid new offset!\n");
+				return -4;
+			}
+			if (imgoffset != new_o) {
+				DEBUG_PRINT("  update image offset %u -> %ld (relative offset: %ld)\n\n",
+					imgoffset, new_o, rel_o);
+				write32(e + 8, new_o, mpf);
+			}
+		} else {
+			/* Update size of primary image */
+			if (imgsize != image_len) {
+				DEBUG_PRINT("  update image size %u -> %lu\n", imgsize, image_len);
+				write32(e + 4, image_len, mpf);
+			}
+		}
+	}
+
+	return 0;
+}
 
 
 /* eof :-) */

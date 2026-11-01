@@ -24,6 +24,8 @@
  * along with JPEGoptim. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -156,11 +158,11 @@ FILE *jpeg_log_fh;
 uint64_t average_count = 0;
 double average_rate = 0.0;
 double total_save = 0.0;
-size_t mpf_marker_offset = 0;
 
 
 /* Codes for long arguments that need parsing */
-#define MAX_PIXELS 0xf001
+#define MAX_PIXELS 0x4201
+#define SAVE_HDR   0x4202
 
 const struct option long_options[] = {
 #ifdef HAVE_ARITH_CODE
@@ -177,6 +179,7 @@ const struct option long_options[] = {
 	{ "force",              0, 0,                   'f' },
 	{ "help",               0, 0,                   'h' },
 	{ "keep-all",           0, &strip_none,          1 },
+	{ "keep-hdr",           0, 0,                    SAVE_HDR },
 	{ "keep-adobe",         0, &save_adobe,          1 },
 	{ "keep-com",           0, &save_com,            1 },
 	{ "keep-exif",          0, &save_exif,           1 },
@@ -320,14 +323,17 @@ void print_usage(void)
 		"                    digital source type and generation parameters\n"
 		"\n"
 		"  --keep-all        Do not strip any markers (same as --strip-none)\n"
-		"  --keep-adobe      Preserve any Adobe (APP14) markers\n"
-		"  --keep-com        Preserve any Comment markers\n"
-		"  --keep-exif       Preserve any Exif markers\n"
-		"  --keep-iptc       Preserve any IPTC/Photoshop (APP13) markers\n"
-		"  --keep-icc        Preserve any ICC profile markers\n"
-		"  --keep-jfif       Preserve any JFIF markers\n"
-		"  --keep-jfxx       Preserve any JFXX (JFIF Extension) markers\n"
-		"  --keep-xmp        Preserve any XMP markers markers\n"
+		"  --keep-adobe      Preserve Adobe (APP14) markers\n"
+		"  --keep-com        Preserve Comment markers\n"
+		"  --keep-exif       Preserve Exif markers\n"
+		"  --keep-hdr        Preserve HDR (UltraHDR and Active HDR) markers\n"
+		"  --keep-iptc       Preserve IPTC/Photoshop (APP13) markers\n"
+		"  --keep-iso21496   Preserve ISO 21496-1 markers (Active HDR)\n"
+		"  --keep-icc        Preserve ICC profile markers\n"
+		"  --keep-jfif       Preserve JFIF markers\n"
+		"  --keep-jfxx       Preserve JFXX (JFIF Extension) markers\n"
+		"  --keep-mpf        Preserve MPF (Multi-Picture Format) markers\n"
+		"  --keep-xmp        Preserve XMP markers markers\n"
 		"\n"
 		"  --all-normal      Force all output files to be non-progressive\n"
 		"  --all-progressive Force all output files to be progressive\n"
@@ -559,6 +565,14 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			}
 			break;
 
+		case SAVE_HDR:
+		        {
+				save_mpf = 1;
+				save_iso21496 = 1;
+				save_extra = 1;
+			}
+			break;
+
 		case '?':
 			exit(1);
 
@@ -592,6 +606,21 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		fatal("cannot specify both --all-normal and --all-progressive");
 	if (auto_mode && (all_normal || all_progressive))
 		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
+
+	if (save_iso21496) {
+		if (save_mpf) {
+			if (verbose_mode)
+				fprintf(stderr, "Enabling --save-mpf (required by --save-iso21496)\n");
+			save_mpf = 1;
+		}
+	}
+	if (save_mpf) {
+		if (!save_extra) {
+			if (verbose_mode)
+				fprintf(stderr, "Enabling --save-extra (required by --save-mpf)\n");
+			save_extra = 1;
+		}
+	}
 }
 
 
@@ -604,7 +633,7 @@ void own_signal_handler(int a)
 
 
 void write_markers(struct jpeg_decompress_struct *dinfo,
-		struct jpeg_compress_struct *cinfo)
+		struct jpeg_compress_struct *cinfo, size_t *mpf_offset)
 {
 	jpeg_saved_marker_ptr mrk;
 	int write_marker;
@@ -634,9 +663,9 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 		if (save_mpf && !strncmp(s_name, "MPF", 4)) {
 			write_marker++;
-			mpf_marker_offset = jpeg_memory_dest_offset(cinfo);
+			*mpf_offset = jpeg_memory_dest_offset(cinfo) + 4;
 			if (verbose_mode > 3)
-				fprintf(jpeg_log_fh, " (MPF offset: 0x%04lx)", mpf_marker_offset);
+				fprintf(jpeg_log_fh, " (MPF offset: 0x%04lx)", *mpf_offset);
 		}
 
 		if (save_iso21496 && !strncmp(s_name, "ISO21496-1", 10))
@@ -673,7 +702,8 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 
 
 int parse_markers(const struct jpeg_decompress_struct *dinfo,
-		char *str, unsigned int str_size, unsigned int *markers_total_size)
+		char *str, unsigned int str_size, unsigned int *markers_total_size,
+		const unsigned char *imagebuffer, size_t imagebuffersize, mpf_marker_t *mpf_info)
 {
 	jpeg_saved_marker_ptr m;
 	int count = 0;
@@ -703,9 +733,16 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 			seen[special]++;
 
 			if (save_mpf && !strncmp(marker_name, "MPF", 4)) {
-				if (!valid_mpf_marker(m)) {
-					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
+				const unsigned char *p = memmem(imagebuffer, imagebuffersize, m->data, m->data_length);
+				if (!p) {
+					strncopy(last_error, "failed to get MPF marker offset", sizeof(last_error));
 					return -2;
+				}
+				size_t marker_offset = (size_t)(p - imagebuffer);
+				printf("marker offset: %04lx\n", marker_offset);
+				if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
+					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
+					return -4;
 				}
 			}
 		}
@@ -737,6 +774,8 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 	struct jpeg_decompress_struct dinfo;
 	struct jpeg_compress_struct cinfo;
 	struct my_error_mgr jcerr, jderr;
+	mpf_marker_t mpf_info;
+	size_t out_mpf_marker_offset = 0;
 
 	/* These buffers are (re)allocated between setjmp() and a possible
 	   longjmp() from the libjpeg error handlers, and then freed at
@@ -874,7 +913,7 @@ retry_point:
 
 
 	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
-	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size);
+	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size, inbuffer, inbuffersize, &mpf_info);
 	if (marker_in_count < 0)
 		goto abort_decompress;
 
@@ -1077,7 +1116,7 @@ binary_search_loop:
 		jpeg_start_compress(&cinfo,TRUE);
 
 		/* Write markers */
-		write_markers(&dinfo,&cinfo);
+		write_markers(&dinfo, &cinfo, &out_mpf_marker_offset);
 
 		/* Write image */
 		while (cinfo.next_scanline < cinfo.image_height) {
@@ -1120,7 +1159,7 @@ binary_search_loop:
 		jpeg_write_coefficients(&cinfo, coef_arrays);
 
 		/* Write markers */
-		write_markers(&dinfo,&cinfo);
+		write_markers(&dinfo, &cinfo, &out_mpf_marker_offset);
 
 	}
 
@@ -1185,6 +1224,15 @@ binary_search_loop:
 			if (verbose_mode)
 				fprintf(log_fh,"(try %d)",quality);
 			goto binary_search_loop;
+		}
+	}
+
+	if (save_mpf) {
+		/* Update main image size and offsets for seconday image(s) in MPF marker */
+		int r;
+		if ((r = patch_mpf_marker(outbuffer, outbuffersize, &mpf_info, out_mpf_marker_offset, in_image_size))) {
+			snprintf(last_error, sizeof(last_error), "failed to update new MPF marker: %d", r);
+			goto abort_compress;
 		}
 	}
 
