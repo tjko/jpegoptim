@@ -25,7 +25,7 @@
 #define EASY_ENDIAN_H 1
 
 
-#if defined(HAVE_ENDIAN_H)
+#if defined(HAVE_ENDIAN_H) || defined(__linux__)
  #include <endian.h>
 #elif defined(HAVE_SYS_ENDIAN_H)
  #include <sys/endian.h>
@@ -65,7 +65,7 @@
    #define BIG_ENDIAN 4321
   #endif
   #ifndef BYTE_ORDER
-   #warning "BYTE_ORDER not defined, assuming Little Endian"
+   // #warning "BYTE_ORDER not defined, assuming Little Endian"
    #define BYTE_ORDER LITTLE_ENDIAN
   #endif
   #if BYTE_ORDER == LITTLE_ENDIAN
