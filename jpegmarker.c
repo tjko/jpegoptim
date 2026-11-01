@@ -67,8 +67,8 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0,		"CIFF",		2,	"MM" },
 	{ JPEG_APP0,		"AVI1",		4,	"AVI1" },
 	{ JPEG_APP0 + 1,	"Exif",		6,	"Exif\0\0" },
-	{ JPEG_APP0 + 1,	"XMP",		29,	"http://ns.adobe.com/xap/1.0/\0" },
-	{ JPEG_APP0 + 1,	"XMP",		34,	"http://ns.adobe.com/xmp/extension/\0" },
+	{ JPEG_APP0 + 1,	"XMP",		29,	"http://ns.adobe.com/xap/1.0/\0" }, /* Standard XMP */
+	{ JPEG_APP0 + 1,	"XMP",		34,	"http://ns.adobe.com/xmp/extension/\0" }, /* Extended XMP */
 	{ JPEG_APP0 + 1,	"QVCI",		5,	"QVCI\0" },
 	{ JPEG_APP0 + 1,	"FLIR",		5,	"FLIR\0" },
 	{ JPEG_APP0 + 2,	"ICC",		12,	"ICC_PROFILE\0" },

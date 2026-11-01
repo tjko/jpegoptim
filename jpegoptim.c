@@ -567,8 +567,9 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 
 		case SAVE_HDR:
 		        {
-				save_mpf = 1;
 				save_iso21496 = 1;
+				save_mpf = 1;
+				save_xmp = 1;
 				save_extra = 1;
 			}
 			break;
@@ -608,7 +609,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
 
 	if (save_iso21496) {
-		if (save_mpf) {
+		if (!save_mpf) {
 			if (verbose_mode)
 				fprintf(stderr, "Enabling --save-mpf (required by --save-iso21496)\n");
 			save_mpf = 1;
@@ -725,7 +726,11 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 		count++;
 		*markers_total_size += m->data_length;
 
-		if ((special = jpeg_special_marker(m)) >= 0) {
+		if (m->marker == JPEG_COM && !com_seen) {
+			str_add_list(str, str_size, "COM", ",");
+			com_seen = 1;
+		}
+		else if ((special = jpeg_special_marker(m)) >= 0) {
 			const char *marker_name = jpeg_special_marker_types[special].name;
 
 			if (!seen[special])
@@ -739,17 +744,16 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 					return -2;
 				}
 				size_t marker_offset = (size_t)(p - imagebuffer);
-				printf("marker offset: %04lx\n", marker_offset);
 				if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
 					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
 					return -4;
 				}
 			}
 		}
-
-		if (m->marker == JPEG_COM && !com_seen) {
-			str_add_list(str, str_size, "COM", ",");
-			com_seen = 1;
+		else {
+			/* Unknown marker */
+			if (verbose_mode)
+				str_add_list(str, str_size, jpeg_marker_name(m->marker), ",");
 		}
 
 		m = m->next;
