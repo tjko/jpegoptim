@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
 
       # Install CMake
-      - uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
+      - uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
       # Install NASM
       - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
       # Launch the MSVC Tools Command Prompt (Windows)
@@ -56,7 +56,7 @@ jobs:
         shell: bash
 
       # Upload the compiled binary
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.os != 'ubuntu-latest'
         with:
           name: jpegoptim-${{ matrix.triplet }}
