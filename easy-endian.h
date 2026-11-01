@@ -32,17 +32,14 @@
 #else
  #if defined(__APPLE__)
   #include <libkern/OSByteOrder.h>
-
   #define htobe16(x) OSSwapHostToBigInt16(x)
   #define htole16(x) OSSwapHostToLittleInt16(x)
   #define be16toh(x) OSSwapBigToHostInt16(x)
   #define le16toh(x) OSSwapLittleToHostInt16(x)
-
   #define htobe32(x) OSSwapHostToBigInt32(x)
   #define htole32(x) OSSwapHostToLittleInt32(x)
   #define be32toh(x) OSSwapBigToHostInt32(x)
   #define le32toh(x) OSSwapLittleToHostInt32(x)
-
   #define htobe64(x) OSSwapHostToBigInt64(x)
   #define htole64(x) OSSwapHostToLittleInt64(x)
   #define be64toh(x) OSSwapBigToHostInt64(x)
@@ -61,39 +58,44 @@
   #if defined(__MINGW32__)
    #include <sys/param.h>
   #endif
+  #ifndef LITTLE_ENDIAN
+   #define LITTLE_ENDIAN 1234
+  #endif
+  #ifndef BIG_ENDIAN
+   #define BIG_ENDIAN 4321
+  #endif
   #ifndef BYTE_ORDER
-   #error "BYTE_ORDER not defined"
+   #warning "BYTE_ORDER not defined, assuming Little Endian"
+   #define BYTE_ORDER LITTLE_ENDIAN
   #endif
   #if BYTE_ORDER == LITTLE_ENDIAN
    #define htobe16(x) ByteSwap16(x)
    #define htole16(x) (x)
    #define be16toh(x) ByteSwap16(x)
    #define le16toh(x) (x)
-
    #define htobe32(x) ByteSwap32(x)
    #define htole32(x) (x)
    #define be32toh(x) ByteSwap32(x)
    #define le32toh(x) (x)
-
    #define htobe64(x) ByteSwap64(x)
    #define htole64(x) (x)
    #define be64toh(x) ByteSwap64(x)
    #define le64toh(x) (x)
-  #else
+  #elif BYTE_ORDER == BIG_ENDIAN
    #define htobe16(x) (x)
    #define htole16(x) ByteSwap16(x)
    #define be16toh(x) (x)
    #define le16toh(x) ByteSwap16(x)
-
    #define htobe32(x) (x)
    #define htole32(x) ByteSwap32(x)
    #define be32toh(x) (x)
    #define le32toh(x) ByteSwap32(x)
-
    #define htobe64(x) (x)
    #define htole64(x) ByteSwap64(x)
    #define be64toh(x) (x)
    #define le64toh(x) ByteSwap64(x)
+  #else
+   #error "unknown BYTE_ORDER definition"
   #endif
  #else
   #error "currently unsupported platform"
