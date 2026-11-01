@@ -85,6 +85,9 @@ void fprint_csv_field(FILE *fp, const char *str);
 char *str_add_list(char *dst, size_t size, const char *src, const char *delim);
 int str_to_int(const char *str, int *val, int base);
 int str_to_double(const char *str, double *val);
+#ifndef HAVE_MEMMEM
+void* memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
+#endif
 void fatal(const char *format, ...);
 void warn(const char *format, ...);
 

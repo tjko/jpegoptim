@@ -37,6 +37,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
@@ -498,6 +499,32 @@ int str_to_double(const char *str, double *val)
 	return (str == endptr ? 0 : 1);
 }
 
+#ifndef HAVE_MEMMEM
+void* memmem(const void *haystack, size_t haystacklen,
+        const void *needle, size_t needlelen)
+{
+        const uint8_t *h = (const uint8_t *) haystack;
+        const uint8_t *n = (const uint8_t *) needle;
+
+        if (haystacklen == 0 || needlelen == 0 || haystacklen < needlelen)
+                return NULL;
+
+        if (needlelen == 1)
+                return memchr(haystack, (int)n[0], haystacklen);
+
+        const uint8_t *search_end = h + haystacklen - needlelen;
+
+        for (const uint8_t *p = h; p <= search_end; p++) {
+                if (*p == *n) {
+                        if (!memcmp(p, n, needlelen)) {
+                                return (void *)p;
+                        }
+                }
+        }
+
+        return NULL;
+}
+#endif
 
 void fatal(const char *format, ...)
 {

@@ -117,6 +117,7 @@ AC_CHECK_FUNCS(fchmod)
 AC_CHECK_FUNCS(fchown)
 AC_CHECK_FUNCS(fork)
 AC_CHECK_FUNCS(wait)
+AC_CHECK_FUNCS(memmem)
 
 AC_CHECK_MEMBERS([struct stat.st_mtim])
 

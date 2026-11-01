@@ -274,6 +274,12 @@ check_symbol_exists(wait "sys/wait.h" HAVE_WAIT)
 check_symbol_exists(getopt "unistd.h" HAVE_GETOPT)
 check_symbol_exists(getopt_long "getopt.h" HAVE_GETOPT_LONG)
 
+
+include(CheckFunctionExists)
+
+check_function_exists(memmem HAVE_MEMMEM)
+
+
 include(CheckStructHasMember)
 
 if(HAVE_SYS_STAT_H)
@@ -306,6 +312,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_FCHOWN}>:HAVE_FCHOWN>
     $<$<BOOL:${HAVE_FORK}>:HAVE_FORK>
     $<$<BOOL:${HAVE_WAIT}>:HAVE_WAIT>
+    $<$<BOOL:${HAVE_MEMMEM}>:HAVE_MEMMEM>
     $<$<BOOL:${HAVE_GETOPT}>:HAVE_GETOPT>
     $<$<BOOL:${HAVE_GETOPT_LONG}>:HAVE_GETOPT_LONG>
     $<$<BOOL:${HAVE_STRUCT_STAT_ST_MTIM}>:HAVE_STRUCT_STAT_ST_MTIM>
