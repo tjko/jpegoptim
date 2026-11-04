@@ -488,6 +488,7 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			save_jfif=0;
 			save_jfxx=0;
 			save_mpf=0;
+			save_iso21496=0;
 			break;
 
 		case 'T':
@@ -622,6 +623,9 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 			save_extra = 1;
 		}
 	}
+
+	if (stdin_mode && save_extra)
+		fatal("cannot specify --save-extra if using --stdin");
 }
 
 
@@ -640,8 +644,9 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 	int write_marker;
 	const char *s_name;
 
-	if (!cinfo || !dinfo)
+	if (!cinfo || !dinfo || !mpf_offset)
 		fatal("invalid call to write_markers()");
+	*mpf_offset = 0;
 
 	mrk=dinfo->marker_list;
 	while (mrk) {
@@ -662,7 +667,7 @@ void write_markers(struct jpeg_decompress_struct *dinfo,
 		if (save_icc && !strncmp(s_name, "ICC", 4))
 			write_marker++;
 
-		if (save_mpf && !strncmp(s_name, "MPF", 4)) {
+		if (save_mpf && !strncmp(s_name, "MPF", 4) && *mpf_offset == 0) {
 			write_marker++;
 			*mpf_offset = jpeg_memory_dest_offset(cinfo) + 4;
 			if (verbose_mode > 3)
@@ -744,6 +749,14 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 					return -2;
 				}
 				size_t marker_offset = (size_t)(p - imagebuffer);
+				if (imagebuffersize - (marker_offset + m->data_length) >= m->data_length) {
+					if (memmem(imagebuffer + marker_offset + m->data_length,
+							imagebuffersize - (marker_offset + m->data_length),
+							m->data, m->data_length)) {
+						strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
+						return -3;
+					}
+				}
 				if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
 					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
 					return -4;
@@ -801,7 +814,8 @@ int optimize(FILE *log_fh, const char *filename, const char *newname,
 
 	jvirt_barray_ptr *coef_arrays = NULL;
 	char marker_str[256];
-	unsigned int marker_in_count, marker_in_size;
+	int marker_in_count = 0;
+	unsigned int marker_in_size = 0;
 
 	int64_t in_image_size = 0;
 	int64_t infilesize = 0;
@@ -917,14 +931,17 @@ retry_point:
 
 
 	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
-	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size, inbuffer, inbuffersize, &mpf_info);
+	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size,
+					(retry == 2 ? tmpbuffer : inbuffer),
+					(retry == 2 ? tmpbuffersize :inbuffersize),
+					&mpf_info);
 	if (marker_in_count < 0)
 		goto abort_decompress;
 
 
 	if (!retry) {
 		if (verbose_mode > 1) {
-			fprintf(log_fh,"%d markers found in input file (total size %d bytes)\n",
+			fprintf(log_fh,"%d markers found in input file (total size %u bytes)\n",
 				marker_in_count,marker_in_size);
 			fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
 		}
@@ -1231,7 +1248,7 @@ binary_search_loop:
 		}
 	}
 
-	if (save_mpf) {
+	if (save_mpf && out_mpf_marker_offset != 0) {
 		/* Update main image size and offsets for seconday image(s) in MPF marker */
 		int r;
 		if ((r = patch_mpf_marker(outbuffer, outbuffersize, &mpf_info, out_mpf_marker_offset, in_image_size))) {
