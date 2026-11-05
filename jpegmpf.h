@@ -46,7 +46,7 @@ typedef struct mpf_marker_t {
 
 int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf);
 int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, size_t new_offset, size_t in_image_size);
-
+int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset);
 
 #endif /* JPEGMPF_H */
 

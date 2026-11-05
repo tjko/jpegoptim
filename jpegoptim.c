@@ -609,23 +609,29 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 	if (auto_mode && (all_normal || all_progressive))
 		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
 
+	if (strip_none)
+		save_mpf = 1;
 	if (save_iso21496) {
 		if (!save_mpf) {
 			if (verbose_mode)
-				fprintf(stderr, "Enabling --save-mpf (required by --save-iso21496)\n");
+				fprintf(stderr, "Enabling --keep-mpf (required by --keep-iso21496)\n");
 			save_mpf = 1;
 		}
 	}
 	if (save_mpf) {
 		if (!save_extra) {
 			if (verbose_mode)
-				fprintf(stderr, "Enabling --save-extra (required by --save-mpf)\n");
+				fprintf(stderr, "Enabling --save-extra (required by --keep-mpf)\n");
 			save_extra = 1;
 		}
 	}
 
-	if (stdin_mode && save_extra)
-		fatal("cannot specify --save-extra if using --stdin");
+	if (stdin_mode) {
+		if (save_mpf || save_iso21496)
+			fatal("cannot specify --keep-mpf or --keep-iso21496 if using reading from stdin");
+		if (save_extra)
+			fatal("cannot specify --save-extra if using reading from stdin");
+	}
 }
 
 
@@ -743,23 +749,26 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 			seen[special]++;
 
 			if (save_mpf && !strncmp(marker_name, "MPF", 4)) {
-				const unsigned char *p = memmem(imagebuffer, imagebuffersize, m->data, m->data_length);
-				if (!p) {
+				size_t marker_offset = 0;
+				int res = 0;
+
+				int found = find_mpf_marker(imagebuffer, imagebuffersize, &marker_offset);
+				if (found < 1) {
 					strncopy(last_error, "failed to get MPF marker offset", sizeof(last_error));
-					return -2;
+					res = -2;
 				}
-				size_t marker_offset = (size_t)(p - imagebuffer);
-				if (imagebuffersize - (marker_offset + m->data_length) >= m->data_length) {
-					if (memmem(imagebuffer + marker_offset + m->data_length,
-							imagebuffersize - (marker_offset + m->data_length),
-							m->data, m->data_length)) {
-						strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
-						return -3;
-					}
+				else if (found > 1) {
+					strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
+					res = -3;
 				}
-				if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
+				else if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
 					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
-					return -4;
+					res = -4;
+				}
+
+				if (res) {
+					free(seen);
+					return res;
 				}
 			}
 		}

@@ -27,6 +27,7 @@
 #endif
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <jpeglib.h>
 #include "easy-endian.h"
@@ -170,6 +171,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 			DEBUG_PRINT("Invalid tag order (%04x after %04x)\n", tag, previous_tag);
 			return -4;
 		}
+		previous_tag = tag;
 
 		switch(tag) {
 		case MPFVersion:
@@ -238,8 +240,12 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 	/* Offset of Next IFD */
 	if (o + 4 > len)
 		return -10;
-	uint16_t next_ifd = read32(marker + o, mpf);
+	uint32_t next_ifd = read32(marker + o, mpf);
 	DEBUG_PRINT(" Offset of Next IFD: %u\n", next_ifd);
+
+	/* Check that offset is within the marker */
+	if (next_ifd + 4 >= len)
+		return -11;
 
 	return next_ifd;
 }
@@ -289,18 +295,25 @@ static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf
 
 
 	/* Parse IFDs */
-	uint32_t offset = mpf->first_ifd_offset;
+	int64_t offset = mpf->first_ifd_offset;
 	int ifd_parse_limit = 2;
 	do {
 		if (ifd_parse_limit-- <= 0)
 			return 5;
-		DEBUG_PRINT("Parse IFD at %d\n", offset);
+		DEBUG_PRINT("Parse IFD at %"PRId64"\n", offset);
 		/* Note, offset is from start of "MP HEader", so we must add 4
 		   to convert to offset from beginning of the marker data. */
 		offset = parse_idf(data, len, offset + 4, mpf);
 	} while (offset > 0);
 
-	return (offset < 0 ? 6 : 0);
+	if (offset < 0)
+		return 6;
+
+	/* MP Entry list is required for patching the image offsets/sizes */
+	if (mpf->mpentry_list_offset == 0 || mpf->number_of_images < 2)
+		return 7;
+
+	return 0;
 }
 
 
@@ -355,7 +368,7 @@ int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, 
 				return -4;
 			}
 			if (imgoffset != new_o) {
-				DEBUG_PRINT("  update image offset %u -> %ld (relative offset: %ld)\n\n",
+				DEBUG_PRINT("  update image offset %u -> %"PRId64" (relative offset: %"PRId64")\n\n",
 					imgoffset, new_o, rel_o);
 				write32(e + 8, new_o, mpf);
 			}
@@ -371,5 +384,58 @@ int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, 
 	return 0;
 }
 
+
+int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset)
+{
+	if (!image || image_len < 4 || !offset)
+		return -1;
+
+	/* Check that image has JPEG signature */
+	if (image[0] != 0xff || image[1] != 0xd8)
+		return -2;
+
+
+	int found = 0;
+	size_t pos = 2;
+
+	/* Walk the JPEG segmet markers and look for APP2 "MPF" segments. */
+	while (pos + 4 <= image_len && image[pos] == 0xff) {
+		unsigned char marker = image[pos + 1];
+
+		if (marker == 0xff) {
+			/* Skip any padding (fill bytes) */
+			pos++;
+			continue;
+		}
+		if (marker == 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+			/* Skip stand-alone markers (no data payload):
+			   TEM (01), RST0-RST7 (d0-d7) */
+			pos += 2;
+			continue;
+		}
+		if (marker == 0xda || marker == 0xd8 || marker == 0xd9) {
+			/* Stop when we see SOS, SOI or EOI */
+			break;
+		}
+
+		/* Get marker length */
+		size_t len = ((size_t)image[pos + 2] << 8) | image[pos + 3];
+		if (len < 2 || pos + 2 + len > image_len) {
+			/* Stop if length is not valid */
+			break;
+		}
+
+		if (marker == 0xe2 && len >= 6 && !memcmp(image + pos + 4, "MPF\0", 4)) {
+			/* Found APP2 marker that has MPF signature */
+			if (!found)
+				*offset = pos + 4;
+			found++;
+		}
+
+		pos += 2 + len;
+	}
+
+	return found;
+}
 
 /* eof :-) */
