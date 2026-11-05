@@ -1251,7 +1251,8 @@ binary_search_loop:
 	if (save_mpf && out_mpf_marker_offset != 0) {
 		/* Update main image size and offsets for seconday image(s) in MPF marker */
 		int r;
-		if ((r = patch_mpf_marker(outbuffer, outbuffersize, &mpf_info, out_mpf_marker_offset, in_image_size))) {
+		if ((r = patch_mpf_marker(outbuffer, outbuffersize, &mpf_info, out_mpf_marker_offset,
+							(retry == 2 ? tmpbuffersize : in_image_size)))) {
 			snprintf(last_error, sizeof(last_error), "failed to update new MPF marker: %d", r);
 			goto abort_compress;
 		}

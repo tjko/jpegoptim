@@ -32,7 +32,7 @@
 #include "easy-endian.h"
 #include "jpegmpf.h"
 
-//#define DEBUG 1
+#define DEBUG 1
 
 #if DEBUG > 0
 #define DEBUG_PRINT(fmt, ...) {						                 \
@@ -153,7 +153,9 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 		return -3;
 
 
-	/* Parse entries */
+	/* Parse tags in the IFD */
+	uint16_t previous_tag = 0;
+
 	for(int i = 0; i < count; i++) {
 		const char *m = marker + o;
 		uint16_t tag = read16(m, mpf);
@@ -163,10 +165,16 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 		DEBUG_PRINT("IDFtag=%04x, type=%u, count=%u, default=%u\n", tag, type, count, val);
 
+		/* Tags must be specified in the order of their tag IDs */
+		if (tag < previous_tag) {
+			DEBUG_PRINT("Invalid tag order (%04x after %04x)\n", tag, previous_tag);
+			return -4;
+		}
+
 		switch(tag) {
 		case MPFVersion:
 			if (type != MP_UNDEFINED || count !=4)
-				return -3;
+				return -5;
 			memcpy(mpf->version, m + 8, 4);
 			mpf->version[4] = 0;
 			DEBUG_PRINT(" MPVersion: '%s'\n", mpf->version);
@@ -174,7 +182,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 		case NumberOfImages:
 			if (type != MP_LONG || count != 1 || val < 2)
-				return -4;
+				return -6;
 			mpf->number_of_images = val;
 			DEBUG_PRINT(" NumberOfImages: %u\n", mpf->number_of_images);
 			break;
@@ -185,7 +193,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 				count != (uint64_t)16 * mpf->number_of_images ||
 				val < (uint64_t)offset + idf_len ||
 				(uint64_t)val + count > len)
-				return -5;
+				return -7;
 			mpf->mpentry_list_offset = val;
 			DEBUG_PRINT(" MPEntry list offset: %d (len=%u)\n", mpf->mpentry_list_offset, len);
 #if DEBUG > 0
@@ -210,14 +218,14 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 				count != (uint64_t)33 * mpf->number_of_images ||
 				val < (uint64_t)offset + idf_len ||
 				(uint64_t)val + count > len)
-				return -7;
+				return -8;
 			mpf->imageuid_list_offset = val;
 			DEBUG_PRINT(" ImageUIDList offset: %u\n", mpf->imageuid_list_offset);
 			break;
 
 		case TotalFrames:
 			if (count != 1 || type != MP_LONG)
-				return -8;
+				return -9;
 			mpf->total_frames = val;
 			DEBUG_PRINT(" TotalFrames: %u\n", mpf->total_frames);
 			break;
@@ -229,7 +237,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 	/* Offset of Next IFD */
 	if (o + 4 > len)
-		return -3;
+		return -10;
 	uint16_t next_ifd = read32(marker + o, mpf);
 	DEBUG_PRINT(" Offset of Next IFD: %u\n", next_ifd);
 
@@ -284,17 +292,15 @@ static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf
 	uint32_t offset = mpf->first_ifd_offset;
 	int ifd_parse_limit = 2;
 	do {
+		if (ifd_parse_limit-- <= 0)
+			return 5;
 		DEBUG_PRINT("Parse IFD at %d\n", offset);
 		/* Note, offset is from start of "MP HEader", so we must add 4
 		   to convert to offset from beginning of the marker data. */
-		if ((offset = parse_idf(data, len, offset + 4, mpf)) < 0)
-			return 5;
-		if (--ifd_parse_limit <= 0)
-			return 6;
+		offset = parse_idf(data, len, offset + 4, mpf);
 	} while (offset > 0);
 
-
-	return 0;
+	return (offset < 0 ? 6 : 0);
 }
 
 
