@@ -33,7 +33,7 @@
 #include "easy-endian.h"
 #include "jpegmpf.h"
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #if DEBUG > 0
 #define DEBUG_PRINT(fmt, ...) {						                 \
@@ -393,7 +393,7 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 	/* Check that image has JPEG signature */
 	if (image[0] != 0xff || image[1] != 0xd8)
 		return -2;
-
+	DEBUG_PRINT("JPEG marker found at %p (len=%lu)\n", image, image_len);
 
 	int found = 0;
 	size_t pos = 2;
@@ -409,12 +409,14 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 		}
 		if (marker == 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
 			/* Skip stand-alone markers (no data payload):
-			   TEM (01), RST0-RST7 (d0-d7) */
+			   TEM (0x01), RST0-RST7 (0xd0-0xd7) */
+			DEBUG_PRINT("Skip stand-alone marker 0x%02x\n", marker);
 			pos += 2;
 			continue;
 		}
 		if (marker == 0xda || marker == 0xd8 || marker == 0xd9) {
-			/* Stop when we see SOS, SOI or EOI */
+			/* Stop when we see SOS (0xda), SOI (0xd8) or EOI (0xd9) */
+			DEBUG_PRINT("Stoping search at marker 0x%02x\n", marker);
 			break;
 		}
 
@@ -424,9 +426,11 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 			/* Stop if length is not valid */
 			break;
 		}
+		DEBUG_PRINT("Found marker 0x%02x at offset %lu (length=%lu)\n", marker, pos, len);
 
 		if (marker == 0xe2 && len >= 6 && !memcmp(image + pos + 4, "MPF\0", 4)) {
-			/* Found APP2 marker that has MPF signature */
+			/* Found a APP2 marker that has MPF signature */
+			DEBUG_PRINT("Found MPF marker (data offset=%lu)\n", pos + 4);
 			if (!found)
 				*offset = pos + 4;
 			found++;
@@ -434,6 +438,8 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 
 		pos += 2 + len;
 	}
+
+	DEBUG_PRINT("%d MPF marker(s) found (first offset: %lu)\n", found, *offset);
 
 	return found;
 }

@@ -313,10 +313,12 @@ void print_usage(void)
 		"  --strip-adobe     Strip Adobe (APP14) markers from output file\n"
 		"  --strip-com       Strip Comment markers from output file\n"
 		"  --strip-exif      Strip Exif markers from output file\n"
-		"  --strip-iptc      Strip IPTC/Photoshop (APP13) markers from output file\n"
 		"  --strip-icc       Strip ICC profile markers from output file\n"
+		"  --strip-iptc      Strip IPTC/Photoshop (APP13) markers from output file\n"
+		"  --strip-iso21496   Preserve ISO 21496-1 markers (Active HDR)\n"
 		"  --strip-jfif      Strip JFIF markers from output file\n"
 		"  --strip-jfxx      Strip JFXX (JFIF Extension) markers from output file\n"
+		"  --strip-mpf       Strip MPF (Multi-Picture Format) markers\n"
 		"  --strip-xmp       Strip XMP markers markers from output file\n"
 		"  --strip-ai        Strip metadata telling the image was generated or edited\n"
 		"                    with AI: C2PA manifests (Content Credentials), IPTC\n"
@@ -326,14 +328,14 @@ void print_usage(void)
 		"  --keep-adobe      Preserve Adobe (APP14) markers\n"
 		"  --keep-com        Preserve Comment markers\n"
 		"  --keep-exif       Preserve Exif markers\n"
-		"  --keep-hdr        Preserve HDR (UltraHDR and Active HDR) markers\n"
+		"  --keep-icc        Preserve ICC profile markers\n"
 		"  --keep-iptc       Preserve IPTC/Photoshop (APP13) markers\n"
 		"  --keep-iso21496   Preserve ISO 21496-1 markers (Active HDR)\n"
-		"  --keep-icc        Preserve ICC profile markers\n"
 		"  --keep-jfif       Preserve JFIF markers\n"
 		"  --keep-jfxx       Preserve JFXX (JFIF Extension) markers\n"
 		"  --keep-mpf        Preserve MPF (Multi-Picture Format) markers\n"
 		"  --keep-xmp        Preserve XMP markers markers\n"
+		"  --keep-hdr        Preserve HDR (UltraHDR and Active HDR) markers\n"
 		"\n"
 		"  --all-normal      Force all output files to be non-progressive\n"
 		"  --all-progressive Force all output files to be progressive\n"
@@ -737,9 +739,11 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 		count++;
 		*markers_total_size += m->data_length;
 
-		if (m->marker == JPEG_COM && !com_seen) {
-			str_add_list(str, str_size, "COM", ",");
-			com_seen = 1;
+		if (m->marker == JPEG_COM) {
+			if (!com_seen) {
+				str_add_list(str, str_size, "COM", ",");
+				com_seen = 1;
+			}
 		}
 		else if ((special = jpeg_special_marker(m)) >= 0) {
 			const char *marker_name = jpeg_special_marker_types[special].name;
