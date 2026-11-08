@@ -90,6 +90,7 @@ set(SOURCE_FILES
     jpegsrc.c
     jpegdest.c
     jpegmarker.c
+    jpegmpf.c
     misc.c
     stripai.c
     )
@@ -257,6 +258,8 @@ check_include_file(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
+check_include_file(endian.h HAVE_ENDIAN_H)
+check_include_file(sys/endian.h HAVE_SYS_ENDIAN_H)
 
 include(CheckSymbolExists)
 check_symbol_exists(mkstemps "stdlib.h" HAVE_MKSTEMPS)
@@ -270,6 +273,12 @@ check_symbol_exists(fork "unistd.h" HAVE_FORK)
 check_symbol_exists(wait "sys/wait.h" HAVE_WAIT)
 check_symbol_exists(getopt "unistd.h" HAVE_GETOPT)
 check_symbol_exists(getopt_long "getopt.h" HAVE_GETOPT_LONG)
+
+
+include(CheckFunctionExists)
+
+check_function_exists(memmem HAVE_MEMMEM)
+
 
 include(CheckStructHasMember)
 
@@ -292,6 +301,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_SYS_TIME_H}>:HAVE_SYS_TIME_H>
     $<$<BOOL:${HAVE_SYS_TYPES_H}>:HAVE_SYS_TYPES_H>
     $<$<BOOL:${HAVE_SYS_WAIT_H}>:HAVE_SYS_WAIT_H>
+    $<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
+    $<$<BOOL:${HAVE_SYS_ENDIAN_H}>:HAVE_SYS_ENDIAN_H>
     $<$<BOOL:${HAVE_MKSTEMPS}>:HAVE_MKSTEMPS>
     $<$<BOOL:${HAVE_LABS}>:HAVE_LABS>
     $<$<BOOL:${HAVE_FILENO}>:HAVE_FILENO>
@@ -301,6 +312,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<BOOL:${HAVE_FCHOWN}>:HAVE_FCHOWN>
     $<$<BOOL:${HAVE_FORK}>:HAVE_FORK>
     $<$<BOOL:${HAVE_WAIT}>:HAVE_WAIT>
+    $<$<BOOL:${HAVE_MEMMEM}>:HAVE_MEMMEM>
     $<$<BOOL:${HAVE_GETOPT}>:HAVE_GETOPT>
     $<$<BOOL:${HAVE_GETOPT_LONG}>:HAVE_GETOPT_LONG>
     $<$<BOOL:${HAVE_STRUCT_STAT_ST_MTIM}>:HAVE_STRUCT_STAT_ST_MTIM>

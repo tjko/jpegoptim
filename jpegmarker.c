@@ -1,6 +1,6 @@
 /* jpegmarker.c - JPEG marker functions
  *
- * Copyright (c) 1997-2023 Timo Kokkonen
+ * Copyright (c) 1997-2026 Timo Kokkonen
  * All Rights Reserved.
  *
  *
@@ -67,13 +67,14 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0,		"CIFF",		2,	"MM" },
 	{ JPEG_APP0,		"AVI1",		4,	"AVI1" },
 	{ JPEG_APP0 + 1,	"Exif",		6,	"Exif\0\0" },
-	{ JPEG_APP0 + 1,	"XMP",		29,	"http://ns.adobe.com/xap/1.0/\0" },
-	{ JPEG_APP0 + 1,	"XMP",		34,	"http://ns.adobe.com/xmp/extension/\0" },
+	{ JPEG_APP0 + 1,	"XMP",		29,	"http://ns.adobe.com/xap/1.0/\0" }, /* Standard XMP */
+	{ JPEG_APP0 + 1,	"XMP",		34,	"http://ns.adobe.com/xmp/extension/\0" }, /* Extended XMP */
 	{ JPEG_APP0 + 1,	"QVCI",		5,	"QVCI\0" },
 	{ JPEG_APP0 + 1,	"FLIR",		5,	"FLIR\0" },
 	{ JPEG_APP0 + 2,	"ICC",		12,	"ICC_PROFILE\0" },
 	{ JPEG_APP0 + 2,	"FPXR",		5,	"FPXR\0" },
-	{ JPEG_APP0 + 2,	"MPF",		4,	"MPF\0" },
+	{ JPEG_APP0 + 2,	"MPF",		4,	"MPF\0" }, /* CIPA DC-007 */
+	{ JPEG_APP0 + 2,	"ISO21496-1",	28,	"urn:iso:std:iso:ts:21496:-1\0" }, /* Adaptive HDR */
 	{ JPEG_APP0 + 3,	"Meta",		6,	"Meta\0\0" },
 	{ JPEG_APP0 + 3,	"Meta",		6,	"META\0\0" },
 	{ JPEG_APP0 + 3,	"Meta",		6,	"Exif\0\0" },
@@ -87,7 +88,7 @@ const struct jpeg_special_marker_type jpeg_special_marker_types[] = {
 	{ JPEG_APP0 + 6,	"GoPro",	6,	"GoPro\0" },
 	{ JPEG_APP0 + 8,	"SPIFF",	6,	"SPIFF\0" },
 	{ JPEG_APP0 + 10,	"AROT",		6,	"AROT\0\0" },
-	{ JPEG_APP0 + 11,	"HDR",		6,	"HDR_RI" },
+	{ JPEG_APP0 + 11,	"HDR_RI",	6,	"HDR_RI" },    /* JPEG-HDR */
 	{ JPEG_APP0 + 13,	"IPTC",		14,	"Photoshop 3.0\0" },
 	{ JPEG_APP0 + 13,	"IPTC",		18,	"Adobe_Photoshop2.5" },
 	{ JPEG_APP0 + 13,	"AdobeCM",	8,	"Adobe_CM" },

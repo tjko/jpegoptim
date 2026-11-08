@@ -28,6 +28,9 @@ INSTALLATION
 
 HISTORY
         v1.5.7 - 30th Aniversary release:
+                  - experimental support to preserve HDR gain maps (Ultra HDR
+                    and Active HDR) with option --keep-hdr (this option is same
+                    as manually specifying both options --keep-mpf and --keep-iso21496)
                   - new option --strip-ai (thanks to Matteo Croce)
                   - fix handling of too long filenames when reading them from
                     a file (--files-from)
@@ -173,4 +176,4 @@ Special thanks to the following GitHub Sponsors that have supported jpegoptim:
 
 
 Timo <tjko@iki.fi>
-15-Sep-2026
+08-Nov-2026

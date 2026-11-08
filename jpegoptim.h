@@ -85,6 +85,9 @@ void fprint_csv_field(FILE *fp, const char *str);
 char *str_add_list(char *dst, size_t size, const char *src, const char *delim);
 int str_to_int(const char *str, int *val, int base);
 int str_to_double(const char *str, double *val);
+#ifndef HAVE_MEMMEM
+void* memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
+#endif
 void fatal(const char *format, ...);
 void warn(const char *format, ...);
 
@@ -95,6 +98,7 @@ int strip_ai_markers(struct jpeg_decompress_struct *dinfo);
 /* jpegdest.c */
 void jpeg_memory_dest (j_compress_ptr cinfo, unsigned char * volatile *bufptr,
 		size_t *bufsizeptr, size_t incsize);
+size_t jpeg_memory_dest_offset(j_compress_ptr cinfo);
 
 /* jpegsrc.c */
 void jpeg_custom_src(j_decompress_ptr dinfo, FILE *infile,
