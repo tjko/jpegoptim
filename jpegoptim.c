@@ -315,7 +315,7 @@ void print_usage(void)
 		"  --strip-exif      Strip Exif markers from output file\n"
 		"  --strip-icc       Strip ICC profile markers from output file\n"
 		"  --strip-iptc      Strip IPTC/Photoshop (APP13) markers from output file\n"
-		"  --strip-iso21496   Preserve ISO 21496-1 markers (Active HDR)\n"
+		"  --strip-iso21496  Strip ISO 21496-1 markers (Active HDR)\n"
 		"  --strip-jfif      Strip JFIF markers from output file\n"
 		"  --strip-jfxx      Strip JFXX (JFIF Extension) markers from output file\n"
 		"  --strip-mpf       Strip MPF (Multi-Picture Format) markers\n"
