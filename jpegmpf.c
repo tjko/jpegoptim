@@ -44,6 +44,8 @@
 #endif
 
 
+/* These come from CIPA DC-007-2009 standard */
+
 static const char *mp_format_identifier = "MPF\0";
 static const int mp_format_identifier_len = 4;
 
@@ -81,18 +83,21 @@ enum mpf_data_types {
 };
 
 enum mpf_image_attributes {
+	/* Flag bits */
 	DependentParentImage_Flag   = (1UL << 31),
 	DependentChildImage_Flag    = (1UL << 30),
 	RepresentativeImage_Flag    = (1UL << 29),
 
+	/* MP Type codes */
 	MPPrimaryImage              = 0x030000,
 	LargeThumbnail_Class1       = 0x010001,
 	LargeThumbnail_Class2       = 0x010002,
 	MultiFrameImage_Panorama    = 0x020001,
 	MultiFrameImage_Disparity   = 0x020002,
 	MultiFrameImage_MultiAngle  = 0x020003,
-
 	Undefined                   = 0x000000,
+
+	MP_Type_Mask                = 0x03ffff,
 };
 
 
@@ -387,7 +392,7 @@ int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, 
 
 int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset)
 {
-	if (!image || image_len < 4 || !offset)
+	if (!image || image_len < 4)
 		return -1;
 
 	/* Check that image has JPEG signature */
@@ -424,14 +429,16 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 		size_t len = ((size_t)image[pos + 2] << 8) | image[pos + 3];
 		if (len < 2 || pos + 2 + len > image_len) {
 			/* Stop if length is not valid */
+			DEBUG_PRINT("Marker with bad length 0x%02x (length=%lu)\n", marker, len);
 			break;
 		}
 		DEBUG_PRINT("Found marker 0x%02x at offset %lu (length=%lu)\n", marker, pos, len);
 
-		if (marker == 0xe2 && len >= 6 && !memcmp(image + pos + 4, "MPF\0", 4)) {
+		if (marker == 0xe2 && len >= 6
+			&& !memcmp(image + pos + 4, mp_format_identifier, mp_format_identifier_len)) {
 			/* Found a APP2 marker that has MPF signature */
 			DEBUG_PRINT("Found MPF marker (data offset=%lu)\n", pos + 4);
-			if (!found)
+			if (!found && offset)
 				*offset = pos + 4;
 			found++;
 		}
@@ -439,7 +446,7 @@ int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset
 		pos += 2 + len;
 	}
 
-	DEBUG_PRINT("%d MPF marker(s) found (first offset: %lu)\n", found, *offset);
+	DEBUG_PRINT("%d MPF marker(s) found\n", found);
 
 	return found;
 }

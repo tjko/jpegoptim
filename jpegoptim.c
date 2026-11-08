@@ -611,8 +611,13 @@ void parse_arguments(int argc, char **argv, char *dest_path, size_t dest_path_le
 	if (auto_mode && (all_normal || all_progressive))
 		fatal("cannot specify --all-normal or --all-progressive if using --auto-mode");
 
-	if (strip_none)
-		save_mpf = 1;
+	if (strip_none) {
+		if (stdin_mode) {
+			warn("currently --stdin does not support preserving MPF markers");
+		} else {
+			save_mpf = 1;
+		}
+	}
 	if (save_iso21496) {
 		if (!save_mpf) {
 			if (verbose_mode)
@@ -723,6 +728,7 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 	int count = 0;
 	char *seen;
 	size_t marker_types = jpeg_special_marker_types_count();
+	int mpf_count = 0;
 	int com_seen = 0;
 	int special;
 
@@ -752,27 +758,30 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 				str_add_list(str, str_size, marker_name, ",");
 			seen[special]++;
 
-			if (save_mpf && !strncmp(marker_name, "MPF", 4)) {
-				size_t marker_offset = 0;
-				int res = 0;
+			if (!strncmp(marker_name, "MPF", 4)) {
+				mpf_count++;
+				if (save_mpf) {
+					size_t marker_offset = 0;
+					int res = 0;
 
-				int found = find_mpf_marker(imagebuffer, imagebuffersize, &marker_offset);
-				if (found < 1) {
-					strncopy(last_error, "failed to get MPF marker offset", sizeof(last_error));
-					res = -2;
-				}
-				else if (found > 1) {
-					strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
-					res = -3;
-				}
-				else if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
-					strncopy(last_error, "invalid MPF marker", sizeof(last_error));
-					res = -4;
-				}
+					int found = find_mpf_marker(imagebuffer, imagebuffersize, &marker_offset);
+					if (found < 1) {
+						strncopy(last_error, "failed to get MPF marker offset", sizeof(last_error));
+						res = -2;
+					}
+					else if (found > 1) {
+						strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
+						res = -3;
+					}
+					else if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
+						strncopy(last_error, "invalid MPF marker", sizeof(last_error));
+						res = -4;
+					}
 
-				if (res) {
-					free(seen);
-					return res;
+					if (res) {
+						free(seen);
+						return res;
+					}
 				}
 			}
 		}
@@ -786,6 +795,14 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 	}
 
 	free(seen);
+
+	if (mpf_count > 0 && strip_none && !save_mpf) {
+		/* This can only happen if --strip-none and --stdin are used and image
+		   contains MPF marker... */
+		strncopy(last_error, "Preserveing MPF not supported without --keep-mpf",
+			sizeof(last_error));
+		return -5;
+	}
 
 	return count;
 }
@@ -942,29 +959,15 @@ retry_point:
 	}
 	jpeg_read_header(&dinfo, TRUE);
 
-
-	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
-	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size,
-					(retry == 2 ? tmpbuffer : inbuffer),
-					(retry == 2 ? tmpbuffersize :inbuffersize),
-					&mpf_info);
-	if (marker_in_count < 0)
-		goto abort_decompress;
-
-
 	if (!retry) {
 		if (verbose_mode > 1) {
-			fprintf(log_fh,"%d markers found in input file (total size %u bytes)\n",
-				marker_in_count,marker_in_size);
-			fprintf(log_fh,"coding: %s\n", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
+			fprintf(log_fh,"(coding: %s) ", (dinfo.arith_code == TRUE ? "Arithmetic" : "Huffman"));
 		}
 
 		if (!quiet_mode || csv) {
 			fprintf(log_fh,csv ? "%dx%d,%dbit,%c," : "%dx%d %dbit %c ",(int)dinfo.image_width,
 				(int)dinfo.image_height,(int)dinfo.num_components*8,
 				(dinfo.progressive_mode?'P':'N'));
-			if (!csv)
-				fprintf(log_fh,"%s",marker_str);
 			fflush(log_fh);
 		}
 	}
@@ -1004,8 +1007,23 @@ retry_point:
 			goto abort_decompress;
 		}
 	}
+
+	/* Check for known (Exif, IPTC, ICC , XMP, ...) markers */
+	marker_in_count = parse_markers(&dinfo, marker_str, sizeof(marker_str),	&marker_in_size,
+					(retry == 2 ? tmpbuffer : inbuffer),
+					(retry == 2 ? tmpbuffersize :inbuffersize),
+					&mpf_info);
+	if (marker_in_count < 0)
+		goto abort_decompress;
+	if (!retry) {
+		if (!csv)
+			fprintf(log_fh,"%s",marker_str);
+		if (verbose_mode > 1)
+			fprintf(log_fh," (%d markers found with total size of %u bytes)",
+				marker_in_count,marker_in_size);
+		fflush(log_fh);
+	}
 	if (strip_ai) {
-		/* All the markers are known only after reading the whole image */
 		int n = strip_ai_markers(&dinfo);
 
 		if (n > 0) {
@@ -1014,6 +1032,7 @@ retry_point:
 			ai_stripped = 1;
 		}
 	}
+
 	if (!retry) {
 		in_image_size = inbufferused - dinfo.src->bytes_in_buffer;
 		if(verbose_mode > 2)
@@ -1380,8 +1399,8 @@ binary_search_loop:
 			if (fwrite(outbuffer,outbuffersize,1,stdout) != 1)
 				fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
 			if (save_extra && extrabuffersize > 0) {
-				if (fwrite(extrabuffer,extrabuffersize,1,stdout) != 1)
-					fatal("%s, write failed to stdout",(stdin_mode ? "stdin" : filename));
+				if (fwrite(extrabuffer, extrabuffersize, 1, stdout) != 1)
+					fatal("%s, write failed to stdout", (stdin_mode ? "stdin" : filename));
 			}
 		} else {
 			if (preserve_perms && !dest) {
@@ -1487,8 +1506,11 @@ binary_search_loop:
 		if (stdout_mode) {
 			set_filemode_binary(stdout);
 			if (fwrite(inbuffer, in_image_size, 1, stdout) != 1)
-				fatal("%s, write failed to stdout",
-					(stdin_mode ? "stdin" : filename));
+				fatal("%s, write failed to stdout", (stdin_mode ? "stdin" : filename));
+			if (save_extra && extrabuffersize > 0) {
+				if (fwrite(extrabuffer, extrabuffersize, 1, stdout) != 1)
+					fatal("%s, write failed to stdout", (stdin_mode ? "stdin" : filename));
+			}
 		}
 	}
 
