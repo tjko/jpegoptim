@@ -318,6 +318,10 @@ static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf
 	if (mpf->mpentry_list_offset == 0 || mpf->number_of_images < 2)
 		return 7;
 
+	/* NumberOfImages may have been (re)set after MP Entry list was checked */
+	if ((uint64_t)mpf->mpentry_list_offset + (uint64_t)16 * mpf->number_of_images > len)
+		return 8;
+
 	return 0;
 }
 
