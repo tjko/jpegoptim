@@ -41,10 +41,12 @@ typedef struct mpf_marker_t {
 	uint32_t mpentry_list_offset;
 	uint32_t imageuid_list_offset;
 	uint32_t total_frames;
+
+	uint32_t individual_image_number;
 } mpf_marker_t;
 
 
-int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf);
+int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf, bool first_image);
 int patch_mpf_marker(unsigned char *image, size_t image_len, mpf_marker_t *mpf, size_t new_offset, size_t in_image_size);
 int find_mpf_marker(const unsigned char *image, size_t image_len, size_t *offset);
 

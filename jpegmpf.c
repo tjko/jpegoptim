@@ -53,6 +53,13 @@ static const char *mp_little_endian_magic = "II*\0";
 static const char *mp_big_endian_magic = "MM\0*";
 static const int mp_endian_magic_len = 4;
 
+
+enum mpf_idf_types {
+	MP_Unknown_IDF = 0,
+	MP_Index_IDF,
+	MP_Attribute_IDF,
+};
+
 enum mpf_tag_ids {
 	MPFVersion           = 0xb000,
 	NumberOfImages       = 0xb001,
@@ -71,8 +78,8 @@ enum mpf_tag_ids {
 	VerticalDivergence   = 0xb207,
 	AxisDistance_X       = 0xb208,
 	AxisDistance_Y       = 0xb209,
-	AxisDistacne_Z       = 0xb20a,
-	YawAngle             = 0x20b,
+	AxisDistance_Z       = 0xb20a,
+	YawAngle             = 0xb20b,
 	PitchAngle           = 0xb20c,
 	RollAngle            = 0xb20d,
 };
@@ -142,9 +149,9 @@ static void write32(void *ptr, uint32_t val, mpf_marker_t *mpf)
 
 
 
-static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_marker_t *mpf)
+static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_marker_t *mpf, enum mpf_idf_types idf_type)
 {
-	if (!marker || len <= 0 || offset < 0 || offset >= len || !mpf)
+	if (!marker || len <= 0 || offset < 0 || offset >= len || !mpf || idf_type == MP_Unknown_IDF)
 		return -1;
 
 	/* Get count of entries in this IDF */
@@ -172,7 +179,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 		DEBUG_PRINT("IDFtag=%04x, type=%u, count=%u, default=%u\n", tag, type, count, val);
 
 		/* Tags must be specified in the order of their tag IDs */
-		if (tag < previous_tag) {
+		if (tag <= previous_tag) {
 			DEBUG_PRINT("Invalid tag order (%04x after %04x)\n", tag, previous_tag);
 			return -4;
 		}
@@ -188,7 +195,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 			break;
 
 		case NumberOfImages:
-			if (type != MP_LONG || count != 1 || val < 2)
+			if (idf_type != MP_Index_IDF || type != MP_LONG || count != 1 || val < 2)
 				return -6;
 			mpf->number_of_images = val;
 			DEBUG_PRINT(" NumberOfImages: %u\n", mpf->number_of_images);
@@ -196,7 +203,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 		case MPEntry:
 			val += 4;
-			if (type != MP_UNDEFINED ||
+			if (idf_type != MP_Index_IDF || type != MP_UNDEFINED ||
 				count != (uint64_t)16 * mpf->number_of_images ||
 				val < (uint64_t)offset + idf_len ||
 				(uint64_t)val + count > len)
@@ -221,7 +228,7 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 		case ImageUIDList:
 			val += 4;
-			if (type != MP_UNDEFINED ||
+			if (idf_type != MP_Index_IDF || type != MP_UNDEFINED ||
 				count != (uint64_t)33 * mpf->number_of_images ||
 				val < (uint64_t)offset + idf_len ||
 				(uint64_t)val + count > len)
@@ -231,11 +238,39 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 			break;
 
 		case TotalFrames:
-			if (count != 1 || type != MP_LONG)
+			if (idf_type != MP_Index_IDF || count != 1 || type != MP_LONG)
 				return -9;
 			mpf->total_frames = val;
 			DEBUG_PRINT(" TotalFrames: %u\n", mpf->total_frames);
 			break;
+
+		case MPIndividualNum:
+			if (idf_type != MP_Attribute_IDF || count != 1 || type != MP_LONG)
+				return -10;
+			mpf->individual_image_number = val;
+			break;
+
+		case PanOrientation:
+		case PanOverlap_H:
+		case PanOverlap_V:
+		case BaseViewpointNum:
+		case ConvergenceAngle:
+		case BaselineLength:
+		case VerticalDivergence:
+		case AxisDistance_X:
+		case AxisDistance_Y:
+		case AxisDistance_Z:
+		case YawAngle:
+		case PitchAngle:
+		case RollAngle:
+			if (idf_type != MP_Attribute_IDF || count != 1)
+				return -11;
+			/* These are currently ignored... */
+			break;
+
+		default:
+			DEBUG_PRINT(" Unknown tag!\n");
+
 		}
 
 		o += 12;
@@ -244,19 +279,19 @@ static int parse_idf(const char *marker, uint32_t len, uint32_t offset, mpf_mark
 
 	/* Offset of Next IFD */
 	if (o + 4 > len)
-		return -10;
+		return -100;
 	uint32_t next_ifd = read32(marker + o, mpf);
 	DEBUG_PRINT(" Offset of Next IFD: %u\n", next_ifd);
 
 	/* Check that offset is within the marker */
 	if (next_ifd + 4 >= len)
-		return -11;
+		return -101;
 
 	return next_ifd;
 }
 
 
-static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf, size_t marker_offset)
+static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf, size_t marker_offset, bool first_image)
 {
 	const char *m = data;
 
@@ -301,18 +336,23 @@ static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf
 
 	/* Parse IFDs */
 	int64_t offset = mpf->first_ifd_offset;
-	int ifd_parse_limit = 2;
-	do {
-		if (ifd_parse_limit-- <= 0)
-			return 5;
-		DEBUG_PRINT("Parse IFD at %"PRId64"\n", offset);
+	if (first_image) {
+		DEBUG_PRINT("Parse Index IFD at %"PRId64"\n", offset);
 		/* Note, offset is from start of "MP HEader", so we must add 4
 		   to convert to offset from beginning of the marker data. */
-		offset = parse_idf(data, len, offset + 4, mpf);
-	} while (offset > 0);
-
-	if (offset < 0)
-		return 6;
+		if ((offset = parse_idf(data, len, offset + 4, mpf, MP_Index_IDF)) < 0)
+			return 5;
+	}
+	if (offset > 0) {
+		DEBUG_PRINT("Parse Attribute IFD at %"PRId64"\n", offset);
+		/* Note, offset is from start of "MP HEader", so we must add 4
+		   to convert to offset from beginning of the marker data. */
+		if ((offset = parse_idf(data, len, offset + 4, mpf, MP_Attribute_IDF)) < 0)
+			return 6;
+	}
+	if (offset > 0) {
+		DEBUG_PRINT("Ignoring addtional/unknown IFD(s) found\n");
+	}
 
 	/* MP Entry list is required for patching the image offsets/sizes */
 	if (mpf->mpentry_list_offset == 0 || mpf->number_of_images < 2)
@@ -322,12 +362,12 @@ static int read_mpf_marker(const char *data, unsigned int len, mpf_marker_t *mpf
 }
 
 
-int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf)
+int valid_mpf_marker(const jpeg_saved_marker_ptr marker, size_t offset, mpf_marker_t *mpf, bool first_image)
 {
 	if (!marker || !mpf)
 		return -1;
 
-	return (read_mpf_marker((const char*)marker->data, marker->data_length, mpf, offset) == 0);
+	return (read_mpf_marker((const char*)marker->data, marker->data_length, mpf, offset, first_image) == 0);
 }
 
 
