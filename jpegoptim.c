@@ -773,7 +773,7 @@ int parse_markers(const struct jpeg_decompress_struct *dinfo,
 						strncopy(last_error, "multiple MPF markers found", sizeof(last_error));
 						res = -3;
 					}
-					else if (!valid_mpf_marker(m, marker_offset, mpf_info)) {
+					else if (!valid_mpf_marker(m, marker_offset, mpf_info, true)) {
 						strncopy(last_error, "invalid MPF marker", sizeof(last_error));
 						res = -4;
 					}
