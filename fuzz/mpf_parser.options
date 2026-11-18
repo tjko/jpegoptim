@@ -1,0 +1,11 @@
+[libjpeg_mpf_parser_fuzzer]
+max_len = 65535
+timeout = 25
+
+[libjpegturbo_mpf_parser_fuzzer]
+max_len = 65535
+timeout = 25
+
+[mozjpeg_mpf_parser_fuzzer]
+max_len = 65535
+timeout = 25
