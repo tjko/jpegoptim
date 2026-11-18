@@ -30,8 +30,16 @@ target_link_options(${METADATA_MODES_FUZZER_NAME}
     PRIVATE "$ENV{LIB_FUZZING_ENGINE}")
 target_link_libraries(${METADATA_MODES_FUZZER_NAME} PRIVATE ${PROJECT_NAME})
 
+# MPF marker parser component harness (jpegmpf.c: find/valid/patch)
+set(MPF_PARSER_FUZZER_NAME "${JPEG_ENGINE}_mpf_parser_fuzzer")
+add_executable(${MPF_PARSER_FUZZER_NAME} fuzz_mpf_parser.c)
+target_compile_options(${MPF_PARSER_FUZZER_NAME} PRIVATE "$ENV{CMAKE_C_FLAGS}")
+target_link_options(${MPF_PARSER_FUZZER_NAME} PRIVATE "$ENV{LIB_FUZZING_ENGINE}")
+target_link_libraries(${MPF_PARSER_FUZZER_NAME} PRIVATE ${PROJECT_NAME})
+
 # Install the built fuzzer(s) to output directory
 if (DEFINED ENV{OUT})
+    install(TARGETS ${FUZZER_NAME} ${MPF_PARSER_FUZZER_NAME} DESTINATION $ENV{OUT})
     install(TARGETS ${FUZZER_NAME} ${METADATA_MODES_FUZZER_NAME}
         DESTINATION $ENV{OUT})
 else()

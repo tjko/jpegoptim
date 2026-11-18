@@ -44,12 +44,17 @@ zip -q $OUT/libjpeg_compression_fuzzer_seed_corpus.zip fuzz/corpus/*
 cp $OUT/libjpeg_compression_fuzzer_seed_corpus.zip $OUT/libjpegturbo_compression_fuzzer_seed_corpus.zip
 cp $OUT/libjpeg_compression_fuzzer_seed_corpus.zip $OUT/mozjpeg_compression_fuzzer_seed_corpus.zip
 
-# Generate structured seed corpus for the metadata_modes fuzzers and
+# Generate structured seed corpus for the fuzzers and
 # install their dictionaries and options files
 python3 fuzz/gen_metadata_seeds.py --out fuzz/corpus-metadata
+python3 fuzz/gen_mpf_seeds.py --out fuzz/corpus-mpf
 
 for engine in libjpeg libjpegturbo mozjpeg; do
     zip -q -j $OUT/${engine}_metadata_modes_fuzzer_seed_corpus.zip fuzz/corpus-metadata/*
+    zip -q -j $OUT/${engine}_mpf_parser_fuzzer_seed_corpus.zip fuzz/corpus-mpf/*
+
     cp fuzz/metadata_modes.dict $OUT/${engine}_metadata_modes_fuzzer.dict
     cp fuzz/metadata_modes.options $OUT/${engine}_metadata_modes_fuzzer.options
+    cp fuzz/mpf_parser.dict $OUT/${engine}_mpf_parser_fuzzer.dict
+    cp fuzz/mpf_parser.options $OUT/${engine}_mpf_parser_fuzzer.options
 done
