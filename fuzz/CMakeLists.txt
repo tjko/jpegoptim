@@ -19,9 +19,16 @@ set(CMAKE_C_COMPILER "$ENV{CC}" CACHE STRING "C compiler" FORCE)
 target_link_options(${FUZZER_NAME} PRIVATE "$ENV{LIB_FUZZING_ENGINE}")
 target_link_libraries(${FUZZER_NAME} PRIVATE ${PROJECT_NAME})
 
+# MPF marker parser component harness (jpegmpf.c: find/valid/patch)
+set(MPF_PARSER_FUZZER_NAME "${JPEG_ENGINE}_mpf_parser_fuzzer")
+add_executable(${MPF_PARSER_FUZZER_NAME} fuzz_mpf_parser.c)
+target_compile_options(${MPF_PARSER_FUZZER_NAME} PRIVATE "$ENV{CMAKE_C_FLAGS}")
+target_link_options(${MPF_PARSER_FUZZER_NAME} PRIVATE "$ENV{LIB_FUZZING_ENGINE}")
+target_link_libraries(${MPF_PARSER_FUZZER_NAME} PRIVATE ${PROJECT_NAME})
+
 # Install the built fuzzer(s) to output directory
 if (DEFINED ENV{OUT})
-    install(TARGETS ${FUZZER_NAME} DESTINATION $ENV{OUT})
+    install(TARGETS ${FUZZER_NAME} ${MPF_PARSER_FUZZER_NAME} DESTINATION $ENV{OUT})
 else()
     message(FATAL_ERROR "Cannot install if $OUT is not defined!")
 endif()

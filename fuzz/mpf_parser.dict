@@ -1,0 +1,26 @@
+# MPF header / TIFF magic
+"MPF\x00"
+"II*\x00"
+"MM\x00*"
+"0100"
+# IFD tags (ascending-order matrix)
+"\xb0\x00"
+"\xb0\x01"
+"\xb0\x02"
+"\xb0\x03"
+"\xb0\x04"
+"\xb1\x01"
+"\xb2\x01"
+"\xb2\x02"
+# type codes (MP_LONG=4, MP_UNDEFINED=7)
+"\x00\x04"
+"\x00\x07"
+# multipicture image attributes
+"\x03\x00\x00"
+"\x01\x00\x01"
+"\x01\x00\x02"
+"\x02\x00\x01"
+# JPEG framing the synthetic image is built with
+"\xff\xd8"
+"\xff\xd9"
+"\xff\xe2"
