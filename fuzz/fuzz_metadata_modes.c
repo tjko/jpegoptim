@@ -116,8 +116,13 @@ static void apply_options(uint32_t cfg, int *auto_mode, int *all_normal,
 		save_xmp = 1;
 		save_extra = 1;
 	}
-	if (cfg & CFG_KEEP_ALL)
+	if (cfg & CFG_KEEP_ALL) {
 		strip_none = 1;
+		/* As in the CLI: --keep-all implies --keep-mpf, and
+		   --keep-mpf implies --save-extra. */
+		save_mpf = 1;
+		save_extra = 1;
+	}
 	if (cfg & CFG_STRIP_AI)
 		strip_ai = 1;
 	if (cfg & CFG_KEEP_ADOBE)
@@ -282,8 +287,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
 	}
 	fclose(fuzz_file);
 
+	/*
+	 * As in the CLI: without --dest the file is optimized in
+	 * place, so newname is the input pathname itself; only with
+	 * --dest does the output go to the manager's separate path.
+	 * The preserve_perms backup copies and truncates newname,
+	 * so it must point at the file being optimized.
+	 */
 	optimize(fuzz_manager.log_fh, fuzz_manager.fuzz_file_name,
-		 fuzz_manager.new_fuzz_file_name, fuzz_manager.tmp_dir,
+		 dest ? fuzz_manager.new_fuzz_file_name :
+		 fuzz_manager.fuzz_file_name, fuzz_manager.tmp_dir,
 		 &file_stat, &fuzz_manager.rate, &fuzz_manager.saved,
 		 auto_mode, all_normal, all_progressive);
 

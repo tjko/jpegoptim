@@ -1,11 +1,4 @@
-[libjpeg_metadata_modes_fuzzer]
+[libfuzzer]
 max_len = 262144
 timeout = 25
 
-[libjpegturbo_metadata_modes_fuzzer]
-max_len = 262144
-timeout = 25
-
-[mozjpeg_metadata_modes_fuzzer]
-max_len = 262144
-timeout = 25

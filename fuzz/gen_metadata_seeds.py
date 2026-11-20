@@ -228,18 +228,24 @@ def xmp(ai=True, attribute_form=False):
 
 def jumbf_c2pa():
     """APP11 JUMBF superbox description marking a C2PA manifest, plus a
-    continuation marker of the same box instance and an unrelated box."""
-    def app11(box, tail):
-        payload = b"JP" + struct.pack(">H", box) + tail
+    continuation marker of the same box instance and an unrelated box.
+
+    Each segment is 'JP', the 16-bit box instance number and the 32-bit
+    sequence number, followed by the boxes; strip_ai_markers() expects
+    'jumb' at offset 12 and the description type at offset 20."""
+    def app11(box, seq, tail):
+        payload = (b"JP" + struct.pack(">H", box) +
+                   struct.pack(">I", seq) + tail)
         return seg(0xEB, payload)
 
-    desc = (struct.pack(">I", 32) + b"jumb" +
-            struct.pack(">I", 24) + b"jumd" +
-            b"jumdc2pa" + bytes(4) +
-            bytes(8))
-    first = app11(1, desc)
-    cont = app11(1, struct.pack(">I", 24) + b"jpg " + bytes(12))
-    other = app11(2, struct.pack(">I", 16) + b"jpeg" + bytes(4))
+    # Superbox: length + 'jumb' + description box ('jumdc2pa').
+    desc = (struct.pack(">I", 24) + b"jumb" +
+            struct.pack(">I", 16) + b"jumdc2pa" + bytes(4))
+    first = app11(1, 1, desc)
+    cont = app11(1, 2,
+                 struct.pack(">I", 24) + b"jpg " + bytes(12))
+    other = app11(2, 1,
+                  struct.pack(">I", 16) + b"jpeg" + bytes(4))
     return first + cont + other
 
 
