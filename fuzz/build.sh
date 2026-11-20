@@ -43,3 +43,13 @@ find . -name "*.jpg" -exec cp {} fuzz/corpus \;
 zip -q $OUT/libjpeg_compression_fuzzer_seed_corpus.zip fuzz/corpus/*
 cp $OUT/libjpeg_compression_fuzzer_seed_corpus.zip $OUT/libjpegturbo_compression_fuzzer_seed_corpus.zip
 cp $OUT/libjpeg_compression_fuzzer_seed_corpus.zip $OUT/mozjpeg_compression_fuzzer_seed_corpus.zip
+
+# Generate structured seed corpus for the metadata_modes fuzzers and
+# install their dictionaries and options files
+python3 fuzz/gen_metadata_seeds.py --out fuzz/corpus-metadata
+
+for engine in libjpeg libjpegturbo mozjpeg; do
+    zip -q -j $OUT/${engine}_metadata_modes_fuzzer_seed_corpus.zip fuzz/corpus-metadata/*
+    cp fuzz/metadata_modes.dict $OUT/${engine}_metadata_modes_fuzzer.dict
+    cp fuzz/metadata_modes.options $OUT/${engine}_metadata_modes_fuzzer.options
+done

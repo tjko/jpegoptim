@@ -1885,6 +1885,11 @@ int main(int argc, char **argv)
 void fuzz_set_target_size(const int new_target_size)
 {
 	target_size = new_target_size;
+	if (new_target_size != 0) {
+		/* As with the CLI -S handler: the size search always
+		   starts at quality 100. */
+		quality = 100;
+	}
 }
 #endif /* BUILD_FOR_OSS_FUZZ */
 /* eof :-) */
