@@ -1416,7 +1416,7 @@ binary_search_loop:
 					fatal("%s, backup file already exists: %s", filename, tmpfilename);
 				if (copy_file(newname,tmpfilename))
 					fatal("%s, failed to create backup: %s", filename, tmpfilename);
-				if ((outfile=create_file(newname))==NULL)
+				if ((outfile=create_file(newname, 0))==NULL)
 					fatal("%s, error opening output file: %s", filename, newname);
 				outfname = newname;
 			} else {
