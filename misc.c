@@ -49,20 +49,24 @@
 #endif
 
 
-FILE* create_file(const char *name)
+FILE* create_file(const char *name, int exclusive)
 {
 	FILE *f;
 	int fd;
+	int flags;
 
 	if (!name)
 		return NULL;
 
+	/* O_EXCL makes creating a new file (and failing if the name already
+	   exists) a single atomic operation... */
+	flags = O_WRONLY | O_CREAT | (exclusive ? O_EXCL : O_TRUNC);
 #ifdef WIN32
-	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, _S_IREAD | _S_IWRITE);
+	fd = open(name, flags | O_BINARY, _S_IREAD | _S_IWRITE);
 #else
 	/* O_NOFOLLOW prevents symlink attacks via planted (dangling) symlinks
 	   in world-writable directories... */
-	fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, S_IWUSR | S_IRUSR);
+	fd = open(name, flags | O_NOFOLLOW, S_IWUSR | S_IRUSR);
 #endif
 	if (fd < 0)
 		return NULL;
@@ -228,7 +232,9 @@ int copy_file(const char *srcfile, const char *dstfile)
 		warn("failed to open file for reading: %s", srcfile);
 		return -2;
 	}
-	if (!(out = create_file(dstfile))) {
+	/* Destination must not exist already (it could have been planted
+	   after the caller checked for it)... */
+	if (!(out = create_file(dstfile, 1))) {
 		fclose(in);
 		warn("failed to open file for writing: %s", dstfile);
 		return -3;
