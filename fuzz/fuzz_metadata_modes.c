@@ -21,10 +21,12 @@
  * of the License, or (at your option) any later version.
  */
 
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "fuzz_manager.h"
 #include "jpegoptim.h"
@@ -36,6 +38,7 @@ extern int save_adobe, save_jfxx, save_jfif, save_mpf, save_iso21496;
 extern int strip_none, strip_ai, retry_mode, verbose_mode, quiet_mode, csv;
 extern int noaction, dest, overwrite_mode, force, nofix_mode;
 extern int preserve_mtime, preserve_perms, stdin_mode, quality;
+extern int stdout_mode;
 extern double threshold;
 extern uint64_t max_pixels;
 
@@ -102,6 +105,7 @@ static void apply_options(uint32_t cfg, int *auto_mode, int *all_normal,
 	preserve_mtime = 0;
 	preserve_perms = 0;
 	stdin_mode = 0;
+	stdout_mode = 0;
 	quality = -1;
 	threshold = -1.0;
 	max_pixels = 0;
@@ -203,6 +207,17 @@ static void apply_options(uint32_t cfg, int *auto_mode, int *all_normal,
 	default:
 		break;
 	}
+
+	/* Mirror the CLI's stdin contract (jpegoptim.c parse_argv): --stdin
+	   implies --stdout, and --keep-mpf / --keep-iso21496 / --save-extra
+	   are rejected when reading from stdin, so a mutated profile cannot
+	   reach them. */
+	if (stdin_mode) {
+		save_mpf = 0;
+		save_iso21496 = 0;
+		save_extra = 0;
+		stdout_mode = 1;
+	}
 }
 
 /* Guard against pathologically large images: jpegoptim allocates
@@ -287,18 +302,44 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
 	}
 	fclose(fuzz_file);
 
-	/*
-	 * As in the CLI: without --dest the file is optimized in
-	 * place, so newname is the input pathname itself; only with
-	 * --dest does the output go to the manager's separate path.
-	 * The preserve_perms backup copies and truncates newname,
-	 * so it must point at the file being optimized.
-	 */
-	optimize(fuzz_manager.log_fh, fuzz_manager.fuzz_file_name,
-		 dest ? fuzz_manager.new_fuzz_file_name :
-		 fuzz_manager.fuzz_file_name, fuzz_manager.tmp_dir,
-		 &file_stat, &fuzz_manager.rate, &fuzz_manager.saved,
-		 auto_mode, all_normal, all_progressive);
+	if (stdin_mode) {
+		/* CLI stdin contract: the image comes from stdin and the result
+		   goes to stdout, with no output pathname.  optimize() fcloses
+		   stdin when it finishes, so both streams are re-attached for
+		   every input. */
+		int in_fd = open(fuzz_manager.fuzz_file_name, O_RDONLY);
+		int out_fd = open(fuzz_manager.new_fuzz_file_name,
+		                  O_WRONLY | O_CREAT | O_TRUNC, 0600);
+		if (in_fd < 0 || out_fd < 0 ||
+		    dup2(in_fd, STDIN_FILENO) < 0 || dup2(out_fd, STDOUT_FILENO) < 0) {
+			if (in_fd >= 0) {
+				close(in_fd);
+			}
+			if (out_fd >= 0) {
+				close(out_fd);
+			}
+			goto end;
+		}
+		close(in_fd);
+		close(out_fd);
+
+		optimize(fuzz_manager.log_fh, "-", NULL, fuzz_manager.tmp_dir,
+			 &file_stat, &fuzz_manager.rate, &fuzz_manager.saved,
+			 auto_mode, all_normal, all_progressive);
+	} else {
+		/*
+		 * As in the CLI: without --dest the file is optimized in
+		 * place, so newname is the input pathname itself; only with
+		 * --dest does the output go to the manager's separate path.
+		 * The preserve_perms backup copies and truncates newname,
+		 * so it must point at the file being optimized.
+		 */
+		optimize(fuzz_manager.log_fh, fuzz_manager.fuzz_file_name,
+			 dest ? fuzz_manager.new_fuzz_file_name :
+			 fuzz_manager.fuzz_file_name, fuzz_manager.tmp_dir,
+			 &file_stat, &fuzz_manager.rate, &fuzz_manager.saved,
+			 auto_mode, all_normal, all_progressive);
+	}
 
 	rc = 0;
 

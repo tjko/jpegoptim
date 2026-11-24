@@ -209,17 +209,20 @@ def xmp(ai=True, attribute_form=False):
         prov = "human photographer"
 
     if attribute_form:
-        body = ("<rdf:Description photoshop:DigitalSourceType=\"%s\" "
-                "dcterms:provenance=\"%s\">"
-                "</rdf:Description>" % (src, prov))
-        body = body.split("<rdf:Description", 1)[1]
-        body = "<rdf:Description" + body
+        # Property attributes go on the same rdf:Description element that
+        # XMP_HEAD opens; a second description would nest illegally.
+        head = XMP_HEAD[:-1] + (
+            b" photoshop:DigitalSourceType=\"" + src.encode() + b"\" "
+            b"dcterms:provenance=\"" + prov.encode() + b"\">")
+        body = b""
     else:
-        body = ("<photoshop:DigitalSourceType>%s</photoshop:DigitalSourceType>"
-                "<dcterms:provenance>%s</dcterms:provenance>" % (src, prov))
+        head = XMP_HEAD
+        body = (b"<photoshop:DigitalSourceType>" + src.encode() +
+                b"</photoshop:DigitalSourceType><dcterms:provenance>" +
+                prov.encode() + b"</dcterms:provenance>")
 
-    packet = (XMP_HEAD + body.encode() +
-              b"</rdf:RDF></x:xmpmeta>"
+    packet = (head + body +
+              b"</rdf:Description></rdf:RDF></x:xmpmeta>"
               b"<?xpacket end=\"w\"?>")
     return seg(0xE1, b"http://ns.adobe.com/xap/1.0/\x00" + packet)
 
